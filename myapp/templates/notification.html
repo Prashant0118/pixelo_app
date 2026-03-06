@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/notification.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="p-3 p-md-4">
+    <h4 class="mb-3">Notifications</h4>
+
+    {% if notifications %}
+        <div class="list-group notif-list">
+            {% for n in notifications %}
+                <div class="list-group-item notif-item">
+                    <a href="{% url 'profile' n.sender.username %}" class="notif-avatar-ring">
+                        <img src="{{ n.sender.profile.avatar_url }}" alt="{{ n.sender.username }}">
+                    </a>
+                    <div class="notif-content">
+                        <div>
+                            {% if n.notification_type == "follow" %}
+                                <strong>{{ n.sender.username }}</strong> started following you.
+                            {% elif n.notification_type == "like" %}
+                                <strong>{{ n.sender.username }}</strong> liked your post.
+                            {% elif n.notification_type == "comment" %}
+                                <strong>{{ n.sender.username }}</strong> commented on your post.
+                            {% elif n.notification_type == "follow_accepted" %}
+                                <strong>{{ n.sender.username }}</strong> accepted your follow request.
+                            {% else %}
+                                <strong>{{ n.sender.username }}</strong> sent you a notification.
+                            {% endif %}
+                        </div>
+                        <div class="text-muted small mt-1">{{ n.created_at|timesince }} ago</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">No notifications yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

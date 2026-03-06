@@ -1,0 +1,580 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/reels.css' %}">
+<style>
+@media (max-width: 992px) {
+    body.reels-page,
+    body.reels-page .main-layout,
+    body.reels-page .feed,
+    body.reels-page .content-area,
+    body.reels-page .reels-feed,
+    body.reels-page .reel-item,
+    body.reels-page .reel-media-wrap {
+        width: 100vw !important;
+        height: var(--reels-vh, 100vh) !important;
+        min-height: var(--reels-vh, 100vh) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    body.reels-page .reels-feed {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 1100 !important;
+    }
+
+    body.reels-page .top-navbar,
+    body.reels-page .mobile-bottom {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block body_attrs %} class="reels-page"{% endblock %}
+
+{% block content %}
+<button type="button" class="reels-back-btn" onclick="goBackFromReels()" aria-label="Go back">
+    <i class="bi bi-arrow-left"></i>
+</button>
+
+<div class="reels-feed" id="reelsFeed">
+    {% for reel in reels %}
+    <article class="reel-item" id="reel-{{ reel.id }}">
+        <div class="reel-media-wrap" ondblclick="handleDoubleTapLike({{ reel.id }})">
+            {% if reel.media %}
+                {% if reel.media.url|lower|slice:"-4:" == ".mp4" or reel.media.url|lower|slice:"-5:" == ".webm" %}
+                    <video class="reel-media"
+                           id="reel-video-{{ reel.id }}"
+                           src="{{ reel.media.url }}"
+                           autoplay
+                           muted
+                           playsinline
+                           webkit-playsinline
+                           preload="metadata"
+                           loop></video>
+                    <button type="button"
+                            class="reel-sound-toggle"
+                            id="reel-sound-btn-{{ reel.id }}"
+                            onclick="toggleReelSound({{ reel.id }})"
+                            aria-label="Toggle sound">
+                        <i class="bi bi-volume-mute-fill" id="reel-sound-icon-{{ reel.id }}"></i>
+                    </button>
+                {% else %}
+                    <img class="reel-media" src="{{ reel.media.url }}" alt="reel media">
+                {% endif %}
+            {% endif %}
+
+            <div class="reel-overlay">
+                <div class="reel-meta">
+                    <a href="{% url 'profile' reel.user.username %}" class="reel-user">@{{ reel.user.username }}</a>
+                    <p class="reel-caption">{{ reel.caption }}</p>
+                </div>
+
+                <div class="reel-actions">
+                    <button class="reel-action-btn" onclick="likeReel({{ reel.id }})" aria-label="Like">
+                        <i id="reel-like-icon-{{ reel.id }}"
+                           class="bi {% if reel.id in liked_post_ids %}bi-heart-fill liked{% else %}bi-heart{% endif %}"></i>
+                        <span id="reel-like-count-{{ reel.id }}">{{ reel.likes.count }}</span>
+                    </button>
+
+                    <button class="reel-action-btn" onclick="toggleComments({{ reel.id }})" aria-label="Comment">
+                        <i class="bi bi-chat"></i>
+                        <span id="reel-comment-count-{{ reel.id }}">{{ reel.comments.count }}</span>
+                    </button>
+
+                    <button class="reel-action-btn"
+                            onclick="openShareModal({{ reel.id }})"
+                            aria-label="Share">
+                        <i class="bi bi-send"></i>
+                        <span>Share</span>
+                    </button>
+
+                    <button class="reel-action-btn"
+                            onclick="directPayCreator('{{ reel.user.username|escapejs }}', '{{ reel.user.profile.upi_id|escapejs }}')"
+                            aria-label="Pay creator">
+                        <i class="bi bi-currency-rupee"></i>
+                        <span>Pay</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="heart-burst" id="heart-burst-{{ reel.id }}">
+                <i class="bi bi-heart-fill"></i>
+            </div>
+        </div>
+
+        <div class="reel-comments" id="reel-comments-{{ reel.id }}">
+            <div class="reel-comments-head">
+                <strong>Comments</strong>
+                <button type="button" class="close-comments" onclick="toggleComments({{ reel.id }})">Close</button>
+            </div>
+
+            <div class="reel-comments-list" id="reel-comments-list-{{ reel.id }}">
+                {% for comment in reel.comments.all %}
+                <p id="comment-{{ comment.id }}">
+                    <strong>{{ comment.user.username }}</strong>
+                    {{ comment.text }}
+                    {% if comment.user == request.user %}
+                    <span onclick="deleteComment({{ comment.id }}, {{ reel.id }})" class="delete-comment">x</span>
+                    {% endif %}
+                </p>
+                {% empty %}
+                <p class="empty-comment">No comments yet.</p>
+                {% endfor %}
+            </div>
+
+            <div class="reel-comment-form">
+                <input type="text" id="reel-comment-input-{{ reel.id }}" placeholder="Add a comment...">
+                <button type="button" onclick="addComment({{ reel.id }})">Post</button>
+            </div>
+        </div>
+    </article>
+    {% empty %}
+    <div class="no-reels">
+        <h5>No reels yet</h5>
+        <p>Create your first reel from the Create button.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="share-modal d-none" id="shareModal" onclick="closeShareModal(event)">
+    <div class="share-card">
+        <div class="share-head">
+            <strong>Share Reel</strong>
+            <button type="button" class="share-close" onclick="closeShareModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="share-list">
+            {% for follower in share_followers %}
+            <div class="share-row">
+                <div class="share-user">
+                    <img src="{{ follower.profile.avatar_url }}" alt="{{ follower.username }}">
+                    <span>{{ follower.username }}</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" onclick="sendSharedReel('{{ follower.username }}')">Send</button>
+            </div>
+            {% empty %}
+            <p class="text-muted small mb-0">No followers available to share.</p>
+            {% endfor %}
+        </div>
+        <div class="share-foot">
+            <button type="button" class="btn btn-sm btn-outline-light" onclick="copyShareLink()">Copy Link</button>
+        </div>
+    </div>
+</div>
+
+<div class="pay-modal d-none" id="payQrModal" onclick="closePayQrModal(event)">
+    <div class="pay-card">
+        <div class="pay-head">
+            <strong id="payQrTitle">Scan & Pay</strong>
+            <button type="button" class="share-close" onclick="closePayQrModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="pay-body text-center">
+            <img id="payQrImage" src="" alt="UPI payment QR" style="width:260px;max-width:100%;border-radius:12px;border:1px solid #2d3f5d;">
+            <p class="small text-muted mt-2 mb-2">Scan this QR from any UPI app on your phone.</p>
+            <p class="small mb-1">UPI ID: <strong id="payQrUpiText"></strong></p>
+        </div>
+        <div class="share-foot d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-sm btn-outline-light" onclick="copyPayUpi()">Copy UPI</button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="closePayQrModal()">Done</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let activeSharePostId = null;
+let activePayUpiId = "";
+let preferredMuted = true;
+let activeWatchVideo = null;
+let activeWatchStartedAt = null;
+const viewedReelsInSession = new Set();
+document.body.classList.add("reels-page");
+if (window.innerWidth <= 992) {
+    const topBar = document.querySelector(".top-navbar");
+    const bottomBar = document.querySelector(".mobile-bottom");
+    if (topBar) topBar.style.display = "none";
+    if (bottomBar) bottomBar.style.display = "none";
+}
+
+function setReelsViewportHeight() {
+    const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty("--reels-vh", `${Math.round(viewportHeight)}px`);
+}
+
+setReelsViewportHeight();
+window.addEventListener("resize", setReelsViewportHeight);
+if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", setReelsViewportHeight);
+}
+
+function goBackFromReels() {
+    if (window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+    window.location.href = "{% url 'home' %}";
+}
+
+function getCSRF() {
+    const name = "csrftoken=";
+    const ca = document.cookie.split(";");
+    for (let i = 0; i < ca.length; i++) {
+        const c = ca[i].trim();
+        if (c.indexOf(name) === 0) return c.substring(name.length, c.length);
+    }
+    return "";
+}
+
+function getReelIdFromVideo(videoEl) {
+    if (!videoEl || !videoEl.id) return null;
+    return videoEl.id.replace("reel-video-", "");
+}
+
+function sendReelWatch(postId, seconds, markView) {
+    const formData = new FormData();
+    formData.append("seconds", String(Math.max(0, seconds || 0)));
+    formData.append("mark_view", markView ? "1" : "0");
+
+    fetch(`/reel-watch/${postId}/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCSRF()
+        },
+        body: formData
+    }).catch(() => {});
+}
+
+function flushActiveWatch(markView) {
+    if (!activeWatchVideo || !activeWatchStartedAt) return;
+    const postId = getReelIdFromVideo(activeWatchVideo);
+    if (!postId) return;
+
+    const elapsedSeconds = (Date.now() - activeWatchStartedAt) / 1000;
+    const normalizedSeconds = Math.max(0, Math.min(300, elapsedSeconds));
+    if (normalizedSeconds >= 1) {
+        sendReelWatch(postId, normalizedSeconds, !!markView);
+    } else if (markView) {
+        sendReelWatch(postId, 0, true);
+    }
+}
+
+function likeReel(postId, forceLike = false) {
+    const icon = document.getElementById(`reel-like-icon-${postId}`);
+    const count = document.getElementById(`reel-like-count-${postId}`);
+    if (!icon || !count) return;
+
+    if (forceLike && icon.classList.contains("bi-heart-fill")) {
+        return;
+    }
+
+    fetch(`/like-ajax/${postId}/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCSRF()
+        }
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error("Like failed");
+        return res.json();
+    })
+    .then((data) => {
+        if (data.liked) {
+            icon.classList.remove("bi-heart");
+            icon.classList.add("bi-heart-fill", "liked");
+        } else {
+            icon.classList.remove("bi-heart-fill", "liked");
+            icon.classList.add("bi-heart");
+        }
+        count.textContent = data.total_likes;
+    })
+    .catch(() => {});
+}
+
+function handleDoubleTapLike(postId) {
+    likeReel(postId, true);
+    const burst = document.getElementById(`heart-burst-${postId}`);
+    if (!burst) return;
+    burst.classList.add("show");
+    setTimeout(() => burst.classList.remove("show"), 700);
+}
+
+function toggleComments(postId) {
+    const panel = document.getElementById(`reel-comments-${postId}`);
+    if (!panel) return;
+    panel.classList.toggle("open");
+}
+
+function addComment(postId) {
+    const input = document.getElementById(`reel-comment-input-${postId}`);
+    const list = document.getElementById(`reel-comments-list-${postId}`);
+    const count = document.getElementById(`reel-comment-count-${postId}`);
+    if (!input || !list || !count) return;
+    const text = input.value.trim();
+    if (!text) return;
+
+    const formData = new FormData();
+    formData.append("text", text);
+
+    fetch(`/comment-ajax/${postId}/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCSRF()
+        },
+        body: formData
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error("Comment failed");
+        return res.json();
+    })
+    .then((data) => {
+        const empty = list.querySelector(".empty-comment");
+        if (empty) empty.remove();
+        list.insertAdjacentHTML("beforeend", data.html);
+        input.value = "";
+        count.textContent = Number(count.textContent || 0) + 1;
+    })
+    .catch(() => {});
+}
+
+function deleteComment(commentId, postId) {
+    fetch(`/delete-comment/${commentId}/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCSRF()
+        }
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error("Delete failed");
+        return res.json();
+    })
+    .then((data) => {
+        if (!data.deleted) return;
+        const row = document.getElementById(`comment-${commentId}`);
+        const count = document.getElementById(`reel-comment-count-${postId}`);
+        if (row) row.remove();
+        if (count) count.textContent = Math.max(0, Number(count.textContent || 0) - 1);
+    })
+    .catch(() => {});
+}
+
+function openShareModal(postId) {
+    activeSharePostId = postId;
+    document.getElementById("shareModal").classList.remove("d-none");
+}
+
+function closeShareModal(event) {
+    if (event && event.target.id !== "shareModal") return;
+    document.getElementById("shareModal").classList.add("d-none");
+}
+
+function sendSharedReel(username) {
+    if (!activeSharePostId) return;
+    const formData = new FormData();
+    formData.append("username", username);
+    fetch(`/share-post/${activeSharePostId}/`, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCSRF() },
+        body: formData
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error("Share failed");
+        return res.json();
+    })
+    .then(() => {
+        alert(`Sent to @${username}`);
+        closeShareModal();
+    })
+    .catch(() => alert("Unable to send right now."));
+}
+
+function copyShareLink() {
+    if (!activeSharePostId) return;
+    const link = `${window.location.origin}/reels/?reel=${activeSharePostId}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => alert("Link copied"));
+        return;
+    }
+    alert(link);
+}
+
+function directPayCreator(username, upiId) {
+    const cleanUpi = (upiId || "").trim();
+    if (!cleanUpi) {
+        alert("Creator has not added a UPI ID yet.");
+        return;
+    }
+
+    const note = `Reel support for @${username}`;
+    const query = `pa=${encodeURIComponent(cleanUpi)}&pn=${encodeURIComponent(username)}&cu=INR&tn=${encodeURIComponent(note)}`;
+    const upiDeepLink = `upi://pay?${query}`;
+    const ua = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(ua);
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+
+    if (isAndroid) {
+        const paytmIntent = `intent://pay?${query}#Intent;scheme=upi;package=net.one97.paytm;end`;
+        window.location.href = paytmIntent;
+        setTimeout(() => { window.location.href = upiDeepLink; }, 700);
+        return;
+    }
+
+    if (isMobile) {
+        window.location.href = upiDeepLink;
+        return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cleanUpi).catch(() => {});
+    }
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiDeepLink)}`;
+    activePayUpiId = cleanUpi;
+    document.getElementById("payQrTitle").textContent = `Pay @${username}`;
+    document.getElementById("payQrImage").src = qrUrl;
+    document.getElementById("payQrUpiText").textContent = cleanUpi;
+    document.getElementById("payQrModal").classList.remove("d-none");
+}
+
+function closePayQrModal(event) {
+    if (event && event.target.id !== "payQrModal") return;
+    document.getElementById("payQrModal").classList.add("d-none");
+}
+
+function copyPayUpi() {
+    if (!activePayUpiId) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(activePayUpiId).then(() => alert("UPI ID copied."));
+        return;
+    }
+    alert(activePayUpiId);
+}
+
+const reelItems = document.querySelectorAll(".reel-item");
+const videos = Array.from(reelItems, (item) => item.querySelector("video")).filter(Boolean);
+
+function refreshReelSoundIcon(postId, isMuted) {
+    const icon = document.getElementById(`reel-sound-icon-${postId}`);
+    if (!icon) return;
+    icon.classList.toggle("bi-volume-mute-fill", isMuted);
+    icon.classList.toggle("bi-volume-up-fill", !isMuted);
+}
+
+function applySoundPreference(video) {
+    if (!video || !video.id) return;
+    const postId = video.id.replace("reel-video-", "");
+    video.muted = preferredMuted;
+    refreshReelSoundIcon(postId, video.muted);
+}
+
+function toggleReelSound(postId) {
+    const video = document.getElementById(`reel-video-${postId}`);
+    if (!video) return;
+    preferredMuted = !video.muted;
+    videos.forEach((item) => {
+        item.muted = preferredMuted;
+    });
+    videos.forEach((item) => {
+        const itemPostId = item.id.replace("reel-video-", "");
+        refreshReelSoundIcon(itemPostId, item.muted);
+    });
+    if (!preferredMuted) {
+        video.play().catch(() => {
+            preferredMuted = true;
+            videos.forEach((item) => {
+                item.muted = true;
+                const itemPostId = item.id.replace("reel-video-", "");
+                refreshReelSoundIcon(itemPostId, true);
+            });
+        });
+    }
+}
+
+function pauseAllExcept(activeVideo) {
+    videos.forEach((video) => {
+        if (video !== activeVideo) video.pause();
+    });
+}
+
+if (videos.length) {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            const video = entry.target.querySelector("video");
+            if (!video) return;
+            const postId = getReelIdFromVideo(video);
+            if (!postId) return;
+
+            if (entry.isIntersecting && entry.intersectionRatio >= 0.8) {
+                if (activeWatchVideo && activeWatchVideo !== video) {
+                    flushActiveWatch(false);
+                }
+                pauseAllExcept(video);
+                applySoundPreference(video);
+                video.play().catch(() => {});
+                activeWatchVideo = video;
+                activeWatchStartedAt = Date.now();
+                if (!viewedReelsInSession.has(postId)) {
+                    viewedReelsInSession.add(postId);
+                    sendReelWatch(postId, 0, true);
+                }
+            } else if (activeWatchVideo === video) {
+                flushActiveWatch(false);
+                activeWatchVideo = null;
+                activeWatchStartedAt = null;
+            }
+        });
+    }, { threshold: [0.6, 0.8, 1] });
+
+    reelItems.forEach((item) => observer.observe(item));
+
+    const firstVideo = videos[0];
+    if (firstVideo) {
+        applySoundPreference(firstVideo);
+        firstVideo.play().catch(() => {});
+    }
+}
+
+const targetReelId = new URLSearchParams(window.location.search).get("reel");
+if (targetReelId) {
+    const reelEl = document.getElementById(`reel-${targetReelId}`);
+    if (reelEl) {
+        setTimeout(() => {
+            reelEl.scrollIntoView({ behavior: "smooth", block: "start" });
+            const targetVideo = reelEl.querySelector("video");
+            if (targetVideo) {
+                applySoundPreference(targetVideo);
+                targetVideo.play().catch(() => {});
+                activeWatchVideo = targetVideo;
+                activeWatchStartedAt = Date.now();
+                if (!viewedReelsInSession.has(String(targetReelId))) {
+                    viewedReelsInSession.add(String(targetReelId));
+                    sendReelWatch(String(targetReelId), 0, true);
+                }
+            }
+        }, 120);
+    }
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        flushActiveWatch(false);
+        activeWatchVideo = null;
+        activeWatchStartedAt = null;
+    }
+});
+
+window.addEventListener("beforeunload", () => {
+    flushActiveWatch(false);
+});
+</script>
+{% endblock %}
+
+
+
+
+

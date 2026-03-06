@@ -1,0 +1,540 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/chat.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="chat-shell chat-shell-active" id="chatShell">
+    <aside class="chat-users">
+        <div class="chat-users-head">
+            <h6>Messages</h6>
+            <small>@{{ request.user.username }}</small>
+            <form class="chat-search-form" method="get" action="{% url 'chat_inbox' %}">
+                <input type="text"
+                       name="q"
+                       value="{{ chat_search_query }}"
+                       placeholder="Search friends/followers or lock code"
+                       aria-label="Search friends and followers">
+                <button type="submit" aria-label="Search">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
+            <small class="chat-search-hint">Enter the lock code in search to reveal a locked chat.</small>
+        </div>
+
+        <div class="chat-users-list">
+            {% if chat_search_query %}
+                <div class="chat-search-results">
+                    {% for user in chat_search_results %}
+                        <a href="{% url 'chat' user.username %}" class="chat-user-row chat-search-row">
+                            <div class="chat-avatar-wrap">
+                                <img src="{{ user.profile.avatar_url }}" alt="{{ user.username }}">
+                            </div>
+                            <div class="chat-user-meta">
+                                <strong>{{ user.username }}</strong>
+                                <small>Start conversation</small>
+                            </div>
+                            <div class="chat-row-actions">
+                                <i class="bi bi-chevron-right"></i>
+                            </div>
+                        </a>
+                    {% empty %}
+                        <p class="no-users">No friend/follower found for "{{ chat_search_query }}".</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% for row in chat_rows %}
+                <a href="{% url 'chat' row.user.username %}"
+                   class="chat-user-row {% if row.user.username == receiver.username %}active{% endif %}{% if row.is_unread %} unread{% endif %}">
+                    <div class="chat-avatar-wrap{% if row.unread_count > 0 %} has-unread{% endif %}">
+                        <img src="{{ row.user.profile.avatar_url }}" alt="{{ row.user.username }}">
+                        {% if row.active_recently %}
+                        <span class="online-dot"></span>
+                        {% endif %}
+                    </div>
+                    <div class="chat-user-meta">
+                        <strong>{{ row.user.username }}</strong>
+                        <small>
+                            {{ row.status_text }}
+                            {% if row.time_text %}&middot; {{ row.time_text }}{% endif %}
+                        </small>
+                    </div>
+                    <div class="chat-row-actions">
+                        <i class="bi bi-chevron-right"></i>
+                    </div>
+                    {% if row.unread_count > 0 %}
+                    <span class="chat-unread-count">{{ row.unread_count }}</span>
+                    {% endif %}
+                </a>
+            {% empty %}
+                <p class="no-users">No users available</p>
+            {% endfor %}
+        </div>
+
+        <div class="chat-users-footer">
+            <a href="{% url 'home' %}" class="chat-home-btn">
+                <i class="bi bi-house-door-fill"></i>
+                <span>Home</span>
+            </a>
+        </div>
+    </aside>
+
+    <section class="chat-main">
+        <div class="chat-main-head">
+            <a href="{% url 'chat_inbox' %}" class="chat-back-arrow" aria-label="Back to chats">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div class="user-chip">
+                <img src="{{ receiver.profile.avatar_url }}" alt="{{ receiver.username }}">
+                <div>
+                    <strong>{{ receiver.username }}</strong>
+                    <small>Direct conversation</small>
+                </div>
+            </div>
+            <div class="chat-head-right">
+                <div class="chat-watermark">Private thread</div>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            {% for message in messages %}
+                <div class="msg-row {% if message.sender == request.user %}mine{% else %}theirs{% endif %}{% if message.sender == request.user and not message.is_seen %} pending{% endif %}"
+                     data-id="{{ message.id }}"
+                     data-content="{{ message.content|escapejs }}"
+                     data-media-url="{% if message.media %}{{ message.media.url|escapejs }}{% endif %}"
+                     data-media-type="{{ message.media_type|default:'text' }}"
+                     data-seen="{% if message.is_seen %}1{% else %}0{% endif %}">
+                    <div class="msg-bubble{% if message.media_type == 'audio' %} audio-horizontal{% endif %}">
+                        {% if message.media %}
+                            {% if message.media_type == "image" %}
+                            <img class="msg-media" src="{{ message.media.url }}" alt="chat image">
+                            {% elif message.media_type == "video" %}
+                            <video class="msg-media" controls preload="metadata">
+                                <source src="{{ message.media.url }}">
+                            </video>
+                            {% elif message.media_type == "audio" %}
+                            <div class="msg-audio-inline">
+                                <i class="bi bi-mic-fill"></i>
+                                <audio class="msg-audio" controls preload="metadata">
+                                    <source src="{{ message.media.url }}">
+                                </audio>
+                            </div>
+                            {% endif %}
+                        {% endif %}
+                        {% if message.content %}
+                        <p class="msg-caption">{{ message.content }}</p>
+                        {% endif %}
+                        <span class="msg-time">{{ message.timestamp|date:"H:i" }}</span>
+                        {% if message.sender == request.user and message.is_seen %}
+                        <small class="msg-seen-label">Seen</small>
+                        {% endif %}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="no-messages" id="noMessages">Start the conversation.</div>
+            {% endfor %}
+        </div>
+
+        <form class="chat-input-bar" id="chatForm" autocomplete="off">
+            {% csrf_token %}
+            <button type="button" class="chat-attach-btn" id="galleryBtn" aria-label="Send image or video">
+                <i class="bi bi-image"></i>
+            </button>
+            <button type="button" class="chat-attach-btn" id="voiceBtn" aria-label="Send voice message">
+                <i class="bi bi-mic-fill"></i>
+            </button>
+            <input type="file" id="chatMediaInput" class="chat-file-input" accept="image/*,video/*">
+            <input type="file" id="chatVoiceInput" class="chat-file-input" accept="audio/*" capture>
+            <input type="text" id="chatInput" placeholder="Type a message..." maxlength="1000">
+            <button type="submit" class="chat-send-btn" aria-label="Send message">
+                <i class="bi bi-send-fill"></i>
+            </button>
+        </form>
+    </section>
+</div>
+
+<script>
+const chatMessages = document.getElementById("chatMessages");
+const chatForm = document.getElementById("chatForm");
+const chatInput = document.getElementById("chatInput");
+const noMessages = document.getElementById("noMessages");
+const galleryBtn = document.getElementById("galleryBtn");
+const voiceBtn = document.getElementById("voiceBtn");
+const chatMediaInput = document.getElementById("chatMediaInput");
+const chatVoiceInput = document.getElementById("chatVoiceInput");
+const receiverUsername = "{{ receiver.username }}";
+const existingMessageIds = new Set();
+const sharedPreviewCache = new Map();
+let chatSocket = null;
+let voiceRecorder = null;
+let voiceStream = null;
+let voiceChunks = [];
+let isRecordingVoice = false;
+let pendingVoiceFile = null;
+
+function getCSRF() {
+    const name = "csrftoken=";
+    const ca = document.cookie.split(";");
+    for (let i = 0; i < ca.length; i++) {
+        const c = ca[i].trim();
+        if (c.indexOf(name) === 0) return c.substring(name.length, c.length);
+    }
+    return "";
+}
+
+function scrollToBottom(smooth = false) {
+    chatMessages.scrollTo({
+        top: chatMessages.scrollHeight,
+        behavior: smooth ? "smooth" : "auto"
+    });
+}
+
+function parseSharedPostId(text) {
+    const match = String(text || "").trim().match(/^__shared_post__:(\d+)$/);
+    return match ? Number(match[1]) : null;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.innerText = text;
+    return div.innerHTML;
+}
+
+async function getSharedPreview(postId) {
+    if (sharedPreviewCache.has(postId)) return sharedPreviewCache.get(postId);
+    const res = await fetch(`/post-share-preview/${postId}/`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    sharedPreviewCache.set(postId, data);
+    return data;
+}
+
+function sharedCardHtml(preview) {
+    const mediaHtml = preview.media_url
+        ? (preview.type === "reel"
+            ? `<video class="shared-media" controls preload="metadata"><source src="${escapeHtml(preview.media_url)}"></video>`
+            : `<img class="shared-media" src="${escapeHtml(preview.media_url)}" alt="shared media">`)
+        : `<div class="shared-placeholder">Shared ${escapeHtml(preview.type)}</div>`;
+    const caption = preview.caption ? `<p class="shared-caption">${escapeHtml(preview.caption)}</p>` : "";
+    const openUrl = escapeHtml(preview.target_url);
+    return `
+        <div class="shared-card">
+            ${mediaHtml}
+            <div class="shared-meta">
+                <strong>@${escapeHtml(preview.username)}</strong>
+                ${caption}
+                <a href="${openUrl}" class="shared-open">Open ${escapeHtml(preview.type)}</a>
+            </div>
+        </div>
+    `;
+}
+
+function attachmentHtml(mediaUrl, mediaType) {
+    if (!mediaUrl) return "";
+    const safeUrl = escapeHtml(mediaUrl);
+    if (mediaType === "image") {
+        return `<img class="msg-media" src="${safeUrl}" alt="chat image">`;
+    }
+    if (mediaType === "video") {
+        return `<video class="msg-media" controls preload="metadata"><source src="${safeUrl}"></video>`;
+    }
+    if (mediaType === "audio") {
+        return `
+            <div class="msg-audio-inline">
+                <i class="bi bi-mic-fill"></i>
+                <audio class="msg-audio" controls preload="metadata"><source src="${safeUrl}"></audio>
+            </div>
+        `;
+    }
+    return `<a class="msg-attachment-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open attachment</a>`;
+}
+
+async function renderBubbleContent(row, content, timeText, isSeen = false, mediaUrl = "", mediaType = "text") {
+    const bubble = row.querySelector(".msg-bubble");
+    if (!bubble) return;
+    bubble.classList.toggle("audio-horizontal", !!mediaUrl && mediaType === "audio");
+    const seenHtml = row.classList.contains("mine") && isSeen ? `<small class="msg-seen-label">Seen</small>` : "";
+    const mediaHtml = attachmentHtml(mediaUrl, mediaType);
+    const captionHtml = content ? `<p class="msg-caption">${escapeHtml(content)}</p>` : "";
+    const sharedId = parseSharedPostId(content);
+    if (!mediaHtml && sharedId) {
+        const preview = await getSharedPreview(sharedId);
+        if (preview) {
+            bubble.innerHTML = `${sharedCardHtml(preview)}<span class="msg-time">${escapeHtml(timeText)}</span>${seenHtml}`;
+            return;
+        }
+    }
+    bubble.innerHTML = `${mediaHtml}${captionHtml}<span class="msg-time">${escapeHtml(timeText)}</span>${seenHtml}`;
+}
+
+function renderMessage(message) {
+    const messageId = Number(message.id);
+    if (existingMessageIds.has(messageId)) return;
+    existingMessageIds.add(messageId);
+
+    const row = document.createElement("div");
+    row.className = `msg-row ${message.is_mine ? "mine" : "theirs"} ${message.is_mine && !message.is_seen ? "pending" : ""}`;
+    row.dataset.id = message.id;
+    row.dataset.content = message.content || "";
+    row.dataset.mediaUrl = message.media_url || "";
+    row.dataset.mediaType = message.media_type || "text";
+    row.dataset.seen = message.is_seen ? "1" : "0";
+    row.innerHTML = `<div class="msg-bubble new"></div>`;
+    chatMessages.appendChild(row);
+    renderBubbleContent(
+        row,
+        message.content || "",
+        message.timestamp.slice(11, 16),
+        !!message.is_seen,
+        message.media_url || "",
+        message.media_type || "text"
+    );
+    setTimeout(() => {
+        const bubble = row.querySelector(".msg-bubble");
+        if (bubble) bubble.classList.remove("new");
+    }, 250);
+}
+
+function initializeExistingIds() {
+    const rows = chatMessages.querySelectorAll(".msg-row[data-id]");
+    rows.forEach((r) => {
+        existingMessageIds.add(Number(r.dataset.id));
+    });
+}
+
+function hydrateSharedMessages() {
+    const rows = chatMessages.querySelectorAll(".msg-row[data-content]");
+    rows.forEach((row) => {
+        const content = row.dataset.content || "";
+        const mediaUrl = row.dataset.mediaUrl || "";
+        const mediaType = row.dataset.mediaType || "text";
+        const timeEl = row.querySelector(".msg-bubble span");
+        const timeText = timeEl ? timeEl.textContent : "";
+        const isSeen = row.dataset.seen === "1";
+        renderBubbleContent(row, content, timeText, isSeen, mediaUrl, mediaType);
+    });
+}
+
+function connectWebSocket() {
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const url = `${protocol}://${window.location.host}/ws/chat/${encodeURIComponent(receiverUsername)}/`;
+    chatSocket = new WebSocket(url);
+
+    chatSocket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data.message) {
+            if (noMessages) noMessages.remove();
+            renderMessage(data.message);
+            scrollToBottom(true);
+            return;
+        }
+        if (data.type === "seen_update" && Array.isArray(data.message_ids)) {
+            data.message_ids.forEach((id) => {
+                const row = chatMessages.querySelector(`.msg-row.mine[data-id="${id}"]`);
+                if (row) {
+                    row.classList.remove("pending");
+                    row.dataset.seen = "1";
+                    const timeEl = row.querySelector(".msg-time");
+                    const timeText = timeEl ? timeEl.textContent : "";
+                    renderBubbleContent(
+                        row,
+                        row.dataset.content || "",
+                        timeText,
+                        true,
+                        row.dataset.mediaUrl || "",
+                        row.dataset.mediaType || "text"
+                    );
+                }
+            });
+        }
+    };
+
+    chatSocket.onclose = function() {
+        setTimeout(connectWebSocket, 1200);
+    };
+}
+
+function sendByHttpFallback(text, mediaFile = null) {
+    const formData = new FormData();
+    if (text) {
+        formData.append("message", text);
+    }
+    if (mediaFile) {
+        formData.append("media", mediaFile);
+    }
+
+    fetch(`/chat-api/${encodeURIComponent(receiverUsername)}/send/`, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCSRF() },
+        body: formData
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error("Send failed");
+        return res.json();
+    })
+    .then((data) => {
+        if (noMessages) noMessages.remove();
+        renderMessage(data.message);
+        scrollToBottom(true);
+        chatMediaInput.value = "";
+        chatVoiceInput.value = "";
+    })
+    .catch(() => {
+        alert("Unable to send message right now.");
+    });
+}
+
+function sendSelectedFile(file) {
+    const text = chatInput.value.trim();
+    if (!file) return;
+    chatInput.value = "";
+    sendByHttpFallback(text, file);
+}
+
+function setPendingVoice(file) {
+    pendingVoiceFile = file || null;
+    if (pendingVoiceFile) {
+        voiceBtn.classList.add("ready");
+        voiceBtn.setAttribute("aria-label", "Voice ready, tap send");
+    } else {
+        voiceBtn.classList.remove("ready");
+        voiceBtn.setAttribute("aria-label", "Send voice message");
+    }
+}
+
+function preferredVoiceMimeType() {
+    const candidates = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/mp4",
+    ];
+    if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
+    for (const item of candidates) {
+        if (MediaRecorder.isTypeSupported(item)) return item;
+    }
+    return "";
+}
+
+function voiceFileExtension(mimeType) {
+    if ((mimeType || "").includes("ogg")) return "ogg";
+    if ((mimeType || "").includes("mp4")) return "m4a";
+    return "webm";
+}
+
+async function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+        chatVoiceInput.click();
+        return;
+    }
+    try {
+        voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mimeType = preferredVoiceMimeType();
+        voiceRecorder = mimeType
+            ? new MediaRecorder(voiceStream, { mimeType })
+            : new MediaRecorder(voiceStream);
+        voiceChunks = [];
+
+        voiceRecorder.ondataavailable = function(event) {
+            if (event.data && event.data.size > 0) {
+                voiceChunks.push(event.data);
+            }
+        };
+
+        voiceRecorder.onstop = function() {
+            const finalType = voiceRecorder.mimeType || preferredVoiceMimeType() || "audio/webm";
+            const blob = new Blob(voiceChunks, { type: finalType });
+            const ext = voiceFileExtension(finalType);
+            const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: finalType });
+            if (blob.size > 0) {
+                setPendingVoice(file);
+            }
+
+            if (voiceStream) {
+                voiceStream.getTracks().forEach((track) => track.stop());
+            }
+            voiceStream = null;
+            voiceRecorder = null;
+            voiceChunks = [];
+            isRecordingVoice = false;
+            voiceBtn.classList.remove("recording");
+        };
+
+        voiceRecorder.start();
+        isRecordingVoice = true;
+        voiceBtn.classList.add("recording");
+        voiceBtn.setAttribute("aria-label", "Stop and send voice message");
+    } catch (error) {
+        alert("Microphone permission required to record voice message.");
+    }
+}
+
+function stopVoiceRecording() {
+    if (voiceRecorder && voiceRecorder.state !== "inactive") {
+        voiceRecorder.stop();
+    }
+}
+
+chatForm.addEventListener("submit", function(e) {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text && !pendingVoiceFile) return;
+
+    if (pendingVoiceFile) {
+        const voiceToSend = pendingVoiceFile;
+        setPendingVoice(null);
+        chatInput.value = "";
+        sendByHttpFallback(text, voiceToSend);
+        return;
+    }
+
+    chatInput.value = "";
+
+    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        chatSocket.send(JSON.stringify({ message: text }));
+    } else {
+        sendByHttpFallback(text);
+    }
+});
+
+galleryBtn.addEventListener("click", function() {
+    chatMediaInput.click();
+});
+
+voiceBtn.addEventListener("click", function() {
+    if (isRecordingVoice) {
+        stopVoiceRecording();
+        return;
+    }
+    startVoiceRecording();
+});
+
+chatMediaInput.addEventListener("change", function() {
+    const file = chatMediaInput.files && chatMediaInput.files[0];
+    sendSelectedFile(file);
+});
+
+chatVoiceInput.addEventListener("change", function() {
+    const file = chatVoiceInput.files && chatVoiceInput.files[0];
+    if (!file) return;
+    setPendingVoice(file);
+});
+
+initializeExistingIds();
+hydrateSharedMessages();
+scrollToBottom();
+connectWebSocket();
+
+// Screenshot deterrence only (cannot fully block OS/browser screenshots).
+document.addEventListener("keydown", (e) => {
+    if (e.key === "PrintScreen") {
+        document.body.classList.add("chat-protect");
+        setTimeout(() => document.body.classList.remove("chat-protect"), 1200);
+    }
+});
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+</script>
+{% endblock %}

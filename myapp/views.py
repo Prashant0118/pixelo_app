@@ -1,0 +1,1766 @@
+import json
+import mimetypes
+import os
+from collections import defaultdict
+from urllib.parse import urlencode
+from urllib.request import urlopen
+
+from django.dispatch import receiver
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_GET, require_POST
+from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Q, Case, When, Value, IntegerField, Count
+from django.core.files.base import File, ContentFile
+from django.core.files.storage import default_storage
+from django.conf import settings
+from django.urls import reverse
+
+from myapp.models import Post, Profile, Follow, Notification, Message, Like, Comment, Story, StorySeen, ChatLock, ReelWatch, StoryMusic
+from myapp.forms import UserUpdateForm, ProfileUpdateForm, UpiIdUpdateForm
+
+
+# Create your views here.
+STORY_FILTER_LABELS = [
+    ("none", "Normal"),
+    ("grayscale", "Grayscale"),
+    ("sepia", "Sepia"),
+    ("vivid", "Vivid"),
+    ("cool", "Cool Blue"),
+    ("warm", "Warm Tone"),
+    ("contrast", "High Contrast"),
+    ("vintage", "Vintage"),
+    ("blur", "Soft Blur"),
+    ("bright", "Bright"),
+    ("dramatic", "Dramatic"),
+    ("mono", "Mono Dark"),
+]
+STORY_FILTER_CHOICES = {code for code, _ in STORY_FILTER_LABELS}
+STORY_FILTER_CSS = {
+    "none": "none",
+    "grayscale": "grayscale(1)",
+    "sepia": "sepia(0.9)",
+    "vivid": "saturate(1.7) contrast(1.15)",
+    "cool": "saturate(1.05) hue-rotate(320deg)",
+    "warm": "sepia(0.25) saturate(1.2) brightness(1.05)",
+    "contrast": "contrast(1.45)",
+    "vintage": "sepia(0.45) contrast(1.05) brightness(0.95)",
+    "blur": "blur(1.1px)",
+    "bright": "brightness(1.18) saturate(1.08)",
+    "dramatic": "contrast(1.35) saturate(1.3) brightness(0.88)",
+    "mono": "grayscale(0.95) contrast(1.25) brightness(0.85)",
+}
+STORY_MUSIC_SUGGESTIONS = {
+    "for_you": ["Night Drive", "Sajni Re", "Moonlight Beat", "Lo-Fi Coffee", "Dream Pop"],
+    "new": ["New Drop 1", "Weekend Mix", "Fresh Vibes", "Indie Wave", "Neon Pop"],
+    "trending": ["Trending Audio 1", "Trending Audio 2", "Viral Beat", "Club Hook", "Top Reels Mix"],
+    "saved": [],
+    "original_audio": ["Original Audio", "Voice Clip", "Ambient Cut"],
+}
+YOUTUBE_SECTION_QUERY = {
+    "for_you": "best songs for instagram stories",
+    "new": "new songs",
+    "trending": "trending songs",
+}
+
+INTEREST_CATEGORY_KEYWORDS = {
+    "Trending": ["trending", "viral", "popular", "for you", "fyp"],
+    "Learning": ["learning", "learn", "study", "education", "tips"],
+    "Coding": ["coding", "code", "programming", "developer", "python", "javascript"],
+    "Mathematics": ["math", "mathematics", "algebra", "geometry", "calculus"],
+    "Data Science": ["data science", "machine learning", "ai", "analytics", "dataset"],
+    "Competitive Exams": ["exam", "upsc", "ssc", "jee", "neet", "preparation"],
+    "English Speaking": ["english speaking", "spoken english", "vocabulary", "grammar"],
+    "Notes Sharing": ["notes", "handwritten", "summary", "revision notes"],
+    "Study With Me": ["study with me", "pomodoro", "study session", "desk setup"],
+    "Creativity": ["creative", "creativity", "idea", "innovation"],
+    "Art": ["art", "painting", "sketch", "drawing", "illustration"],
+    "Design": ["design", "ui", "ux", "graphic design", "prototype"],
+    "Photography": ["photography", "photo", "camera", "portrait", "editing"],
+    "Music": ["music", "song", "cover", "instrumental", "beats"],
+    "Fashion": ["fashion", "style", "outfit", "lookbook"],
+    "Growth": ["growth", "self growth", "self improvement", "mindset"],
+    "Startups": ["startup", "founder", "saas", "business idea"],
+    "Business": ["business", "strategy", "sales", "entrepreneurship"],
+    "Finance": ["finance", "money", "budget", "investing", "saving"],
+    "Trading": ["trading", "stock market", "crypto", "intraday", "chart"],
+    "Marketing": ["marketing", "brand", "seo", "content marketing", "ads"],
+    "Productivity": ["productivity", "focus", "time management", "deep work"],
+    "Goals": ["goal", "target", "goal setting", "weekly goals"],
+    "Achievements": ["achievement", "milestone", "result", "win"],
+    "Freelancing": ["freelancing", "client", "gig", "remote work"],
+    "Interview Preparation": ["interview", "hr round", "dsa", "mock interview"],
+    "Entertainment": ["entertainment", "fun", "comedy", "show"],
+    "Gaming": ["gaming", "gameplay", "esports", "pubg", "valorant"],
+    "Memes": ["meme", "funny", "lol", "relatable"],
+    "Travel": ["travel", "trip", "journey", "destination", "vlog"],
+    "Food": ["food", "recipe", "cooking", "street food", "meal"],
+    "Lifestyle": ["lifestyle", "daily life", "routine", "vlog"],
+    "Fitness": ["fitness", "workout", "gym", "exercise", "training"],
+    "Health": ["health", "wellness", "diet", "healthy"],
+    "Meditation": ["meditation", "mindfulness", "breathing", "calm"],
+    "Morning Routine": ["morning routine", "5am", "habit", "sunrise"],
+    "Motivation": ["motivation", "inspiration", "quote", "discipline"],
+    "Challenges": ["challenge", "task", "push yourself"],
+    "Daily Challenge": ["daily challenge", "day 1", "day challenge"],
+    "30 Day Progress": ["30 day", "30 days", "progress", "transformation"],
+    "Mini Projects": ["mini project", "project build", "side project"],
+    "Build in Public": ["build in public", "building", "ship", "maker"],
+    "Problem Solving": ["problem solving", "logic", "solution", "debugging"],
+    "Brain Teasers": ["brain teaser", "riddle", "puzzle", "iq"],
+    "Case Studies": ["case study", "analysis", "breakdown"],
+    "Discussions": ["discussion", "debate", "opinion", "thoughts"],
+    "Q&A": ["q&a", "question", "answer", "ask me anything"],
+    "Portfolio Showcase": ["portfolio", "showcase", "project showcase"],
+    "Short Tutorials": ["tutorial", "quick tips", "how to", "guide"],
+}
+
+
+def _increment_category_scores_from_text(text, scores, weight=1):
+    if not text:
+        return
+    normalized = text.lower()
+    for category, keywords in INTEREST_CATEGORY_KEYWORDS.items():
+        if any(keyword in normalized for keyword in keywords):
+            scores[category] += weight
+
+
+def _clean_interest_selection(raw_interests):
+    cleaned = []
+    seen = set()
+    for item in raw_interests or []:
+        category = (item or "").strip()
+        if category in INTEREST_CATEGORY_KEYWORDS and category not in seen:
+            seen.add(category)
+            cleaned.append(category)
+    return cleaned[:15]
+
+
+def _profile_manual_interests(user):
+    try:
+        raw_interests = user.profile.interests
+    except Profile.DoesNotExist:
+        return []
+    if not isinstance(raw_interests, list):
+        return []
+    return _clean_interest_selection(raw_interests)
+
+
+def _ordered_categories_for_user(user):
+    scores = {category: 0 for category in INTEREST_CATEGORY_KEYWORDS}
+    category_order = {name: index for index, name in enumerate(INTEREST_CATEGORY_KEYWORDS.keys())}
+    manual_interests = _profile_manual_interests(user)
+
+    liked_captions = (
+        Post.objects.filter(likes__user=user)
+        .exclude(caption="")
+        .values_list("caption", flat=True)
+    )
+    saved_captions = (
+        user.saved_posts.exclude(caption="")
+        .values_list("caption", flat=True)
+    )
+    own_captions = (
+        Post.objects.filter(user=user)
+        .exclude(caption="")
+        .values_list("caption", flat=True)
+    )
+
+    for caption in liked_captions:
+        _increment_category_scores_from_text(caption, scores, weight=3)
+    for caption in saved_captions:
+        _increment_category_scores_from_text(caption, scores, weight=2)
+    for caption in own_captions:
+        _increment_category_scores_from_text(caption, scores, weight=1)
+
+    manual_boost = len(manual_interests) * 100
+    for index, category in enumerate(manual_interests):
+        scores[category] += (manual_boost - index)
+
+    ordered = sorted(
+        INTEREST_CATEGORY_KEYWORDS.keys(),
+        key=lambda category: (-scores[category], category_order[category]),
+    )
+    return ordered
+
+
+def _ordered_reel_categories_for_user(user):
+    ranked = _ordered_categories_for_user(user)
+    without_trending = [category for category in ranked if category != "Trending"]
+    return ["All", "Trending", *without_trending]
+
+
+def _build_category_query(category_name):
+    keywords = INTEREST_CATEGORY_KEYWORDS.get(category_name, [])
+    query = Q()
+    for keyword in keywords:
+        query |= Q(caption__icontains=keyword)
+    return query
+
+
+def _categories_for_text(text):
+    if not text:
+        return []
+    normalized = text.lower()
+    matched = []
+    for category, keywords in INTEREST_CATEGORY_KEYWORDS.items():
+        if any(keyword in normalized for keyword in keywords):
+            matched.append(category)
+    return matched
+
+
+def _reel_personalization_signals(user):
+    category_scores = defaultdict(float)
+    creator_scores = defaultdict(float)
+    manual_interests = _profile_manual_interests(user)
+
+    for index, category in enumerate(manual_interests):
+        category_scores[category] += 40 - index
+
+    liked_reel_captions = (
+        Post.objects.filter(type="reel", likes__user=user)
+        .exclude(caption="")
+        .values_list("caption", flat=True)
+    )
+    for caption in liked_reel_captions:
+        for category in _categories_for_text(caption):
+            category_scores[category] += 12
+
+    saved_reel_captions = (
+        user.saved_posts.filter(type="reel")
+        .exclude(caption="")
+        .values_list("caption", flat=True)
+    )
+    for caption in saved_reel_captions:
+        for category in _categories_for_text(caption):
+            category_scores[category] += 8
+
+    watch_rows = ReelWatch.objects.filter(
+        user=user,
+        post__type="reel"
+    ).select_related("post", "post__user")
+    for row in watch_rows:
+        creator_scores[row.post.user_id] += (row.watch_seconds * 0.7) + (row.views * 5)
+        for category in _categories_for_text(row.post.caption or ""):
+            category_scores[category] += (row.watch_seconds * 0.35) + (row.views * 2)
+
+    return category_scores, creator_scores
+
+
+def _score_reel_for_user(reel, category_scores, creator_scores, liked_ids):
+    score = 0.0
+    score += creator_scores.get(reel.user_id, 0)
+    if reel.id in liked_ids:
+        score += 20
+    if reel.is_recommended:
+        score += 8
+
+    for category in _categories_for_text(reel.caption or ""):
+        score += category_scores.get(category, 0)
+
+    age_hours = max(1, (timezone.now() - reel.created_at).total_seconds() / 3600)
+    score += 36 / age_hours
+    return score
+
+
+def _is_video_file(name, content_type=""):
+    if content_type and content_type.startswith("video/"):
+        return True
+    guessed, _ = mimetypes.guess_type(name or "")
+    return bool(guessed and guessed.startswith("video/"))
+
+
+def _fetch_youtube_music_suggestions(query, max_results=10):
+    api_key = getattr(settings, "YOUTUBE_API_KEY", "") or os.getenv("YOUTUBE_API_KEY", "")
+    if not api_key:
+        return []
+    params = urlencode({
+        "part": "snippet",
+        "maxResults": max_results,
+        "q": query,
+        "type": "video",
+        "videoCategoryId": "10",
+        "key": api_key,
+    })
+    url = f"https://www.googleapis.com/youtube/v3/search?{params}"
+    try:
+        with urlopen(url, timeout=4) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return []
+    tracks = []
+    for item in payload.get("items", []):
+        title = ((item.get("snippet") or {}).get("title") or "").strip()
+        if title:
+            tracks.append(title[:80])
+    return tracks
+
+
+def _music_option(label, music_id=None, preview_url="", youtube_url="", artwork_url=""):
+    return {
+        "label": (label or "").strip()[:80],
+        "music_id": music_id or "",
+        "preview_url": preview_url or "",
+        "youtube_url": youtube_url or "",
+        "artwork_url": artwork_url or "",
+    }
+
+
+def _fetch_itunes_music_options(query, max_results=40):
+    params = urlencode({
+        "term": query,
+        "entity": "song",
+        "limit": max_results,
+    })
+    url = f"https://itunes.apple.com/search?{params}"
+    try:
+        with urlopen(url, timeout=4) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return []
+
+    options = []
+    for row in payload.get("results", []):
+        track = (row.get("trackName") or "").strip()
+        artist = (row.get("artistName") or "").strip()
+        preview_url = (row.get("previewUrl") or "").strip()
+        track_url = (row.get("trackViewUrl") or "").strip()
+        artwork_url = (
+            (row.get("artworkUrl100") or "").strip()
+            or (row.get("artworkUrl60") or "").strip()
+            or (row.get("artworkUrl30") or "").strip()
+        )
+        if not track:
+            continue
+        label = f"{track} - {artist}" if artist else track
+        options.append(_music_option(
+            label=label[:80],
+            preview_url=preview_url,
+            youtube_url=track_url,
+            artwork_url=artwork_url,
+        ))
+    return options
+
+
+def _download_music_preview(preview_url, max_bytes=5 * 1024 * 1024):
+    normalized = (preview_url or "").strip()
+    if not (normalized.startswith("http://") or normalized.startswith("https://")):
+        return None
+    try:
+        with urlopen(normalized, timeout=6) as response:
+            content_type = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            data = response.read(max_bytes + 1)
+    except Exception:
+        return None
+
+    if not data or len(data) > max_bytes:
+        return None
+
+    if content_type and not content_type.startswith("audio/"):
+        return None
+
+    guessed_ext = mimetypes.guess_extension(content_type) if content_type else ""
+    if not guessed_ext:
+        guessed_ext = os.path.splitext(normalized.split("?")[0])[1] or ".mp3"
+    if len(guessed_ext) > 8:
+        guessed_ext = ".mp3"
+    filename = f"preview_{int(timezone.now().timestamp())}{guessed_ext}"
+    return ContentFile(data, name=filename)
+
+
+def _admin_story_music_options(limit=60):
+    rows = StoryMusic.objects.filter(is_active=True).order_by("-created_at")[:limit]
+    options = []
+    for row in rows:
+        preview_url = ""
+        if row.audio and row.audio.name:
+            try:
+                preview_url = row.audio.url
+            except ValueError:
+                preview_url = ""
+        options.append(_music_option(
+            label=row.display_title,
+            music_id=row.id,
+            preview_url=preview_url,
+            youtube_url=row.youtube_url,
+        ))
+    return options
+
+
+def _story_music_sections(user):
+    sections = {
+        "for_you": [],
+        "trending": [],
+        "new": [],
+    }
+    for section_key, query in YOUTUBE_SECTION_QUERY.items():
+        itunes_tracks = _fetch_itunes_music_options(query, max_results=40)
+        if itunes_tracks:
+            sections[section_key] = itunes_tracks
+            continue
+        yt_tracks = _fetch_youtube_music_suggestions(query)
+        if yt_tracks:
+            sections[section_key] = [_music_option(item) for item in yt_tracks]
+    return sections
+
+
+def _story_gallery_items(user, limit=30):
+    items = []
+    seen = set()
+
+    post_media = (
+        Post.objects.filter(user=user)
+        .exclude(media="")
+        .exclude(media__isnull=True)
+        .order_by("-created_at")[:limit]
+    )
+    for post in post_media:
+        if not post.media:
+            continue
+        storage_name = post.media.name
+        if storage_name in seen:
+            continue
+        seen.add(storage_name)
+        items.append({
+            "url": post.media.url,
+            "storage_name": storage_name,
+            "kind": "video" if _is_video_file(storage_name) else "image",
+        })
+
+    story_media = Story.objects.filter(user=user).order_by("-created_at")[:limit]
+    for story in story_media:
+        media_file = story.media or story.image
+        if not media_file:
+            continue
+        storage_name = media_file.name
+        if storage_name in seen:
+            continue
+        seen.add(storage_name)
+        items.append({
+            "url": media_file.url,
+            "storage_name": storage_name,
+            "kind": "video" if story.is_video else "image",
+        })
+
+    return items[:limit]
+
+
+def _story_upload_context(user, error=None):
+    return {
+        "error": error,
+        "filter_options": STORY_FILTER_LABELS,
+        "music_sections": _story_music_sections(user),
+        "gallery_items": _story_gallery_items(user),
+    }
+
+
+@login_required
+@require_GET
+def story_music_search_api(request):
+    query = (request.GET.get("q") or "").strip()
+    if len(query) < 2:
+        return JsonResponse({"tracks": []})
+    tracks = _fetch_itunes_music_options(query, max_results=30)
+    return JsonResponse({"tracks": tracks})
+
+
+def _story_access_user_ids(user):
+    following_ids = set(
+        Follow.objects.filter(follower=user).values_list("following_id", flat=True)
+    )
+    follower_ids = set(
+        Follow.objects.filter(following=user).values_list("follower_id", flat=True)
+    )
+    return following_ids | follower_ids | {user.id}
+
+
+def _shareable_followers(user):
+    follower_ids = Follow.objects.filter(
+        following=user
+    ).values_list("follower_id", flat=True)
+    return User.objects.filter(id__in=follower_ids).order_by("username")
+
+
+def _social_priority_user_ids(user):
+    following_ids = set(
+        Follow.objects.filter(follower=user).values_list("following_id", flat=True)
+    )
+    follower_ids = set(
+        Follow.objects.filter(following=user).values_list("follower_id", flat=True)
+    )
+    return following_ids | follower_ids
+
+
+@login_required
+def home(request):
+    category_ranked = _ordered_reel_categories_for_user(request.user)
+    selected_category = (request.GET.get("category") or "All").strip()
+    if selected_category not in category_ranked:
+        selected_category = "All"
+
+    featured_limit = 8
+    featured_categories = category_ranked[:featured_limit]
+    hidden_categories = category_ranked[featured_limit:]
+
+    social_priority_ids = _social_priority_user_ids(request.user)
+    posts_qs = Post.objects.annotate(
+        social_priority=Case(
+            When(user_id__in=social_priority_ids, then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        )
+    )
+    if selected_category == "Trending":
+        posts = (
+            posts_qs.annotate(
+                total_likes=Count("likes", distinct=True),
+                total_comments=Count("comments", distinct=True),
+            )
+            .order_by("social_priority", "-created_at", "-is_recommended", "-total_likes", "-total_comments")
+        )
+    elif selected_category == "All":
+        posts = posts_qs.order_by("social_priority", "-created_at")
+    else:
+        category_query = _build_category_query(selected_category)
+        posts = posts_qs.filter(category_query).order_by("social_priority", "-created_at")
+
+    liked_post_ids = set(
+        Like.objects.filter(user=request.user).values_list("post_id", flat=True)
+    )
+    saved_post_ids = set(
+        request.user.saved_posts.values_list("id", flat=True)
+    )
+    visible_user_ids = _story_access_user_ids(request.user)
+    active_since = timezone.now() - timedelta(hours=24)
+    stories_qs = Story.objects.filter(
+        user_id__in=visible_user_ids,
+        created_at__gte=active_since
+    ).select_related("user").order_by("-created_at")
+
+    active_story_ids = list(stories_qs.values_list("id", flat=True))
+    seen_story_ids = set(
+        StorySeen.objects.filter(
+            viewer=request.user,
+            story_id__in=active_story_ids
+        ).values_list("story_id", flat=True)
+    )
+
+    current_user_stories = list(stories_qs.filter(user=request.user))
+    current_user_story = current_user_stories[0] if current_user_stories else None
+    current_user_story_seen = True
+    if current_user_stories:
+        current_user_story_seen = all(story.id in seen_story_ids for story in current_user_stories)
+
+    story_items = []
+    story_state_by_user = {}
+    first_story_id_by_user = {}
+    for story in stories_qs:
+        if story.user_id not in first_story_id_by_user:
+            first_story_id_by_user[story.user_id] = story.id
+        if story.user_id == request.user.id:
+            continue
+        if story.user_id not in story_state_by_user:
+            story_state_by_user[story.user_id] = {
+                "story": story,
+                "has_unseen": False,
+            }
+        if story.id not in seen_story_ids:
+            story_state_by_user[story.user_id]["has_unseen"] = True
+    story_items = list(story_state_by_user.values())
+    active_story_user_ids = [item["story"].user_id for item in story_items]
+    unseen_story_user_ids = [
+        item["story"].user_id for item in story_items if item["has_unseen"]
+    ]
+    posts = list(posts)
+    for post in posts:
+        post.story_id = first_story_id_by_user.get(post.user_id)
+
+    context = {
+        'posts': posts,
+        "selected_category": selected_category,
+        "featured_categories": featured_categories,
+        "hidden_categories": hidden_categories,
+        "story_items": story_items,
+        "active_story_user_ids": active_story_user_ids,
+        "unseen_story_user_ids": unseen_story_user_ids,
+        "current_user_story": current_user_story,
+        "current_user_story_seen": current_user_story_seen,
+        "liked_post_ids": liked_post_ids,
+        "saved_post_ids": saved_post_ids,
+        "share_followers": _shareable_followers(request.user),
+    }
+
+    return render(request, 'home.html', context)
+
+
+@login_required
+def notifications(request):
+    notifications_qs = Notification.objects.filter(
+        receiver=request.user
+    ).select_related("sender").order_by("-created_at")
+
+    notifications_qs.filter(is_read=False).update(is_read=True)
+
+    return render(request, "notification.html", {
+        "notifications": notifications_qs
+    })
+
+
+
+
+@login_required
+def profile(request, username):
+    profile_user = get_object_or_404(User, username=username)
+    posts = Post.objects.filter(user=profile_user, type="post").order_by("-created_at")
+    reels = Post.objects.filter(user=profile_user, type="reel").order_by("-created_at")
+    highlighted_stories = Story.objects.filter(
+        user=profile_user,
+        is_highlight=True
+    ).order_by("-created_at")
+
+    is_following = False
+    is_followed_back = False
+    can_message = False
+
+    if request.user.is_authenticated and request.user != profile_user:
+        is_following = Follow.objects.filter(
+            follower=request.user,
+            following=profile_user
+        ).exists()
+        is_followed_back = Follow.objects.filter(
+            follower=profile_user,
+            following=request.user
+        ).exists()
+        can_message = is_following and is_followed_back
+
+    followers_count = Follow.objects.filter(following=profile_user).count()
+    following_count = Follow.objects.filter(follower=profile_user).count()
+    active_since = timezone.now() - timedelta(hours=24)
+    active_story_ids = list(
+        Story.objects.filter(
+            user=profile_user,
+            created_at__gte=active_since
+        ).order_by("-created_at").values_list("id", flat=True)
+    )
+    profile_story_id = active_story_ids[0] if active_story_ids else None
+    profile_story_seen = True
+    if profile_story_id and request.user != profile_user:
+        seen_ids = set(
+            StorySeen.objects.filter(
+                viewer=request.user,
+                story_id__in=active_story_ids
+            ).values_list("story_id", flat=True)
+        )
+        profile_story_seen = all(story_id in seen_ids for story_id in active_story_ids)
+
+    context = {
+        "profile_user": profile_user,
+        "posts": posts,
+        "reels": reels,
+        "manual_interests": _profile_manual_interests(profile_user),
+        "highlighted_stories": highlighted_stories,
+        "posts_count": posts.count() + reels.count(),
+        "followers_count": followers_count,
+        "following_count": following_count,
+        "is_following": is_following,
+        "is_followed_back": is_followed_back,
+        "can_message": can_message,
+        "profile_story_id": profile_story_id,
+        "profile_story_seen": profile_story_seen,
+    }
+
+    return render(request, "profile.html", context)
+
+
+@login_required
+def profile_menu(request):
+    return render(request, "profile_menu.html")
+
+
+def search_view(request):
+    query = request.GET.get('q', '')
+    users = User.objects.filter(username__icontains=query).order_by("username")
+
+    recommended_reels = list(
+        Post.objects.filter(
+            type='reel',
+            is_recommended=True,
+            media__isnull=False
+        ).select_related('user').order_by('-created_at')[:12]
+    )
+
+    context = {
+        'users': users,
+        'query': query,
+        'recommended_reels': recommended_reels
+    }
+
+    return render(request, 'search.html', context)
+
+
+@login_required
+def reels(request):
+    selected_category = (request.GET.get("category") or "All").strip()
+    available_categories = _ordered_reel_categories_for_user(request.user)
+    if selected_category not in available_categories:
+        selected_category = "All"
+
+    social_priority_ids = _social_priority_user_ids(request.user)
+    reels_qs = Post.objects.filter(type="reel").select_related("user").prefetch_related(
+        "likes", "comments__user"
+    )
+
+    liked_post_ids = set(
+        Like.objects.filter(user=request.user).values_list("post_id", flat=True)
+    )
+    category_scores, creator_scores = _reel_personalization_signals(request.user)
+
+    if selected_category == "Trending":
+        ranked_reels = list(
+            reels_qs.annotate(
+                total_likes=Count("likes", distinct=True),
+                total_comments=Count("comments", distinct=True),
+            ).order_by("-is_recommended", "-total_likes", "-total_comments", "-created_at")
+        )
+    else:
+        filtered_qs = reels_qs
+        if selected_category != "All":
+            filtered_qs = filtered_qs.filter(_build_category_query(selected_category))
+
+        ranked_reels = sorted(
+            filtered_qs,
+            key=lambda reel: (
+                0 if reel.user_id in social_priority_ids else 1,
+                -_score_reel_for_user(
+                    reel,
+                    category_scores=category_scores,
+                    creator_scores=creator_scores,
+                    liked_ids=liked_post_ids,
+                ),
+                -reel.created_at.timestamp(),
+            ),
+        )
+
+    return render(request, "reels.html", {
+        "reels": ranked_reels,
+        "selected_category": selected_category,
+        "liked_post_ids": liked_post_ids,
+        "share_followers": _shareable_followers(request.user),
+    })
+
+
+@login_required
+@require_POST
+def reel_watch_ping(request, post_id):
+    reel = get_object_or_404(Post, id=post_id, type="reel")
+    seconds_raw = request.POST.get("seconds", "0")
+    mark_view_raw = request.POST.get("mark_view", "0")
+
+    try:
+        watched_seconds = float(seconds_raw)
+    except (TypeError, ValueError):
+        watched_seconds = 0.0
+
+    watched_seconds = max(0.0, min(300.0, watched_seconds))
+    mark_view = mark_view_raw == "1"
+
+    row, _ = ReelWatch.objects.get_or_create(user=request.user, post=reel)
+    if watched_seconds > 0:
+        row.watch_seconds += watched_seconds
+    if mark_view:
+        row.views += 1
+    row.save(update_fields=["watch_seconds", "views", "updated_at"])
+    return JsonResponse({"ok": True})
+
+
+def register(request):
+    if request.method == 'POST':
+        email = request.POST.get('email', '')
+        username = request.POST.get('username', '')
+        password1 = request.POST.get('password1', '')
+        password2 = request.POST.get('password2', '')
+
+        if password1 != password2:
+            return render(request, 'register.html', {'error': 'Passwords do not match'})
+
+        if User.objects.filter(username=username).exists():
+            return render(request, 'register.html', {'error': 'Username already exists'})
+
+        if User.objects.filter(email=email).exists():
+            return render(request, 'register.html', {'error': 'Email already registered'})
+
+        User.objects.create_user(username=username, email=email, password=password1)
+        return redirect('login')
+
+    return render(request, 'register.html')
+
+
+def user_login(request):
+    if request.method == 'POST':
+        username = request.POST.get('username', '')
+        password = request.POST.get('password', '')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+            return redirect('home')
+        else:
+            return render(request, 'login.html', {'error': 'Invalid credentials'})
+
+    return render(request, 'login.html')
+
+
+def user_logout(request):
+    logout(request)
+    return redirect('login')
+
+
+@login_required
+def edit_profile(request):
+    interest_categories = list(INTEREST_CATEGORY_KEYWORDS.keys())
+    selected_interests = _profile_manual_interests(request.user)
+
+    if request.method == 'POST':
+        u_form = UserUpdateForm(request.POST, instance=request.user)
+        p_form = ProfileUpdateForm(request.POST,
+                                    request.FILES,
+                                    instance=request.user.profile)
+        selected_interests = _clean_interest_selection(request.POST.getlist("interests"))
+
+        if u_form.is_valid() and p_form.is_valid():
+            u_form.save()
+            profile_obj = p_form.save(commit=False)
+            profile_obj.interests = selected_interests
+            profile_obj.save()
+            return redirect('profile', username=request.user.username)
+    else:
+        u_form = UserUpdateForm(instance=request.user)
+        p_form = ProfileUpdateForm(instance=request.user.profile)
+
+    context = {
+        'u_form': u_form,
+        'p_form': p_form,
+        "interest_categories": interest_categories,
+        "selected_interests": selected_interests,
+    }
+
+    return render(request, 'edit_profile.html', context)
+
+
+@login_required
+def edit_bio(request):
+    if request.method == 'POST':
+        p_form = ProfileUpdateForm(request.POST, instance=request.user.profile)
+
+        if p_form.is_valid():
+            p_form.save()
+            return redirect('profile', username=request.user.username)
+    else:
+        p_form = ProfileUpdateForm(instance=request.user.profile)
+
+    context = {
+        'p_form': p_form
+    }
+
+    return render(request, 'edit_bio.html', context)
+
+
+@login_required
+def payment_settings(request):
+    if request.method == "POST":
+        upi_form = UpiIdUpdateForm(request.POST, instance=request.user.profile)
+        if upi_form.is_valid():
+            upi_form.save()
+            return redirect("profile", username=request.user.username)
+    else:
+        upi_form = UpiIdUpdateForm(instance=request.user.profile)
+
+    return render(request, "payment_settings.html", {
+        "upi_form": upi_form
+    })
+
+
+@login_required
+def follow(request, username):
+    target_user = get_object_or_404(User, username=username)
+
+    if request.user == target_user:
+        return redirect('profile', username=username)
+
+    follow, created = Follow.objects.get_or_create(
+        follower=request.user,
+        following=target_user
+    )
+
+    if created:
+        # Create notification only when new follow is created
+        Notification.objects.create(
+            sender=request.user,
+            receiver=target_user,
+            notification_type="follow"
+        )
+
+    return redirect('profile', username=username)
+
+
+@login_required
+def unfollow(request, username):
+    target_user = get_object_or_404(User, username=username)
+
+    if request.user == target_user:
+        return redirect('profile', username=username)
+
+    Follow.objects.filter(
+        follower=request.user,
+        following=target_user
+    ).delete()
+
+    return redirect('profile', username=username)
+
+
+@login_required
+def send_follow_request(request, username):
+    user_to_follow = get_object_or_404(User, username=username)
+
+    if request.user != user_to_follow:
+        follow_obj, created = Follow.objects.get_or_create(
+            follower=request.user,
+            following=user_to_follow
+        )
+
+        if created:
+            Notification.objects.create(
+                sender=request.user,
+                receiver=user_to_follow,
+                notification_type="follow"
+            )
+
+    return redirect("profile", username=username)
+
+
+@login_required
+def accept_follow(request, follow_id):
+    follow = get_object_or_404(Follow, id=follow_id)
+    follow.accepted = True
+    follow.save()
+
+    # Create notification for the follower
+    Notification.objects.create(
+        sender=request.user,
+        receiver=follow.follower,
+        notification_type="follow_accepted"
+    )
+
+    return redirect("notifications")
+
+
+@login_required
+def notification_view(request):
+    notifications = Notification.objects.filter(receiver=request.user).order_by("-created_at")
+
+    return render(request, "notification.html", {
+        "notifications": notifications
+    })
+
+
+def _chat_partner_ids(user):
+    sent_ids = set(
+        Message.objects.filter(sender=user).values_list("receiver_id", flat=True)
+    )
+    received_ids = set(
+        Message.objects.filter(receiver=user).values_list("sender_id", flat=True)
+    )
+    partner_ids = sent_ids | received_ids
+    partner_ids.discard(user.id)
+    return partner_ids
+
+
+def _chat_contact_ids(user):
+    following_ids = set(
+        Follow.objects.filter(follower=user).values_list("following_id", flat=True)
+    )
+    follower_ids = set(
+        Follow.objects.filter(following=user).values_list("follower_id", flat=True)
+    )
+    # Chat contacts must be mutual-follow users.
+    contact_ids = following_ids & follower_ids
+    contact_ids.discard(user.id)
+    return contact_ids
+
+
+def _is_mutual_follow(user_a, user_b):
+    if not user_a or not user_b or user_a == user_b:
+        return False
+    return (
+        Follow.objects.filter(follower=user_a, following=user_b).exists()
+        and Follow.objects.filter(follower=user_b, following=user_a).exists()
+    )
+
+
+def _chat_lock_map(user):
+    locks = ChatLock.objects.filter(owner=user, is_active=True)
+    return {lock.target_id: lock for lock in locks}
+
+
+def _chat_unlock_ids_from_code(user, code_candidate):
+    normalized = (code_candidate or "").strip()
+    if not normalized:
+        return set()
+    unlocked = set()
+    for lock in ChatLock.objects.filter(owner=user, is_active=True):
+        if lock.matches_code(normalized):
+            unlocked.add(lock.target_id)
+    return unlocked
+
+
+def _chat_visible_contact_ids(user, code_candidate=""):
+    contact_ids = _chat_contact_ids(user)
+    lock_map = _chat_lock_map(user)
+    unlocked_ids = _chat_unlock_ids_from_code(user, code_candidate)
+    locked_ids = set(lock_map.keys()) - unlocked_ids
+    return contact_ids - locked_ids, unlocked_ids
+
+
+def _chat_search_results(user, query, limit=12):
+    normalized_query = " ".join((query or "").split()).strip()
+    if not normalized_query:
+        return []
+
+    contact_ids, unlocked_ids = _chat_visible_contact_ids(user, normalized_query)
+    if not contact_ids:
+        return []
+
+    users = User.objects.filter(id__in=contact_ids).filter(
+        Q(username__icontains=normalized_query)
+        | Q(first_name__icontains=normalized_query)
+        | Q(last_name__icontains=normalized_query)
+    ).annotate(
+        relevance=Case(
+            When(username__iexact=normalized_query, then=Value(0)),
+            When(username__istartswith=normalized_query, then=Value(1)),
+            When(first_name__istartswith=normalized_query, then=Value(2)),
+            When(last_name__istartswith=normalized_query, then=Value(2)),
+            When(username__icontains=normalized_query, then=Value(3)),
+            default=Value(4),
+            output_field=IntegerField(),
+        )
+    ).order_by("relevance", "username")
+
+    results = list(users[:limit])
+
+    # If the query itself is a valid lock code, surface unlocked users
+    # even when their usernames don't match the query string.
+    if unlocked_ids:
+        unlocked_users = list(
+            User.objects.filter(id__in=(unlocked_ids & contact_ids)).order_by("username")[:limit]
+        )
+        existing_ids = {u.id for u in results}
+        for user_obj in unlocked_users:
+            if user_obj.id not in existing_ids:
+                results.append(user_obj)
+
+    return results[:limit]
+
+
+def _format_relative_time(dt, now=None):
+    if not dt:
+        return ""
+    now = now or timezone.now()
+    delta = now - dt
+    seconds = max(0, int(delta.total_seconds()))
+    if seconds < 60:
+        return "now"
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    if seconds < 86400:
+        return f"{seconds // 3600}h"
+    return f"{seconds // 86400}d"
+
+
+def _message_preview_text(message):
+    if message.content:
+        return message.content
+    if message.media_type == "image":
+        return "[Photo]"
+    if message.media_type == "video":
+        return "[Video]"
+    if message.media_type == "audio":
+        return "[Voice message]"
+    return "[Attachment]"
+
+
+def _detect_chat_media_type(file_obj):
+    content_type = (getattr(file_obj, "content_type", "") or "").lower()
+    if content_type.startswith("image/"):
+        return "image"
+    if content_type.startswith("video/"):
+        return "video"
+    if content_type.startswith("audio/"):
+        return "audio"
+    return ""
+
+
+def _build_chat_rows(request_user, users_qs):
+    rows = []
+    now = timezone.now()
+    for u in users_qs:
+        last_message = (
+            Message.objects.filter(
+                (Q(sender=request_user, receiver=u) | Q(sender=u, receiver=request_user))
+            )
+            .order_by("-timestamp")
+            .first()
+        )
+        unread_count = Message.objects.filter(
+            sender=u,
+            receiver=request_user,
+            is_seen=False
+        ).count()
+        if last_message:
+            is_mine = last_message.sender_id == request_user.id
+            preview_text = _message_preview_text(last_message)
+            if is_mine:
+                subtitle = f"You: {preview_text[:34]}"
+            else:
+                subtitle = preview_text[:40]
+            time_text = _format_relative_time(last_message.timestamp, now)
+        else:
+            subtitle = "Tap to chat"
+            time_text = ""
+
+        active_recently = bool(
+            getattr(u, "last_login", None)
+            and (now - u.last_login) <= timedelta(minutes=10)
+        )
+        if unread_count > 0 and last_message and last_message.sender_id == u.id:
+            status_text = _message_preview_text(last_message)[:48]
+        elif not last_message and not active_recently:
+            status_text = "Tap to chat"
+        elif active_recently:
+            status_text = "Active now"
+        elif getattr(u, "last_login", None):
+            status_text = f"Active {_format_relative_time(u.last_login, now)} ago"
+        else:
+            status_text = subtitle
+
+        rows.append({
+            "user": u,
+            "subtitle": subtitle,
+            "status_text": status_text,
+            "time_text": time_text,
+            "unread_count": unread_count,
+            "is_unread": unread_count > 0,
+            "active_recently": active_recently,
+        })
+    return rows
+
+
+@login_required
+def chat_inbox(request):
+    chat_search_query = (request.GET.get("q") or "").strip()
+    chat_search_results = _chat_search_results(request.user, chat_search_query)
+    visible_contact_ids, unlocked_ids = _chat_visible_contact_ids(request.user, chat_search_query)
+    partner_ids = _chat_partner_ids(request.user) & visible_contact_ids
+    partner_ids |= unlocked_ids
+    if partner_ids:
+        chat_users = User.objects.filter(id__in=partner_ids).order_by("username")
+    else:
+        chat_users = User.objects.none()
+    chat_rows = _build_chat_rows(request.user, chat_users)
+    return render(request, "chat_inbox.html", {
+        "chat_users": chat_users,
+        "chat_rows": chat_rows,
+        "chat_search_query": chat_search_query,
+        "chat_search_results": chat_search_results,
+    })
+
+
+@login_required
+def chat(request, username):
+    receiver = get_object_or_404(User, username=username)
+    if receiver != request.user and not _is_mutual_follow(request.user, receiver):
+        return HttpResponseForbidden("Chat is available only after follow back.")
+
+    chat_search_query = (request.GET.get("q") or "").strip()
+    chat_search_results = _chat_search_results(request.user, chat_search_query)
+
+    # Mark incoming messages as seen as soon as this chat is opened.
+    if receiver != request.user:
+        Message.objects.filter(
+            sender=receiver,
+            receiver=request.user,
+            is_seen=False
+        ).update(is_seen=True)
+
+    visible_contact_ids, unlocked_ids = _chat_visible_contact_ids(request.user, chat_search_query)
+    partner_ids = (_chat_partner_ids(request.user) & visible_contact_ids) | unlocked_ids
+    if receiver != request.user:
+        partner_ids.add(receiver.id)
+    if partner_ids:
+        chat_users = User.objects.filter(id__in=partner_ids).order_by("username")
+    else:
+        chat_users = User.objects.none()
+    chat_rows = _build_chat_rows(request.user, chat_users)
+
+    if receiver == request.user:
+        first_user = chat_users.first()
+        if first_user:
+            return redirect("chat", username=first_user.username)
+
+    if request.method == "POST":
+        content = (request.POST.get("message") or "").strip()
+        if content:
+            Message.objects.create(
+                sender=request.user,
+                receiver=receiver,
+                content=content
+            )
+            return redirect("chat", username=receiver.username)
+
+    messages = Message.objects.filter(
+        sender=request.user, receiver=receiver
+    ) | Message.objects.filter(
+        sender=receiver, receiver=request.user
+    )
+    messages = messages.order_by("timestamp")
+
+    return render(request, "chat.html", {
+        "messages": messages,
+        "receiver": receiver,
+        "chat_users": chat_users,
+        "chat_rows": chat_rows,
+        "chat_search_query": chat_search_query,
+        "chat_search_results": chat_search_results,
+    })
+
+
+@login_required
+@require_POST
+def lock_chat(request, username):
+    target_user = get_object_or_404(User, username=username)
+    if target_user == request.user:
+        return JsonResponse({"error": "Cannot lock self chat"}, status=400)
+    if not _is_mutual_follow(request.user, target_user):
+        return JsonResponse({"error": "Lock chat is available only after follow back."}, status=403)
+
+    code = " ".join((request.POST.get("code") or "").split()).strip()
+    if len(code) < 3:
+        return JsonResponse({"error": "Code must be at least 3 characters"}, status=400)
+
+    lock_obj, _ = ChatLock.objects.get_or_create(owner=request.user, target=target_user)
+    lock_obj.set_code(code)
+    lock_obj.save(update_fields=["code_hash", "is_active", "updated_at"])
+    return JsonResponse({"locked": True, "username": target_user.username})
+
+
+def _serialize_chat_message(message, request_user):
+    return {
+        "id": message.id,
+        "content": message.content,
+        "media_url": message.media.url if message.media else "",
+        "media_type": message.media_type,
+        "is_mine": message.sender_id == request_user.id,
+        "is_seen": message.is_seen,
+        "sender": message.sender.username,
+        "timestamp": message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
+@login_required
+@require_GET
+def chat_messages_api(request, username):
+    receiver = get_object_or_404(User, username=username)
+    if receiver != request.user and not _is_mutual_follow(request.user, receiver):
+        return JsonResponse({"error": "Chat is available only after follow back."}, status=403)
+    last_id = request.GET.get("last_id")
+
+    Message.objects.filter(
+        sender=receiver,
+        receiver=request.user,
+        is_seen=False
+    ).update(is_seen=True)
+
+    qs = Message.objects.filter(
+        sender=request.user, receiver=receiver
+    ) | Message.objects.filter(
+        sender=receiver, receiver=request.user
+    )
+    qs = qs.order_by("id")
+
+    if last_id and last_id.isdigit():
+        qs = qs.filter(id__gt=int(last_id))
+
+    data = [_serialize_chat_message(m, request.user) for m in qs]
+    return JsonResponse({"messages": data})
+
+
+@login_required
+@require_POST
+def chat_send_api(request, username):
+    receiver = get_object_or_404(User, username=username)
+    if receiver != request.user and not _is_mutual_follow(request.user, receiver):
+        return JsonResponse({"error": "Chat is available only after follow back."}, status=403)
+    content = (request.POST.get("message") or "").strip()
+    media_file = request.FILES.get("media")
+    media_type = "text"
+
+    if media_file:
+        media_type = _detect_chat_media_type(media_file)
+        if not media_type:
+            return JsonResponse({"error": "Only image, video, or audio files are allowed."}, status=400)
+
+    if not content and not media_file:
+        return JsonResponse({"error": "Empty message"}, status=400)
+
+    message = Message(
+        sender=request.user,
+        receiver=receiver,
+        content=content,
+        media_type=media_type,
+    )
+    if media_file:
+        message.media = media_file
+    message.save()
+
+    return JsonResponse({
+        "message": _serialize_chat_message(message, request.user)
+    })
+
+
+
+@login_required
+def search(request):
+    query = (request.GET.get('q') or '').strip()
+    users = User.objects.all()
+    if query:
+        normalized_query = " ".join(query.split())
+        users = users.filter(
+            Q(username__icontains=normalized_query)
+            | Q(first_name__icontains=normalized_query)
+            | Q(last_name__icontains=normalized_query)
+            | Q(email__icontains=normalized_query)
+        ).annotate(
+            relevance=Case(
+                When(username__iexact=normalized_query, then=Value(0)),
+                When(username__istartswith=normalized_query, then=Value(1)),
+                When(first_name__istartswith=normalized_query, then=Value(2)),
+                When(last_name__istartswith=normalized_query, then=Value(2)),
+                When(username__icontains=normalized_query, then=Value(3)),
+                default=Value(4),
+                output_field=IntegerField(),
+            )
+        ).order_by('relevance', 'username')
+    else:
+        users = users.order_by('username')
+
+    recommended_reels = list(
+        Post.objects.filter(
+            type='reel',
+            is_recommended=True,
+            media__isnull=False
+        ).select_related('user').order_by('-created_at')[:12]
+    )
+
+    return render(request, 'search.html', {
+        'users': users[:30],
+        'query': query,
+        'recommended_reels': recommended_reels,
+    })
+
+
+@login_required
+@require_GET
+def search_suggestions(request):
+    query = (request.GET.get("q") or "").strip()
+    if len(query) < 1:
+        return JsonResponse({"users": []})
+
+    normalized_query = " ".join(query.split())
+    users = User.objects.filter(
+        Q(username__icontains=normalized_query)
+        | Q(first_name__icontains=normalized_query)
+        | Q(last_name__icontains=normalized_query)
+        | Q(email__icontains=normalized_query)
+    ).annotate(
+        relevance=Case(
+            When(username__iexact=normalized_query, then=Value(0)),
+            When(username__istartswith=normalized_query, then=Value(1)),
+            When(first_name__istartswith=normalized_query, then=Value(2)),
+            When(last_name__istartswith=normalized_query, then=Value(2)),
+            When(username__icontains=normalized_query, then=Value(3)),
+            default=Value(4),
+            output_field=IntegerField(),
+        )
+    ).order_by("relevance", "username")[:10]
+
+    return JsonResponse({
+        "users": [
+            {"username": user.username}
+            for user in users
+        ]
+    })
+    
+@login_required
+def followers_list(request, username):
+    profile_user = get_object_or_404(User, username=username)
+
+    followers = Follow.objects.filter(
+        following=profile_user
+    ).select_related("follower")
+
+    return render(request, "followers.html", {
+        "profile_user": profile_user,
+        "followers": followers
+    })
+
+
+@login_required
+def following_list(request, username):
+    profile_user = get_object_or_404(User, username=username)
+
+    following = Follow.objects.filter(
+        follower=profile_user
+    ).select_related("following")
+
+    return render(request, "following.html", {
+        "profile_user": profile_user,
+        "following": following
+    })
+
+
+@login_required
+def upload(request):
+
+    if request.method == "POST":
+        media = request.FILES.get("media")
+        caption = request.POST.get("caption")
+        post_type = request.POST.get("type")
+
+        if media:
+            Post.objects.create(
+                user=request.user,
+                media=media,
+                caption=caption,
+                type=post_type
+            )
+
+        return redirect("home")
+
+    return render(request, "upload.html")
+
+
+@login_required
+def upload_story(request):
+    if request.method == "POST":
+        image_file = request.FILES.get("image") or request.FILES.get("media")
+        music_preview_url = (request.POST.get("music_preview_url") or "").strip()
+        music_suggestion = (request.POST.get("music_suggestion") or "").strip()[:80]
+        if not image_file:
+            return render(request, "upload_story.html", _story_upload_context(request.user, "Please select an image."))
+
+        image_content_type = (getattr(image_file, "content_type", "") or "").lower()
+        if image_content_type and not image_content_type.startswith("image/"):
+            return render(request, "upload_story.html", _story_upload_context(request.user, "Only image files are allowed for stories."))
+
+        story_kwargs = {
+            "user": request.user,
+            "image": image_file,
+            "media_type": "image",
+            "music": None,
+            "filter_name": "none",
+            "music_suggestion": music_suggestion,
+            "caption": "",
+            "is_partnership": False,
+            "audience": "story",
+        }
+        if music_preview_url:
+            preview_file = _download_music_preview(music_preview_url)
+            if preview_file:
+                story_kwargs["music"] = preview_file
+
+        Story.objects.create(**story_kwargs)
+        return redirect("home")
+
+    return render(request, "upload_story.html", _story_upload_context(request.user))
+
+
+@login_required
+def story_archive(request):
+    stories = Story.objects.filter(user=request.user).order_by("-created_at")
+    return render(request, "story_archive.html", {"stories": stories})
+
+
+@login_required
+@require_POST
+def toggle_story_highlight(request, story_id):
+    story = get_object_or_404(Story, id=story_id, user=request.user)
+    story.is_highlight = not story.is_highlight
+    story.save(update_fields=["is_highlight"])
+    return redirect("story_archive")
+
+
+@login_required
+def view_story(request, story_id):
+    story = get_object_or_404(Story.objects.select_related("user"), id=story_id)
+    is_archive_mode = (
+        (request.GET.get("archive") or "").strip() == "1"
+        and story.user_id == request.user.id
+    )
+
+    if is_archive_mode:
+        visible_stories = list(
+            Story.objects.filter(user=request.user)
+            .select_related("user")
+            .order_by("created_at", "id")
+        )
+    else:
+        allowed_user_ids = _story_access_user_ids(request.user)
+        if story.user_id not in allowed_user_ids:
+            return HttpResponseForbidden("You cannot view this story.")
+
+        active_since = timezone.now() - timedelta(hours=24)
+        if story.created_at < active_since:
+            return HttpResponseForbidden("This story has expired.")
+
+        visible_stories = list(
+            Story.objects.filter(
+                user_id__in=allowed_user_ids,
+                created_at__gte=active_since
+            ).select_related("user").order_by("created_at", "id")
+        )
+
+    visible_ids = [s.id for s in visible_stories]
+    if story.id not in visible_ids:
+        return HttpResponseForbidden("Story not available.")
+
+    current_idx = visible_ids.index(story.id)
+    prev_story_id = visible_ids[current_idx - 1] if current_idx > 0 else None
+    next_story_id = visible_ids[current_idx + 1] if current_idx < len(visible_ids) - 1 else None
+
+    if not is_archive_mode:
+        # Mark all currently active stories from this same user as seen
+        # so their ring turns to the seen state after opening one story.
+        same_user_active_stories = [
+            s for s in visible_stories if s.user_id == story.user_id
+        ]
+        for s in same_user_active_stories:
+            StorySeen.objects.get_or_create(viewer=request.user, story=s)
+
+    current_user_stories = [s for s in visible_stories if s.user_id == story.user_id]
+    user_story_ids = [s.id for s in current_user_stories]
+    user_story_idx = user_story_ids.index(story.id) if story.id in user_story_ids else 0
+    story_viewers = []
+    if request.user.id == story.user_id:
+        story_viewers = list(
+            StorySeen.objects.filter(story=story)
+            .exclude(viewer=request.user)
+            .select_related("viewer", "viewer__profile")
+            .order_by("-seen_at")
+        )
+
+    return render(request, "view_story.html", {
+        "story": story,
+        "story_filter_css": STORY_FILTER_CSS.get(story.filter_name or "none", "none"),
+        "prev_story_id": prev_story_id,
+        "next_story_id": next_story_id,
+        "user_story_ids": user_story_ids,
+        "user_story_idx": user_story_idx,
+        "is_archive_mode": is_archive_mode,
+        "story_viewers": story_viewers,
+    })
+
+from django.template.loader import render_to_string
+
+@login_required
+def comment_ajax(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+
+    text = None
+    content_type = request.META.get("CONTENT_TYPE", "")
+    if "application/json" in content_type:
+        data = json.loads(request.body or "{}")
+        text = data.get("text")
+    else:
+        text = request.POST.get("text")
+
+    if not text:
+        return JsonResponse({"error": "Empty comment"}, status=400)
+
+    comment = Comment.objects.create(
+        user=request.user,
+        post=post,
+        text=text
+    )
+
+    if request.user != post.user:
+        Notification.objects.create(
+            sender=request.user,
+            receiver=post.user,
+            notification_type="comment"
+        )
+
+    html = render_to_string("single_comment.html", {
+        "comment": comment,
+        "request": request
+    })
+
+    return JsonResponse({
+        "html": html
+    })
+
+
+@login_required
+def like_ajax(request, post_id):
+    if request.method == "POST":
+        post = get_object_or_404(Post, id=post_id)
+
+        like = Like.objects.filter(post=post, user=request.user).first()
+        if like:
+            like.delete()
+            liked = False
+        else:
+            Like.objects.create(post=post, user=request.user)
+            liked = True
+
+            if request.user != post.user:
+                Notification.objects.create(
+                    sender=request.user,
+                    receiver=post.user,
+                    notification_type="like"
+                )
+
+        return JsonResponse({
+            "liked": liked,
+            "total_likes": post.likes.count()
+        })
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+@login_required
+def save_post(request, post_id):
+    if request.method == "POST":
+
+        post = get_object_or_404(Post, id=post_id)
+
+        if request.user in post.saved_by.all():
+            post.saved_by.remove(request.user)
+            saved = False
+        else:
+            post.saved_by.add(request.user)
+            saved = True
+
+        return JsonResponse({
+            "saved": saved
+        })
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+@login_required
+@require_POST
+def share_post_to_follower(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    username = (request.POST.get("username") or "").strip()
+    if not username:
+        return JsonResponse({"error": "Missing username"}, status=400)
+
+    recipient = get_object_or_404(User, username=username)
+    is_follower = Follow.objects.filter(
+        follower=recipient,
+        following=request.user
+    ).exists()
+    if recipient != request.user and not is_follower:
+        return JsonResponse({"error": "Recipient is not your follower"}, status=403)
+
+    Message.objects.create(
+        sender=request.user,
+        receiver=recipient,
+        content=f"__shared_post__:{post.id}"
+    )
+    return JsonResponse({"sent": True})
+
+
+@login_required
+@require_GET
+def post_share_preview(request, post_id):
+    post = get_object_or_404(Post.objects.select_related("user"), id=post_id)
+    if post.type == "reel":
+        target_url = reverse("reels") + f"?reel={post.id}"
+    else:
+        target_url = reverse("home") + f"#post-{post.id}"
+    return JsonResponse({
+        "id": post.id,
+        "type": post.type,
+        "caption": post.caption or "",
+        "media_url": post.media.url if post.media else "",
+        "username": post.user.username,
+        "profile_url": reverse("profile", args=[post.user.username]),
+        "target_url": target_url,
+    })
+
+
+@login_required
+def saved_posts(request):
+    saved_qs = request.user.saved_posts.select_related("user").order_by("-created_at")
+    saved_posts_qs = saved_qs.filter(type="post")
+    saved_reels_qs = saved_qs.filter(type="reel")
+    return render(request, "saved_posts.html", {
+        "saved_items": saved_qs,
+        "saved_posts": saved_posts_qs,
+        "saved_reels": saved_reels_qs,
+        "saved_total": saved_qs.count(),
+        "saved_posts_count": saved_posts_qs.count(),
+        "saved_reels_count": saved_reels_qs.count(),
+    })
+
+
+@login_required
+def liked_reels(request):
+    liked_post_ids = Like.objects.filter(
+        user=request.user
+    ).values_list("post_id", flat=True)
+    liked_items = Post.objects.filter(
+        id__in=liked_post_ids
+    ).select_related("user").order_by("-created_at")
+    liked_posts = liked_items.filter(type="post")
+    liked_reels_qs = liked_items.filter(type="reel")
+    return render(request, "liked_reels.html", {
+        "liked_items": liked_items,
+        "liked_posts": liked_posts,
+        "reels": liked_reels_qs,
+        "liked_total": liked_items.count(),
+        "liked_posts_count": liked_posts.count(),
+        "liked_reels_count": liked_reels_qs.count(),
+    })
+
+
+@login_required
+@require_POST
+def delete_post(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    if post.user != request.user:
+        return JsonResponse({"error": "Not allowed"}, status=403)
+
+    if post.media:
+        post.media.delete(save=False)
+    post.delete()
+    return JsonResponse({"deleted": True})
+
+
+@login_required
+def delete_comment(request, comment_id):
+    if request.method == "POST":
+
+        comment = get_object_or_404(Comment, id=comment_id)
+
+        if comment.user == request.user:
+            comment.delete()
+            return JsonResponse({"deleted": True})
+
+    return JsonResponse({"error": "Not allowed"}, status=403)

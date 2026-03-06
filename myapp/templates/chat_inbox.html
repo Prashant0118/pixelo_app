@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/chat.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="chat-shell chat-shell-inbox" id="chatShell">
+    <aside class="chat-users">
+        <div class="chat-users-head">
+            <h6>Messages</h6>
+            <small>@{{ request.user.username }}</small>
+            <form class="chat-search-form" method="get" action="{% url 'chat_inbox' %}">
+                <input type="text"
+                       name="q"
+                       value="{{ chat_search_query }}"
+                       placeholder="Search friends and followers"
+                       aria-label="Search friends and followers">
+                <button type="submit" aria-label="Search">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
+            <small class="chat-search-hint">Search a contact to start a conversation.</small>
+        </div>
+
+        <div class="chat-users-list">
+            {% if chat_search_query %}
+                <div class="chat-search-results">
+                    {% for user in chat_search_results %}
+                        <a href="{% url 'chat' user.username %}" class="chat-user-row chat-search-row">
+                            <div class="chat-avatar-wrap">
+                                <img src="{{ user.profile.avatar_url }}" alt="{{ user.username }}">
+                            </div>
+                            <div class="chat-user-meta">
+                                <strong>{{ user.username }}</strong>
+                                <small>Open chat</small>
+                            </div>
+                            <div class="chat-row-actions">
+                                <i class="bi bi-chevron-right"></i>
+                            </div>
+                        </a>
+                    {% empty %}
+                        <p class="no-users">No friend/follower found for "{{ chat_search_query }}".</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% for row in chat_rows %}
+                <a href="{% url 'chat' row.user.username %}" class="chat-user-row{% if row.is_unread %} unread{% endif %}">
+                    <div class="chat-avatar-wrap{% if row.unread_count > 0 %} has-unread{% endif %}">
+                        <img src="{{ row.user.profile.avatar_url }}" alt="{{ row.user.username }}">
+                        {% if row.active_recently %}
+                        <span class="online-dot"></span>
+                        {% endif %}
+                    </div>
+                    <div class="chat-user-meta">
+                        <strong>{{ row.user.username }}</strong>
+                        <small>
+                            {{ row.status_text }}
+                            {% if row.time_text %}&middot; {{ row.time_text }}{% endif %}
+                        </small>
+                    </div>
+                    <div class="chat-row-actions">
+                        <i class="bi bi-chevron-right"></i>
+                    </div>
+                    {% if row.unread_count > 0 %}
+                    <span class="chat-unread-count">{{ row.unread_count }}</span>
+                    {% endif %}
+                </a>
+            {% empty %}
+                <p class="no-users">No conversations yet. Search a contact to begin.</p>
+            {% endfor %}
+        </div>
+
+        <div class="chat-users-footer">
+            <a href="{% url 'home' %}" class="chat-home-btn">
+                <i class="bi bi-house-door-fill"></i>
+                <span>Home</span>
+            </a>
+        </div>
+    </aside>
+
+    <section class="chat-main">
+        <div class="chat-main-head">
+            <div class="user-chip">
+                <div>
+                    <strong>Select a chat</strong>
+                    <small>Choose a contact to view messages.</small>
+                </div>
+            </div>
+        </div>
+        <div class="chat-messages">
+            <div class="no-messages">Your messages will appear here.</div>
+        </div>
+    </section>
+</div>
+{% endblock %}

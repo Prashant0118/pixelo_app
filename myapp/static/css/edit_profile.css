@@ -1,0 +1,165 @@
+body{
+    background:#070c16;
+    color:#e9eef8;
+    font-family:'Poppins',sans-serif;
+}
+
+/* Center Page */
+.edit-page{
+    display:flex;
+    justify-content:center;
+    padding-top:60px;
+}
+
+/* Card */
+.edit-card{
+    width:100%;
+    max-width:450px;
+    background:#131f31;
+    padding:35px;
+    border-radius:16px;
+    box-shadow:0 8px 25px rgba(0,0,0,0.35);
+    border:1px solid #2a364f;
+}
+
+/* Title */
+.edit-title{
+    text-align:center;
+    margin-bottom:25px;
+    font-weight:600;
+}
+
+/* Image Section */
+.image-section{
+    text-align:center;
+    margin-bottom:25px;
+}
+
+.image-section img{
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    object-fit:cover;
+    border:3px solid #2a364f;
+}
+
+.change-text{
+    display:block;
+    margin-top:10px;
+    font-size:14px;
+    color:#0095f6;
+    cursor:pointer;
+    font-weight:500;
+}
+
+/* Inputs */
+.input-group{
+    margin-bottom:20px;
+}
+
+.input-group label{
+    display:block;
+    font-size:14px;
+    margin-bottom:6px;
+    font-weight:500;
+}
+
+.input-group input,
+.input-group textarea{
+    width:100%;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid #2a364f;
+    background:#0d1524;
+    color:#e9eef8;
+    font-size:14px;
+    transition:0.3s;
+}
+
+.input-group input:focus,
+.input-group textarea:focus{
+    border-color:#2f8dff;
+    outline:none;
+    box-shadow:0 0 0 2px rgba(0,149,246,0.1);
+}
+
+.interest-picker{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    max-height:220px;
+    overflow-y:auto;
+    padding:2px 2px 6px;
+}
+
+.interest-option{
+    cursor:pointer;
+}
+
+.interest-option input{
+    display:none;
+}
+
+.interest-option span{
+    display:inline-block;
+    border:1px solid #2a364f;
+    border-radius:999px;
+    padding:6px 12px;
+    font-size:13px;
+    color:#dce6fb;
+    background:#0d1524;
+    transition:0.2s;
+}
+
+.interest-option input:checked + span{
+    border-color:#2f8dff;
+    background:rgba(47,141,255,0.18);
+    color:#ffffff;
+}
+
+/* Button */
+.save-btn{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    background:#0095f6;
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.save-btn:hover{
+    background:#0077cc;
+    transform:translateY(-2px);
+}
+
+:root[data-theme="light"] body {
+    background: #edf3fb;
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .edit-card {
+    background: #ffffff;
+    border-color: #cfdae8;
+    box-shadow: 0 12px 28px rgba(18, 35, 64, 0.12);
+}
+
+:root[data-theme="light"] .image-section img {
+    border-color: #cfdae8;
+}
+
+:root[data-theme="light"] .input-group input,
+:root[data-theme="light"] .input-group textarea,
+:root[data-theme="light"] .interest-option span {
+    background: #f7faff;
+    color: #0f172a;
+    border-color: #cfdae8;
+}
+
+:root[data-theme="light"] .interest-option input:checked + span {
+    background: rgba(37, 99, 235, 0.12);
+    border-color: #2563eb;
+    color: #0f172a;
+}

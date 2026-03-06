@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+.simple-story-upload {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 16px;
+    color: #f3f7ff;
+}
+.ss-card {
+    background: #0f1b2f;
+    border: 1px solid #2a3f61;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+.ss-title {
+    margin: 0 0 10px;
+    font-size: 1rem;
+    font-weight: 700;
+}
+.ss-preview-wrap {
+    width: 100%;
+    aspect-ratio: 9 / 16;
+    max-height: 540px;
+    border: 1px dashed #3a5278;
+    border-radius: 12px;
+    background: #081224;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+.ss-preview-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.ss-preview-empty {
+    color: #a2b2cc;
+    font-size: 0.9rem;
+}
+.ss-input {
+    width: 100%;
+    border: 1px solid #3a5278;
+    border-radius: 10px;
+    background: #0a1427;
+    color: #f3f7ff;
+    padding: 10px;
+}
+.ss-label {
+    font-size: 0.85rem;
+    color: #b5c5de;
+    margin-bottom: 6px;
+}
+.ss-music-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.ss-tab {
+    border: 1px solid #3a5278;
+    background: #10203a;
+    color: #d8e6ff;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+}
+.ss-tab.active {
+    background: #4a8dff;
+    border-color: #4a8dff;
+    color: #fff;
+}
+.ss-track-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+.ss-search {
+    margin-bottom: 10px;
+}
+.ss-track-row {
+    width: 100%;
+    border: 1px solid #35507a;
+    background: #12233f;
+    color: #d8e6ff;
+    border-radius: 12px;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+}
+.ss-track-row:hover {
+    background: #1a3258;
+}
+.ss-track-row.active {
+    border-color: #4a8dff;
+    box-shadow: 0 0 0 2px rgba(74, 141, 255, 0.22);
+}
+.ss-track-cover {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #0c1830;
+    border: 1px solid #3b5681;
+    flex: 0 0 34px;
+}
+.ss-track-meta {
+    min-width: 0;
+}
+.ss-track-name {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ss-track-sub {
+    color: #a9bddf;
+    font-size: 0.72rem;
+}
+.ss-submit {
+    width: 100%;
+    border: 1px solid #4a8dff;
+    background: #4a8dff;
+    color: #fff;
+    border-radius: 10px;
+    padding: 11px;
+    font-weight: 700;
+}
+</style>
+
+<div class="simple-story-upload">
+    {% if error %}
+    <div class="alert alert-danger py-2">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data" id="simpleStoryForm">
+        {% csrf_token %}
+        <input type="hidden" name="music_preview_url" id="musicPreviewUrlInput" value="">
+
+        <div class="ss-card">
+            <h5 class="ss-title">Upload Story (Image + Music)</h5>
+            <div class="ss-preview-wrap mb-2" id="imagePreviewWrap">
+                <span class="ss-preview-empty" id="imagePreviewEmpty">Select an image</span>
+                <img id="imagePreview" class="d-none" alt="story preview">
+            </div>
+            <label class="ss-label" for="imageInput">Story Image</label>
+            <input class="ss-input" type="file" id="imageInput" name="image" accept="image/*" required>
+        </div>
+
+        <div class="ss-card">
+            <h6 class="ss-title">Music</h6>
+            <div class="ss-music-tabs">
+                <button type="button" class="ss-tab" data-tab="for_you">For You</button>
+                <button type="button" class="ss-tab" data-tab="trending">Trending</button>
+                <button type="button" class="ss-tab active" data-tab="new">New</button>
+            </div>
+
+            <input class="ss-input ss-search" type="text" id="musicSearchInput" placeholder="Search songs...">
+            <div class="ss-track-list" id="trackList"></div>
+
+            <label class="ss-label" for="musicSuggestionInput">Selected Music Title</label>
+            <input class="ss-input mb-2" type="text" id="musicSuggestionInput" name="music_suggestion" placeholder="Music title">
+
+            <audio id="musicPreview" class="w-100 d-none" controls></audio>
+        </div>
+
+        <button type="submit" class="ss-submit">Upload Story</button>
+    </form>
+</div>
+
+{{ music_sections|json_script:"music-sections-data" }}
+<script>
+const imageInput = document.getElementById("imageInput");
+const imagePreview = document.getElementById("imagePreview");
+const imagePreviewEmpty = document.getElementById("imagePreviewEmpty");
+const musicSuggestionInput = document.getElementById("musicSuggestionInput");
+const musicSearchInput = document.getElementById("musicSearchInput");
+const musicPreview = document.getElementById("musicPreview");
+const trackList = document.getElementById("trackList");
+const tabs = document.querySelectorAll(".ss-tab");
+const musicPreviewUrlInput = document.getElementById("musicPreviewUrlInput");
+const musicSections = JSON.parse(document.getElementById("music-sections-data").textContent);
+let activeSection = "new";
+let searchRequestToken = 0;
+
+function trackListEmpty(text) {
+    trackList.innerHTML = "";
+    const empty = document.createElement("span");
+    empty.className = "ss-preview-empty";
+    empty.textContent = text;
+    trackList.appendChild(empty);
+}
+
+function buildTrackItem(item) {
+    if (!item) return null;
+    if (typeof item === "string") {
+        return { label: item, preview_url: "", artwork_url: "" };
+    }
+    return {
+        label: item.label || "",
+        preview_url: item.preview_url || "",
+        artwork_url: item.artwork_url || "",
+    };
+}
+
+function parseTrackLabel(label) {
+    const parts = String(label || "").split(" - ");
+    if (parts.length < 2) return { name: label || "", sub: "Song preview" };
+    return { name: parts[0].trim(), sub: parts.slice(1).join(" - ").trim() };
+}
+
+function safeText(value) {
+    return String(value || "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+    }[ch]));
+}
+
+function selectTrack(track, rowEl = null) {
+    musicSuggestionInput.value = track.label || "";
+    musicPreviewUrlInput.value = track.preview_url || "";
+    if (track.preview_url) {
+        musicPreview.src = track.preview_url;
+        musicPreview.classList.remove("d-none");
+        musicPreview.play().catch(() => {});
+    } else {
+        musicPreview.pause();
+        musicPreview.src = "";
+        musicPreview.classList.add("d-none");
+    }
+    trackList.querySelectorAll(".ss-track-row.active").forEach((el) => el.classList.remove("active"));
+    if (rowEl) rowEl.classList.add("active");
+}
+
+function renderTrackRows(tracks) {
+    trackList.innerHTML = "";
+    if (!tracks.length) {
+        trackListEmpty("No songs available.");
+        return;
+    }
+    tracks.forEach((rawItem) => {
+        const track = buildTrackItem(rawItem);
+        if (!track || !track.label) return;
+        const parsed = parseTrackLabel(track.label);
+
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "ss-track-row";
+        row.innerHTML = `
+            <img class="ss-track-cover" src="${safeText(track.artwork_url || '{% static "images/default.png" %}')}" alt="${safeText(parsed.name)}">
+            <span class="ss-track-meta">
+                <strong class="ss-track-name">${safeText(parsed.name)}</strong>
+                <small class="ss-track-sub">${safeText(parsed.sub)}</small>
+            </span>
+        `;
+        if (
+            musicSuggestionInput.value.trim() === track.label
+            && musicPreviewUrlInput.value.trim() === (track.preview_url || "")
+        ) {
+            row.classList.add("active");
+        }
+        row.addEventListener("click", () => selectTrack(track, row));
+        trackList.appendChild(row);
+    });
+}
+
+function renderSectionTracks(section, query = "") {
+    const allTracks = (musicSections[section] || []).map(buildTrackItem).filter((t) => t && t.label);
+    if (!query.trim()) {
+        renderTrackRows(allTracks);
+        return;
+    }
+    const q = query.trim().toLowerCase();
+    const filtered = allTracks.filter((t) => t.label.toLowerCase().includes(q));
+    renderTrackRows(filtered);
+}
+
+async function searchTracksRemote(query) {
+    const token = ++searchRequestToken;
+    try {
+        const res = await fetch(`/story/music-search/?q=${encodeURIComponent(query)}`);
+        if (!res.ok) throw new Error("Search failed");
+        const payload = await res.json();
+        if (token !== searchRequestToken) return;
+        const tracks = Array.isArray(payload.tracks) ? payload.tracks : [];
+        renderTrackRows(tracks.map(buildTrackItem));
+        if (!tracks.length) {
+            trackListEmpty(`No songs found for "${query}".`);
+        }
+    } catch (err) {
+        if (token !== searchRequestToken) return;
+        trackListEmpty("Unable to search songs right now.");
+    }
+}
+
+imageInput.addEventListener("change", () => {
+    const file = imageInput.files && imageInput.files[0];
+    if (!file) return;
+    imagePreview.src = URL.createObjectURL(file);
+    imagePreview.classList.remove("d-none");
+    imagePreviewEmpty.classList.add("d-none");
+});
+
+musicSuggestionInput.addEventListener("input", () => {
+    if (!musicSuggestionInput.value.trim()) {
+        musicPreviewUrlInput.value = "";
+        musicPreview.pause();
+        musicPreview.src = "";
+        musicPreview.classList.add("d-none");
+    }
+});
+
+tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+        tabs.forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        activeSection = tab.dataset.tab || "new";
+        searchRequestToken++;
+        musicSearchInput.value = "";
+        renderSectionTracks(activeSection, "");
+    });
+});
+
+let searchTimer = null;
+musicSearchInput.addEventListener("input", () => {
+    const query = musicSearchInput.value.trim();
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        if (query.length < 2) {
+            renderSectionTracks(activeSection, query);
+            return;
+        }
+        searchTracksRemote(query);
+    }, 260);
+});
+
+renderSectionTracks(activeSection, "");
+</script>
+{% endblock %}

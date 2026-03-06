@@ -1,0 +1,553 @@
+:root {
+    --reels-vh: 100vh;
+    --ig-mobile-ratio: 3 / 4; /* 1080x1440 */
+}
+
+.reels-feed {
+    height: var(--reels-vh);
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    background: #000;
+}
+
+.reels-back-btn {
+    position: fixed;
+    top: calc(10px + env(safe-area-inset-top));
+    left: 10px;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 50%;
+    background: rgba(8, 12, 20, 0.55);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    z-index: 1301;
+}
+
+.reels-back-btn i {
+    font-size: 20px;
+}
+
+.reel-item {
+    position: relative;
+    height: var(--reels-vh);
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    overflow: hidden;
+    border-bottom: 0;
+}
+
+.reel-media-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    touch-action: pan-y;
+}
+
+.reel-media {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.reel-sound-toggle {
+    position: absolute;
+    top: calc(12px + env(safe-area-inset-top));
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    background: rgba(8, 12, 20, 0.52);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    z-index: 5;
+}
+
+.reel-sound-toggle i {
+    font-size: 19px;
+}
+
+.reel-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 18px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 10px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+}
+
+.reel-meta {
+    color: #fff;
+    max-width: 75%;
+}
+
+.reel-user {
+    display: inline-block;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+}
+
+.reel-caption {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.reel-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+
+.reel-action-btn {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(12, 18, 30, 0.52);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 14px;
+    padding: 7px 10px;
+    min-width: 60px;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.reel-action-btn i {
+    font-size: 22px;
+}
+
+.reel-action-btn:hover {
+    background: rgba(26, 37, 58, 0.82);
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.liked {
+    color: #ff3040;
+}
+
+.reel-comments {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -100%;
+    background: #131f31;
+    color: #e9eef8;
+    transition: bottom 0.28s ease;
+    height: 52%;
+    display: flex;
+    flex-direction: column;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+}
+
+.reel-comments.open {
+    bottom: 0;
+}
+
+.reel-comments-head {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid #2a364f;
+}
+
+.close-comments {
+    border: none;
+    background: #1d2a42;
+    color: #e9eef8;
+    border-radius: 8px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.reel-comments-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+}
+
+.reel-comments-list p {
+    margin: 0 0 8px;
+}
+
+.reel-comment-form {
+    border-top: 1px solid #2a364f;
+    padding: 10px 12px;
+    display: flex;
+    gap: 8px;
+}
+
+.reel-comment-form input {
+    width: 100%;
+    border: 1px solid #2a364f;
+    background: #0d1524;
+    color: #e9eef8;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.reel-comment-form button {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #fff;
+    background: #0095f6;
+    cursor: pointer;
+}
+
+.delete-comment {
+    color: #cf2e2e;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.empty-comment {
+    color: #9aa6bf;
+    font-size: 13px;
+}
+
+.heart-burst {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(0.75);
+}
+
+.heart-burst i {
+    font-size: 90px;
+    color: rgba(255, 48, 64, 0.9);
+}
+
+.heart-burst.show {
+    animation: burst 0.65s ease;
+}
+
+.no-reels {
+    color: #fff;
+    min-height: var(--reels-vh);
+    display: grid;
+    place-items: center;
+    text-align: center;
+}
+
+@keyframes burst {
+    0% {
+        opacity: 0;
+        transform: scale(0.65);
+    }
+    35% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.15);
+    }
+}
+
+@media (max-width: 992px) {
+    .reels-feed,
+    .reel-item,
+    .no-reels {
+        height: 100dvh;
+        min-height: 100dvh;
+    }
+
+    .reel-media-wrap {
+        width: 100vw;
+        height: var(--reels-vh);
+    }
+
+    video.reel-media {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+
+    img.reel-media {
+        width: 100%;
+        height: 100%;
+        aspect-ratio: var(--ig-mobile-ratio);
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.share-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    padding: 14px;
+}
+
+.share-card {
+    width: min(420px, 100%);
+    max-height: 80vh;
+    background: #132039;
+    border: 1px solid #314668;
+    border-radius: 14px;
+    overflow: hidden;
+    color: #e9eef8;
+}
+
+.share-head {
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #2d3f5d;
+}
+
+.share-close {
+    border: 0;
+    background: transparent;
+    color: #dfe6f6;
+}
+
+.share-list {
+    padding: 10px 12px;
+    max-height: 56vh;
+    overflow-y: auto;
+}
+
+.share-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 0;
+}
+
+.share-user {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.share-user img {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.share-foot {
+    padding: 10px 12px;
+    border-top: 1px solid #2d3f5d;
+    text-align: right;
+}
+
+.pay-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+    z-index: 1250;
+    display: grid;
+    place-items: center;
+    padding: 14px;
+}
+
+.pay-card {
+    width: min(420px, 100%);
+    background: #132039;
+    border: 1px solid #314668;
+    border-radius: 14px;
+    overflow: hidden;
+    color: #e9eef8;
+}
+
+.pay-head {
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #2d3f5d;
+}
+
+.pay-body {
+    padding: 12px;
+}
+
+.pay-target {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+
+body.reels-page .feed {
+    width: 100%;
+    max-width: 100%;
+    height: var(--reels-vh);
+    min-height: var(--reels-vh);
+    background: #000;
+    border-left: none;
+    border-right: none;
+    margin: 0;
+    padding: 0;
+}
+
+body.reels-page .content-area {
+    height: var(--reels-vh);
+    min-height: var(--reels-vh);
+    padding: 0;
+}
+
+body.reels-page {
+    overflow: hidden;
+}
+
+body.reels-page .main-layout {
+    max-width: 100%;
+    height: var(--reels-vh);
+}
+
+/* Force reels to render above app chrome (top/bottom nav) on mobile */
+body.reels-page .reels-feed {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: var(--reels-vh);
+    margin: 0;
+    z-index: 1100;
+}
+
+.reels-feed {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+}
+
+@media (max-width: 992px) {
+    body.reels-page .top-navbar,
+    body.reels-page .mobile-bottom {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        pointer-events: none !important;
+    }
+
+    body.reels-page .main-layout,
+    body.reels-page .feed,
+    body.reels-page .content-area,
+    body.reels-page .reels-feed,
+    body.reels-page .reel-item,
+    body.reels-page .reel-media-wrap,
+    body.reels-page .no-reels {
+        width: 100vw !important;
+        height: var(--reels-vh) !important;
+        min-height: var(--reels-vh) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    body.reels-page .reels-feed {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 1100 !important;
+    }
+}
+
+:root[data-theme="light"] .reels-feed,
+:root[data-theme="light"] .reel-media-wrap,
+:root[data-theme="light"] body.reels-page .feed {
+    background: #edf3fb;
+}
+
+:root[data-theme="light"] .reels-back-btn,
+:root[data-theme="light"] .reel-sound-toggle,
+:root[data-theme="light"] .reel-action-btn {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(15, 23, 42, 0.2);
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .reel-action-btn:hover {
+    background: #e8f0ff;
+    border-color: rgba(15, 23, 42, 0.35);
+}
+
+:root[data-theme="light"] .reel-overlay {
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.64), rgba(15, 23, 42, 0));
+}
+
+:root[data-theme="light"] .reel-meta,
+:root[data-theme="light"] .reel-user,
+:root[data-theme="light"] .no-reels,
+:root[data-theme="light"] .play-badge {
+    color: #ffffff;
+}
+
+:root[data-theme="light"] .reel-comments {
+    background: #ffffff;
+    border-top: 1px solid #cfdae8;
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .reel-comments-head,
+:root[data-theme="light"] .reel-comment-form {
+    border-color: #dbe5f2;
+}
+
+:root[data-theme="light"] .close-comments {
+    background: #f4f8ff;
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .reel-comment-form input {
+    background: #f7faff;
+    color: #0f172a;
+    border-color: #cfdae8;
+}
+
+:root[data-theme="light"] .empty-comment {
+    color: #5b6c82;
+}
+
+:root[data-theme="light"] .share-modal,
+:root[data-theme="light"] .pay-modal {
+    background: rgba(15, 23, 42, 0.35);
+}
+
+:root[data-theme="light"] .share-card,
+:root[data-theme="light"] .pay-card {
+    background: #ffffff;
+    border-color: #cfdae8;
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .share-head,
+:root[data-theme="light"] .share-foot,
+:root[data-theme="light"] .pay-head {
+    border-color: #dbe5f2;
+}
+
+:root[data-theme="light"] .share-close {
+    color: #5b6c82;
+}
+
+
+
+

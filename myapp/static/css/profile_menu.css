@@ -1,0 +1,82 @@
+body {
+    background: radial-gradient(circle at top, #0f1f3a 0%, #050b17 45%, #050b17 100%);
+}
+
+.main-layout {
+    background: transparent;
+}
+
+.feed {
+    max-width: 100%;
+    border: none;
+    background: transparent;
+}
+
+.top-navbar {
+    display: none !important;
+}
+
+.content-area {
+    min-height: auto;
+    padding: 10px 0 84px;
+}
+
+.profile-menu-page {
+    min-height: 100vh;
+    color: var(--text);
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--surface), var(--surface-2));
+}
+
+.profile-menu-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+}
+
+.profile-menu-topbar h5 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.menu-back {
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    text-decoration: none;
+}
+
+.profile-menu-list {
+    padding: 12px;
+    display: grid;
+    gap: 8px;
+}
+
+.profile-menu-list a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+}
+
+.profile-menu-list a:hover {
+    background: var(--surface);
+}

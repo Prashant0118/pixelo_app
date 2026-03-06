@@ -1,0 +1,202 @@
+body {
+    background: linear-gradient(145deg, #070c16, #0f1726);
+    color: #e9eef8;
+    font-family: 'Poppins', sans-serif;
+}
+
+.upload-container {
+    max-width: 600px;
+    margin: 60px auto;
+    padding: 30px;
+    background: #131f31;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+    border: 1px solid #2a364f;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {opacity:0; transform: translateY(20px);}
+    to {opacity:1; transform: translateY(0);}
+}
+
+.upload-container h4 {
+    text-align: center;
+    margin-bottom: 25px;
+    font-weight: 600;
+}
+
+.dimension-guide {
+    margin: 8px 0 16px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid #2a364f;
+    background: #0d1524;
+}
+
+.dimension-guide h6 {
+    margin: 0 0 6px;
+    font-size: 0.9rem;
+    color: #dce7ff;
+}
+
+.dimension-guide p {
+    margin: 0 0 4px;
+    font-size: 0.78rem;
+    color: #9fb1cf;
+}
+
+/* Upload Type */
+.upload-type {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 20px;
+}
+
+.upload-type input {
+    margin-right: 6px;
+}
+
+/* File Upload */
+.file-upload {
+    position: relative;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.file-upload input {
+    display: none;
+}
+
+.file-label {
+    display: inline-block;
+    padding: 30px;
+    border: 2px dashed #2f8dff;
+    border-radius: 15px;
+    cursor: pointer;
+    color: #9fc3ff;
+    transition: 0.3s ease;
+}
+
+.file-label:hover {
+    background: #2f8dff;
+    color: white;
+}
+
+/* Preview */
+.preview-box {
+    margin-top: 15px;
+    text-align: center;
+    width: 100%;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+    aspect-ratio: var(--ig-portrait);
+    background: #09111e;
+    border: 1px solid #2a364f;
+    border-radius: 15px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+}
+
+.preview-box.reel-mode {
+    max-width: 340px;
+    aspect-ratio: var(--ig-story);
+}
+
+.preview-img,
+.preview-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Caption */
+textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #2a364f;
+    background: #0d1524;
+    color: #e9eef8;
+    resize: none;
+    margin-top: 20px;
+    transition: 0.3s;
+}
+
+textarea:focus {
+    border-color: #2f8dff;
+    box-shadow: 0 0 10px rgba(0,149,246,0.2);
+    outline: none;
+}
+
+/* Button */
+.upload-btn {
+    width: 100%;
+    padding: 12px;
+    margin-top: 20px;
+    border: none;
+    border-radius: 50px;
+    background: linear-gradient(to right, #0095f6, #8e44ad);
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.upload-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+/* Responsive */
+@media(max-width:768px){
+    .upload-container {
+        margin: 20px;
+        padding: 20px;
+    }
+}
+
+:root[data-theme="light"] body {
+    background: linear-gradient(145deg, #edf3fb, #f6f9ff);
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .upload-container {
+    background: #ffffff;
+    border-color: #cfdae8;
+    box-shadow: 0 20px 36px rgba(18, 35, 64, 0.12);
+}
+
+:root[data-theme="light"] .dimension-guide,
+:root[data-theme="light"] textarea {
+    background: #f7faff;
+    border-color: #cfdae8;
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .dimension-guide h6 {
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .dimension-guide p {
+    color: #5c6d84;
+}
+
+:root[data-theme="light"] .file-label {
+    color: #1d4ed8;
+    border-color: #3b82f6;
+}
+
+:root[data-theme="light"] .file-label:hover {
+    background: #3b82f6;
+    color: #ffffff;
+}
+
+:root[data-theme="light"] .preview-box {
+    background: #eef3fb;
+    border-color: #cfdae8;
+}

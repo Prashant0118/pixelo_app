@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/library.css' %}">
+<link rel="stylesheet" href="{% static 'css/menu_options.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="collection-page">
+    <div class="menu-options-topbar">
+        <a href="{% url 'profile_menu' %}" class="menu-options-back" aria-label="Back to menu">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h5 class="menu-options-title">Likes</h5>
+    </div>
+
+    <div class="collection-head">
+        <div>
+            <h4>Likes</h4>
+            <div class="collection-subtitle">Posts and reels you liked.</div>
+        </div>
+    </div>
+
+    <div class="collection-stats">
+        <div class="collection-stat">
+            <strong>{{ liked_total }}</strong>
+            <span>Total</span>
+        </div>
+        <div class="collection-stat">
+            <strong>{{ liked_posts_count }}</strong>
+            <span>Posts</span>
+        </div>
+        <div class="collection-stat">
+            <strong>{{ liked_reels_count }}</strong>
+            <span>Reels</span>
+        </div>
+    </div>
+
+    <div class="collection-tabs">
+        <button type="button" class="collection-tab active" data-target="likes-all">All</button>
+        <button type="button" class="collection-tab" data-target="likes-posts">Posts</button>
+        <button type="button" class="collection-tab" data-target="likes-reels">Reels</button>
+    </div>
+
+    <section id="likes-all" class="collection-panel">
+        {% if liked_items %}
+        <div class="collection-grid">
+            {% for item in liked_items %}
+            <a class="collection-item" href="{% if item.type == 'reel' %}{% url 'reels' %}?reel={{ item.id }}{% else %}{% url 'home' %}#post-{{ item.id }}{% endif %}">
+                {% if item.media %}
+                    {% if item.type == "reel" %}
+                    <video muted playsinline preload="metadata">
+                        <source src="{{ item.media.url }}">
+                    </video>
+                    {% else %}
+                    <img src="{{ item.media.url }}" alt="liked media">
+                    {% endif %}
+                {% endif %}
+                <div class="item-meta">
+                    <span class="owner">@{{ item.user.username }}</span>
+                    <span class="type-badge">{{ item.type|title }}</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="collection-empty">No likes yet.</div>
+        {% endif %}
+    </section>
+
+    <section id="likes-posts" class="collection-panel d-none">
+        {% if liked_posts %}
+        <div class="collection-grid">
+            {% for item in liked_posts %}
+            <a class="collection-item" href="{% url 'home' %}#post-{{ item.id }}">
+                {% if item.media %}
+                <img src="{{ item.media.url }}" alt="liked post">
+                {% endif %}
+                <div class="item-meta">
+                    <span class="owner">@{{ item.user.username }}</span>
+                    <span class="type-badge">Post</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="collection-empty">No liked posts yet.</div>
+        {% endif %}
+    </section>
+
+    <section id="likes-reels" class="collection-panel d-none">
+        {% if reels %}
+        <div class="collection-grid">
+            {% for reel in reels %}
+            <a class="collection-item" href="{% url 'reels' %}?reel={{ reel.id }}">
+                {% if reel.media %}
+                <video muted playsinline preload="metadata">
+                    <source src="{{ reel.media.url }}">
+                </video>
+                {% endif %}
+                <div class="item-meta">
+                    <span class="owner">@{{ reel.user.username }}</span>
+                    <span class="type-badge">Reel</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="collection-empty">No liked reels yet.</div>
+        {% endif %}
+    </section>
+</div>
+
+<script>
+const likeTabs = document.querySelectorAll(".collection-tab");
+const likePanels = document.querySelectorAll(".collection-panel");
+likeTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+        const target = tab.dataset.target;
+        likeTabs.forEach((item) => item.classList.remove("active"));
+        tab.classList.add("active");
+        likePanels.forEach((panel) => {
+            panel.classList.toggle("d-none", panel.id !== target);
+        });
+    });
+});
+</script>
+{% endblock %}

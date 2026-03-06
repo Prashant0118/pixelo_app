@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/search.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="search-page">
+    <form method="GET" class="search-bar-wrap" autocomplete="off">
+        <i class="bi bi-search search-icon" aria-hidden="true"></i>
+        <input
+            type="text"
+            name="q"
+            value="{{ query }}"
+            placeholder="Search with Pixelo"
+            class="search-input"
+        >
+    </form>
+
+    <div class="users-list" aria-label="Search users"></div>
+
+    <div class="discover-grid" aria-label="Recommended reels">
+        {% for reel in recommended_reels %}
+            {% if reel.media %}
+            <a class="discover-card" href="{% url 'reels' %}?reel={{ reel.id }}" title="{{ reel.user.username }}">
+                <video muted autoplay loop playsinline preload="metadata" class="discover-media">
+                    <source src="{{ reel.media.url }}">
+                </video>
+
+                <div class="discover-overlay">
+                    <span class="play-badge">
+                        <i class="bi bi-play"></i>
+                        {{ reel.total_likes }}
+                    </span>
+                </div>
+            </a>
+            {% endif %}
+        {% empty %}
+            <p class="empty-text">No recommended reels available.</p>
+        {% endfor %}
+    </div>
+</div>
+<script>
+const searchInput = document.querySelector(".search-input");
+const usersList = document.querySelector(".users-list");
+let suggestTimer;
+let activeController;
+const hiddenUsersKey = "pixelo_hidden_search_users";
+const hiddenUsers = new Set(JSON.parse(localStorage.getItem(hiddenUsersKey) || "[]"));
+
+function persistHiddenUsers() {
+    localStorage.setItem(hiddenUsersKey, JSON.stringify(Array.from(hiddenUsers)));
+}
+
+function renderUsers(users, queryValue) {
+    if (!usersList) return;
+
+    if (!queryValue) {
+        usersList.innerHTML = "";
+        return;
+    }
+    const visibleUsers = users.filter((user) => !hiddenUsers.has((user.username || "").toLowerCase()));
+
+    if (!visibleUsers.length) {
+        usersList.innerHTML = '<div class="user-row muted">No users found</div>';
+        return;
+    }
+
+    usersList.innerHTML = visibleUsers.map((user) => (
+        `<div class="user-row">`
+        + `<a class="user-link" href="/profile/${encodeURIComponent(user.username)}/">`
+        + `<span class="user-name">${user.username}</span>`
+        + "</a>"
+        + `<button type="button" class="user-delete-btn" data-username="${user.username}" aria-label="Remove user">`
+        + '<i class="bi bi-x-lg"></i>'
+        + "</button>"
+        + "</div>"
+    )).join("");
+
+    usersList.querySelectorAll(".user-delete-btn").forEach((btn) => {
+        btn.addEventListener("click", function () {
+            const username = (btn.dataset.username || "").toLowerCase();
+            if (!username) return;
+            hiddenUsers.add(username);
+            persistHiddenUsers();
+            renderUsers(users, queryValue);
+        });
+    });
+}
+
+async function fetchSuggestions(value) {
+    if (activeController) activeController.abort();
+    activeController = new AbortController();
+
+    try {
+        const res = await fetch(`/search-suggestions/?q=${encodeURIComponent(value)}`, {
+            method: "GET",
+            signal: activeController.signal
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        renderUsers(data.users || [], value);
+    } catch (err) {
+        if (err.name !== "AbortError") {
+            renderUsers([], value);
+        }
+    }
+}
+
+if (searchInput) {
+    searchInput.addEventListener("input", function () {
+        const value = searchInput.value.trim();
+        clearTimeout(suggestTimer);
+        suggestTimer = setTimeout(function () {
+            if (!value) {
+                renderUsers([], "");
+                return;
+            }
+            fetchSuggestions(value);
+        }, 180);
+    });
+
+    const initialValue = searchInput.value.trim();
+    if (initialValue) {
+        fetchSuggestions(initialValue);
+    }
+}
+</script>
+{% endblock %}

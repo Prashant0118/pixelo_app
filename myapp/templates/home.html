@@ -1,0 +1,428 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/home.css' %}">
+{% endblock %}
+
+{% block body_attrs %} class="home-page"{% endblock %}
+
+{% block content %}
+
+<section class="home-hero">
+    <h2>Hello {{ request.user.username|title }}</h2>
+    <p>Discover new ideas today. Showing: {{ selected_category }}</p>
+    <div class="category-strip">
+        <div class="interest-chips" id="interest-chips-scroll">
+            {% for category in featured_categories %}
+                <a href="{% url 'reels' %}?category={{ category|urlencode }}"
+                   class="chip {% if category == selected_category %}active{% endif %}">
+                    {{ category }}
+                </a>
+            {% endfor %}
+
+            {% if hidden_categories %}
+                <button type="button" id="toggle-more-categories" class="chip chip-more">More</button>
+                {% for category in hidden_categories %}
+                    <a href="{% url 'reels' %}?category={{ category|urlencode }}"
+                       class="chip chip-hidden d-none {% if category == selected_category %}active{% endif %}">
+                        {{ category }}
+                    </a>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <button type="button" class="category-nav-btn" id="category-nav-right" aria-label="Scroll categories right">
+            <i class="bi bi-chevron-right"></i>
+        </button>
+    </div>
+</section>
+
+<!-- ================= POSTS ================= -->
+{% for post in posts %}
+<div class="card mb-4" id="post-{{ post.id }}">
+
+    <!-- Header -->
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center post-user-link">
+            {% if post.story_id %}
+            <a href="{% url 'view_story' post.story_id %}" class="me-2">
+            {% else %}
+            <a href="{% url 'profile' post.user.username %}" class="me-2">
+            {% endif %}
+            <span class="feed-user-avatar me-2{% if post.story_id %} has-story {% if post.user.id in unseen_story_user_ids %}story-unseen{% else %}story-seen{% endif %}{% else %} no-story{% endif %}">
+                <img src="{{ post.user.profile.avatar_url }}" width="40" height="40" class="rounded-circle" alt="{{ post.user.username }}">
+            </span>
+            </a>
+            <a href="{% url 'profile' post.user.username %}" class="text-decoration-none text-reset">
+                <strong>{{ post.user.username }}</strong>
+            </a>
+        </div>
+        <i class="bi bi-three-dots"></i>
+    </div>
+
+    <!-- Media -->
+    <div ondblclick="doubleLike({{ post.id }})">
+        {% if post.media %}
+            <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
+                {% if post.type == "post" %}
+                    <img src="{{ post.media.url }}" class="img-fluid w-100 feed-media">
+                {% else %}
+                    <video class="w-100 feed-media" controls>
+                        <source src="{{ post.media.url }}">
+                    </video>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Actions -->
+    <div class="p-2 post-actions-wrap">
+
+        <!-- LIKE -->
+        <button class="btn btn-sm icon-btn"
+                onclick="likePost({{ post.id }})">
+            <i id="like-icon-{{ post.id }}"
+               class="bi {% if post.id in liked_post_ids %}bi-heart-fill text-danger{% else %}bi-heart{% endif %}">
+            </i>
+        </button>
+
+        <span id="like-count-{{ post.id }}" class="like-count-label">
+            {{ post.likes.count }} likes
+        </span>
+
+        <!-- COMMENT -->
+        <button class="btn btn-sm icon-btn"
+                onclick="focusComment({{ post.id }})"
+                aria-label="Comment">
+            <i class="bi bi-chat-dots"></i>
+        </button>
+
+        <!-- SAVE -->
+        <button class="btn btn-sm icon-btn"
+                onclick="savePost({{ post.id }})">
+            <i id="save-icon-{{ post.id }}"
+               class="bi {% if post.id in saved_post_ids %}bi-bookmark-fill{% else %}bi-bookmark{% endif %}">
+            </i>
+        </button>
+
+        <!-- SHARE -->
+        <button class="btn btn-sm icon-btn"
+                onclick="openShareModal({{ post.id }})">
+            <i class="bi bi-send"></i>
+        </button>
+
+        <!-- Caption -->
+        <p class="mt-2">
+            <strong>{{ post.user.username }}</strong>
+            {{ post.caption }}
+        </p>
+
+        <!-- COMMENTS -->
+        <div class="comment-panel d-none" id="comment-panel-{{ post.id }}">
+            <div id="comment-section-{{ post.id }}" data-expanded="0">
+                {% for comment in post.comments.all %}
+                <p id="comment-{{ comment.id }}" class="comment-item{% if not forloop.last %} d-none{% endif %}">
+                    <strong>{{ comment.user.username }}</strong>
+                    {{ comment.text }}
+
+                    {% if comment.user == request.user %}
+                    <span onclick="deleteComment({{ comment.id }})"
+                          class="delete-comment-btn"><i class="bi bi-trash3-fill"></i></span>
+                    {% endif %}
+                </p>
+                {% endfor %}
+            </div>
+            <button type="button"
+                    id="comment-toggle-{{ post.id }}"
+                    class="btn btn-link p-0 small text-muted"
+                    onclick="toggleCommentsPreview({{ post.id }})"
+                    style="display:none;">
+                See more comments
+            </button>
+
+            <!-- ADD COMMENT -->
+            <div class="d-flex mt-2">
+                <input type="text"
+                       id="comment-input-{{ post.id }}"
+                       class="form-control form-control-sm"
+                       placeholder="Add comment...">
+
+                <button onclick="addComment({{ post.id }})"
+                        class="btn btn-sm btn-primary ms-2 comment-send-btn"
+                        aria-label="Send comment">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% empty %}
+<div class="card mb-4">
+    <div class="p-3">
+        <strong>No posts found for "{{ selected_category }}" yet.</strong>
+        <p class="mb-0 text-muted">Try another category or switch to Trending.</p>
+    </div>
+</div>
+{% endfor %}
+
+<div class="share-modal d-none" id="shareModal" onclick="closeShareModal(event)">
+    <div class="share-card">
+        <div class="share-head">
+            <strong>Share to Followers</strong>
+            <button type="button" class="share-close" onclick="closeShareModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="share-list">
+            {% for follower in share_followers %}
+            <div class="share-row">
+                <div class="share-user">
+                    <img src="{{ follower.profile.avatar_url }}" alt="{{ follower.username }}">
+                    <span>{{ follower.username }}</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" onclick="sendSharedPost('{{ follower.username }}')">Send</button>
+            </div>
+            {% empty %}
+            <p class="text-muted small mb-0">No followers available to share.</p>
+            {% endfor %}
+        </div>
+        <div class="share-foot">
+            <button type="button" class="btn btn-sm btn-outline-light" onclick="copyShareLink()">Copy Link</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ================= JAVASCRIPT ================= -->
+<script>
+let activeSharePostId = null;
+
+// CSRF
+function getCSRF() {
+    let name = "csrftoken=";
+    let ca = document.cookie.split(';');
+    for(let i = 0; i < ca.length; i++) {
+        let c = ca[i].trim();
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
+}
+
+// LIKE
+function likePost(postId){
+    fetch(`/like-ajax/${postId}/`,{
+        method:'POST',
+        headers:{
+            'X-CSRFToken':getCSRF()
+        }
+    })
+    .then(res=>{
+        if(!res.ok){ throw new Error("Error"); }
+        return res.json();
+    })
+    .then(data=>{
+        let icon=document.getElementById(`like-icon-${postId}`);
+        let count=document.getElementById(`like-count-${postId}`);
+
+        if(data.liked){
+            icon.classList.remove("bi-heart");
+            icon.classList.add("bi-heart-fill","text-danger");
+        }else{
+            icon.classList.remove("bi-heart-fill","text-danger");
+            icon.classList.add("bi-heart");
+        }
+
+        count.innerText=data.total_likes+" likes";
+    })
+    .catch(err=>console.error(err));
+}
+
+function doubleLike(postId){
+    likePost(postId);
+}
+
+// COMMENT
+function addComment(postId){
+    let input=document.getElementById(`comment-input-${postId}`);
+    if(input.value.trim()==="") return;
+
+    let formData=new FormData();
+    formData.append("text",input.value);
+
+    fetch(`/comment-ajax/${postId}/`,{
+        method:'POST',
+        headers:{
+            'X-CSRFToken':getCSRF()
+        },
+        body:formData
+    })
+    .then(res=>{
+        if(!res.ok){ throw new Error("Error"); }
+        return res.json();
+    })
+    .then(data=>{
+        document.getElementById(`comment-section-${postId}`)
+        .insertAdjacentHTML("beforeend",data.html);
+        updateCommentPreview(postId);
+        input.value="";
+    })
+    .catch(err=>console.error(err));
+}
+
+function focusComment(postId){
+    const panel = document.getElementById(`comment-panel-${postId}`);
+    if(panel){ panel.classList.remove("d-none"); }
+    const input = document.getElementById(`comment-input-${postId}`);
+    if(!input) return;
+    input.focus();
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+// DELETE COMMENT
+function deleteComment(commentId){
+    const row = document.getElementById(`comment-${commentId}`);
+    if(!row) return;
+    const section = row.closest("[id^='comment-section-']");
+    const postId = section ? section.id.replace("comment-section-", "") : null;
+
+    fetch(`/delete-comment/${commentId}/`,{
+        method:'POST',
+        headers:{
+            'X-CSRFToken':getCSRF()
+        }
+    })
+    .then(res=>res.json())
+    .then(()=>{
+        row.remove();
+        if(postId){ updateCommentPreview(postId); }
+    });
+}
+
+// SAVE
+function savePost(postId){
+    fetch(`/save-post/${postId}/`,{
+        method:'POST',
+        headers:{
+            'X-CSRFToken':getCSRF()
+        }
+    })
+    .then(res=>{
+        if(!res.ok){ throw new Error("Error"); }
+        return res.json();
+    })
+    .then(data=>{
+        let icon=document.getElementById(`save-icon-${postId}`);
+        if(data.saved){
+            icon.classList.replace("bi-bookmark","bi-bookmark-fill");
+        }else{
+            icon.classList.replace("bi-bookmark-fill","bi-bookmark");
+        }
+    });
+}
+
+function openShareModal(postId) {
+    activeSharePostId = postId;
+    document.getElementById("shareModal").classList.remove("d-none");
+}
+
+function closeShareModal(event) {
+    if (event && event.target.id !== "shareModal") return;
+    document.getElementById("shareModal").classList.add("d-none");
+}
+
+function sendSharedPost(username) {
+    if (!activeSharePostId) return;
+    const formData = new FormData();
+    formData.append("username", username);
+    fetch(`/share-post/${activeSharePostId}/`, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCSRF() },
+        body: formData
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error("Share failed");
+        return res.json();
+    })
+    .then(() => {
+        alert(`Sent to @${username}`);
+        closeShareModal();
+    })
+    .catch(() => alert("Unable to send right now."));
+}
+
+function copyShareLink() {
+    if (!activeSharePostId) return;
+    const link = `${window.location.origin}/#post-${activeSharePostId}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => alert("Link copied"));
+        return;
+    }
+    alert(link);
+}
+
+function updateCommentPreview(postId){
+    const section = document.getElementById(`comment-section-${postId}`);
+    const toggleBtn = document.getElementById(`comment-toggle-${postId}`);
+    if(!section || !toggleBtn) return;
+
+    const comments = Array.from(section.querySelectorAll(".comment-item"));
+    const total = comments.length;
+    const expanded = section.dataset.expanded === "1";
+
+    if(total <= 1){
+        comments.forEach(c => c.classList.remove("d-none"));
+        toggleBtn.style.display = "none";
+        return;
+    }
+
+    if(expanded){
+        comments.forEach(c => c.classList.remove("d-none"));
+        toggleBtn.textContent = "Hide comments";
+    } else {
+        comments.forEach((c, idx) => c.classList.toggle("d-none", idx < total - 1));
+        toggleBtn.textContent = `See more comments (${total - 1})`;
+    }
+    toggleBtn.style.display = "inline-block";
+}
+
+function toggleCommentsPreview(postId){
+    const section = document.getElementById(`comment-section-${postId}`);
+    if(!section) return;
+    section.dataset.expanded = section.dataset.expanded === "1" ? "0" : "1";
+    updateCommentPreview(postId);
+}
+
+document.querySelectorAll("[id^='comment-section-']").forEach((section)=>{
+    const postId = section.id.replace("comment-section-", "");
+    updateCommentPreview(postId);
+});
+
+const toggleMoreCategoriesBtn = document.getElementById("toggle-more-categories");
+if (toggleMoreCategoriesBtn) {
+    let revealedCount = 0;
+    const step = 8;
+    toggleMoreCategoriesBtn.addEventListener("click", function () {
+        const hiddenChips = Array.from(document.querySelectorAll(".chip-hidden"));
+        const nextCount = Math.min(hiddenChips.length, revealedCount + step);
+        for (let index = revealedCount; index < nextCount; index += 1) {
+            hiddenChips[index].classList.remove("d-none");
+        }
+        revealedCount = nextCount;
+        if (revealedCount >= hiddenChips.length) {
+            this.style.display = "none";
+        }
+    });
+}
+
+const categoryScrollWrap = document.getElementById("interest-chips-scroll");
+const categoryRightBtn = document.getElementById("category-nav-right");
+if (categoryScrollWrap && categoryRightBtn) {
+    categoryRightBtn.addEventListener("click", function () {
+        categoryScrollWrap.scrollBy({ left: 220, behavior: "smooth" });
+    });
+}
+
+</script>
+
+{% endblock %}

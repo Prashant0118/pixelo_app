@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/edit_profile.css' %}">
+<link rel="stylesheet" href="{% static 'css/menu_options.css' %}">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="edit-page">
+    <div class="edit-card">
+        <div class="menu-options-topbar">
+            <a href="{% url 'profile_menu' %}" class="menu-options-back" aria-label="Back to menu">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <h5 class="menu-options-title">Payment Method</h5>
+        </div>
+        <h4 class="edit-title d-none">Payment Method</h4>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="input-group">
+                <label>UPI ID</label>
+                <input type="text"
+                       name="upi_id"
+                       placeholder="example@upi"
+                       value="{{ request.user.profile.upi_id }}">
+                {% if upi_form.upi_id.errors %}
+                <small class="text-danger">{{ upi_form.upi_id.errors|striptags }}</small>
+                {% else %}
+                <small class="text-muted">This UPI ID will be used when users tap Pay on your reels.</small>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="save-btn">Save Payment Method</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

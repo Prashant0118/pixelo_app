@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/edit_profile.css' %}">
+<link rel="stylesheet" href="{% static 'css/menu_options.css' %}">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+
+<div class="edit-page">
+
+    <div class="edit-card">
+        <div class="menu-options-topbar">
+            <a href="{% url 'profile_menu' %}" class="menu-options-back" aria-label="Back to menu">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <h5 class="menu-options-title">Edit Profile</h5>
+        </div>
+
+        <h4 class="edit-title d-none">Edit Profile</h4>
+
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- Profile Image -->
+            <div class="image-section">
+
+                <img src="{{ request.user.profile.avatar_url }}" id="preview">
+
+                <label class="change-text">
+                    Change Profile Photo
+                    <input type="file" name="image" hidden onchange="previewImage(event)">
+                </label>
+
+            </div>
+
+            <!-- Username -->
+            <div class="input-group">
+                <label>Username</label>
+                <input type="text"
+                       name="username"
+                       value="{{ request.user.username }}">
+            </div>
+
+            <!-- Bio -->
+            <div class="input-group">
+                <label>Bio</label>
+                <textarea name="bio" rows="3">{{ request.user.profile.bio }}</textarea>
+            </div>
+
+            <div class="input-group">
+                <label>Interests (for personalized home feed)</label>
+                <div class="interest-picker">
+                    {% for category in interest_categories %}
+                    <label class="interest-option">
+                        <input type="checkbox"
+                               name="interests"
+                               value="{{ category }}"
+                               {% if category in selected_interests %}checked{% endif %}>
+                        <span>{{ category }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <small class="text-muted">Select your top interests. You can change these anytime.</small>
+            </div>
+
+            <div class="input-group" id="upi-settings">
+                <label>UPI ID (for Reel Payments)</label>
+                <input type="text"
+                       name="upi_id"
+                       placeholder="example@upi"
+                       value="{{ request.user.profile.upi_id }}">
+                {% if p_form.upi_id.errors %}
+                <small class="text-danger">{{ p_form.upi_id.errors|striptags }}</small>
+                {% else %}
+                <small class="text-muted">When someone taps Pay on your reel, they will be redirected to pay this UPI ID.</small>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="save-btn">
+                Save Changes
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+<script>
+function previewImage(event){
+    const reader = new FileReader();
+    reader.onload = function(){
+        document.getElementById("preview").src = reader.result;
+    }
+    reader.readAsDataURL(event.target.files[0]);
+}
+</script>
+
+{% endblock %}

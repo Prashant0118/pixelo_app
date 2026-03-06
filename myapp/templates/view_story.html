@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+.story-player-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: #000;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+
+.story-backdrop {
+    position: absolute;
+    inset: -8%;
+    filter: blur(24px) brightness(0.42);
+    transform: scale(1.08);
+    opacity: 0.75;
+}
+
+.story-backdrop img,
+.story-backdrop video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.story-frame {
+    position: relative;
+    width: min(100vw, 430px);
+    height: 100vh;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+}
+
+.story-media {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.story-head {
+    padding: 12px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.72), rgba(0,0,0,0));
+    position: absolute;
+    inset: 0 0 auto 0;
+    z-index: 4;
+}
+
+.story-head-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.story-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.story-head-actions a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 12px;
+    padding: 5px 9px;
+    border: 1px solid rgba(255,255,255,0.45);
+    border-radius: 999px;
+    backdrop-filter: blur(2px);
+}
+
+.story-progress {
+    display: grid;
+    grid-template-columns: repeat({{ user_story_ids|length|default:1 }}, 1fr);
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.story-progress span {
+    display: block;
+    height: 3px;
+    background: rgba(255,255,255,0.34);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.story-progress i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: #fff;
+}
+
+.story-progress span.done i { width: 100%; }
+.story-progress span.active i { animation: fill 7s linear forwards; }
+
+.story-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.story-meta img {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.story-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    padding: 12px;
+    background: linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0));
+}
+
+.story-caption {
+    margin-top: 6px;
+    font-size: 14px;
+    color: #f5f8ff;
+}
+
+.story-music-name {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #e8eefb;
+}
+
+.story-partnership {
+    margin-top: 7px;
+    display: inline-block;
+    font-size: 11px;
+    border: 1px solid rgba(255,255,255,0.55);
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
+.story-hit {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    z-index: 3;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.story-hit.left { left: 0; }
+.story-hit.right { right: 0; }
+
+.story-audio {
+    margin-top: 8px;
+}
+
+.story-audio audio {
+    width: min(260px, 76vw);
+    height: 30px;
+}
+
+.story-viewers {
+    margin-top: 8px;
+    max-height: 140px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.story-viewers-title {
+    font-size: 12px;
+    color: #cfd8ec;
+    margin-bottom: 6px;
+}
+
+.story-viewer-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.story-viewer-row img {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.story-viewer-row span {
+    font-size: 12px;
+    color: #f0f4ff;
+}
+
+@keyframes fill {
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+@media (min-width: 768px) {
+    .story-frame {
+        height: min(92vh, 860px);
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 20px 80px rgba(0,0,0,0.55);
+    }
+}
+</style>
+
+<div class="story-player-wrap">
+    <div class="story-backdrop" aria-hidden="true">
+        {% if story.is_video and story.media %}
+        <video autoplay muted playsinline loop>
+            <source src="{{ story.media.url }}">
+        </video>
+        {% elif story.preview_url %}
+        <img src="{{ story.preview_url }}" alt="">
+        {% endif %}
+    </div>
+
+    <div class="story-frame">
+        <div class="story-head">
+            <div class="story-head-top">
+                <div></div>
+                <div class="story-head-actions">
+                    <a href="{% url 'profile' story.user.username %}">Profile</a>
+                    <a href="{% url 'home' %}">Close</a>
+                </div>
+            </div>
+            <div class="story-progress">
+                {% for sid in user_story_ids %}
+                    {% if forloop.counter0 < user_story_idx %}
+                        <span class="done"><i></i></span>
+                    {% elif forloop.counter0 == user_story_idx %}
+                        <span class="active"><i></i></span>
+                    {% else %}
+                        <span><i></i></span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <div class="story-meta">
+                <img src="{{ story.user.profile.avatar_url }}" alt="{{ story.user.username }}">
+                <div>
+                    <strong>{{ story.user.username }}</strong>
+                    <div class="text-light small">{{ story.created_at|timesince }} ago</div>
+                </div>
+            </div>
+        </div>
+
+        {% if story.is_video and story.media %}
+        <video id="storyVideo" class="story-media" autoplay playsinline preload="metadata" controls style="filter: {{ story_filter_css }};">
+            <source src="{{ story.media.url }}">
+        </video>
+        {% elif story.preview_url %}
+        <img class="story-media" src="{{ story.preview_url }}" alt="story" style="filter: {{ story_filter_css }};">
+        {% endif %}
+
+        <button class="story-hit left" id="storyPrev" aria-label="Previous"></button>
+        <button class="story-hit right" id="storyNext" aria-label="Next"></button>
+
+        <div class="story-bottom">
+            {% if story.caption %}
+            <div class="story-caption">{{ story.caption }}</div>
+            {% endif %}
+            {% if story.music_suggestion %}
+            <div class="story-music-name">Music: {{ story.music_suggestion }}</div>
+            {% endif %}
+            {% if story.is_partnership %}
+            <div class="story-partnership">Partnership</div>
+            {% endif %}
+            {% if story.music %}
+            <div class="story-audio">
+                <audio controls autoplay>
+                    <source src="{{ story.music.url }}">
+                </audio>
+            </div>
+            {% endif %}
+            {% if request.user == story.user %}
+            <div class="story-viewers">
+                <div class="story-viewers-title">Viewed by {{ story_viewers|length }}</div>
+                {% for row in story_viewers %}
+                <div class="story-viewer-row">
+                    <img src="{{ row.viewer.profile.avatar_url }}" alt="{{ row.viewer.username }}">
+                    <span>{{ row.viewer.username }}</span>
+                </div>
+                {% empty %}
+                <div class="story-viewers-title">No views yet</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+const nextUrl = "{% if next_story_id %}{% url 'view_story' next_story_id %}{% if is_archive_mode %}?archive=1{% endif %}{% else %}{% if is_archive_mode %}{% url 'story_archive' %}{% else %}{% url 'home' %}{% endif %}{% endif %}";
+const prevUrl = "{% if prev_story_id %}{% url 'view_story' prev_story_id %}{% if is_archive_mode %}?archive=1{% endif %}{% else %}{% if is_archive_mode %}{% url 'story_archive' %}{% else %}{% url 'home' %}{% endif %}{% endif %}";
+const IMAGE_AUTO_MS = 7000;
+const TAP_MS = 220;
+const activeBar = document.querySelector(".story-progress span.active i");
+const nextZone = document.getElementById("storyNext");
+const prevZone = document.getElementById("storyPrev");
+const storyVideo = document.getElementById("storyVideo");
+let remaining = IMAGE_AUTO_MS;
+let startedAt = null;
+let timer = null;
+
+function goNext() {
+    clearTimeout(timer);
+    window.location.href = nextUrl;
+}
+
+function goPrev() {
+    clearTimeout(timer);
+    window.location.href = prevUrl;
+}
+
+function setBarState(state) {
+    if (!activeBar) return;
+    activeBar.style.animationPlayState = state;
+}
+
+function setDuration(ms) {
+    remaining = ms;
+    if (activeBar) {
+        activeBar.style.animationDuration = `${ms}ms`;
+        activeBar.style.animationPlayState = "running";
+    }
+}
+
+function resumeTimer() {
+    clearTimeout(timer);
+    if (remaining <= 0) {
+        goNext();
+        return;
+    }
+    startedAt = Date.now();
+    setBarState("running");
+    timer = setTimeout(goNext, remaining);
+}
+
+function pauseTimer() {
+    if (!startedAt) return;
+    clearTimeout(timer);
+    remaining -= (Date.now() - startedAt);
+    if (remaining < 0) remaining = 0;
+    startedAt = null;
+    setBarState("paused");
+}
+
+function bindHoldTap(el, onTap) {
+    let downAt = 0;
+    if (!el) return;
+
+    el.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        downAt = Date.now();
+        pauseTimer();
+    });
+
+    el.addEventListener("pointerup", (e) => {
+        e.preventDefault();
+        const hold = Date.now() - downAt;
+        downAt = 0;
+        if (hold <= TAP_MS) {
+            onTap();
+        } else {
+            resumeTimer();
+        }
+    });
+
+    el.addEventListener("pointerleave", () => {
+        if (!downAt) return;
+        downAt = 0;
+        resumeTimer();
+    });
+
+    el.addEventListener("pointercancel", () => {
+        downAt = 0;
+        resumeTimer();
+    });
+}
+
+if (storyVideo) {
+    storyVideo.addEventListener("loadedmetadata", () => {
+        const videoMs = Math.min(Math.max((storyVideo.duration || 7) * 1000, 3000), 20000);
+        setDuration(videoMs);
+        resumeTimer();
+    });
+
+    storyVideo.addEventListener("ended", goNext);
+} else {
+    setDuration(IMAGE_AUTO_MS);
+    resumeTimer();
+}
+
+bindHoldTap(nextZone, goNext);
+bindHoldTap(prevZone, goPrev);
+
+document.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowRight") goNext();
+    if (event.key === "ArrowLeft") goPrev();
+});
+
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pauseTimer();
+    else resumeTimer();
+});
+</script>
+{% endblock %}

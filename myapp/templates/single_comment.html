@@ -1,0 +1,7 @@
+<p id="comment-{{ comment.id }}">
+    <strong>{{ comment.user.username }}</strong>
+    {{ comment.text }}
+    {% if comment.user == request.user %}
+    <span onclick="deleteComment({{ comment.id }})" style="color:red; cursor:pointer;">x</span>
+    {% endif %}
+</p>

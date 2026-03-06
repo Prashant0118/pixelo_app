@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="p-3 p-md-4">
+    <h3 class="text-center mb-3">Followers</h3>
+    {% for follow in followers %}
+        <div class="py-2 border-bottom" style="border-color:#263249 !important;">
+            <a href="{% url 'profile' follow.follower.username %}" class="text-decoration-none d-flex align-items-center gap-2">
+                <img src="{{ follow.follower.profile.avatar_url }}"
+                     alt="{{ follow.follower.username }}"
+                     width="40"
+                     height="40"
+                     class="rounded-circle"
+                     style="object-fit:cover;">
+                <span>{{ follow.follower.username }}</span>
+            </a>
+        </div>
+    {% empty %}
+        <p class="text-center text-muted">No followers yet</p>
+    {% endfor %}
+</div>
+
+{% endblock %}

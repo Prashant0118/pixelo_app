@@ -1,0 +1,89 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <div style="max-width: 1100px;">
+    <h1>{{ title }}</h1>
+
+    <form method="get" style="margin: 18px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <label for="id_username"><strong>Username</strong></label>
+      <input id="id_username" name="username" type="text" value="{{ username }}" placeholder="Enter username" style="min-width: 260px; padding: 6px 8px;">
+      <button type="submit" class="button">Search User</button>
+    </form>
+
+    {% if user_obj %}
+      <div style="margin-bottom: 18px; border: 1px solid #ddd; border-radius: 8px; padding: 14px;">
+        <h2 style="margin-top: 0;">Profile Details</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr><th style="text-align:left; padding: 6px; width: 240px;">Username</th><td style="padding: 6px;">{{ user_obj.username }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Full Name</th><td style="padding: 6px;">{{ details.full_name }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Email</th><td style="padding: 6px;">{{ details.email }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Bio</th><td style="padding: 6px;">{{ details.bio }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">UPI ID</th><td style="padding: 6px;">{{ details.upi_id }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Interests</th><td style="padding: 6px;">{{ details.interests }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Followers</th><td style="padding: 6px;">{{ details.followers_count }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Following</th><td style="padding: 6px;">{{ details.following_count }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Total Posts</th><td style="padding: 6px;">{{ details.posts_count }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Total Reels</th><td style="padding: 6px;">{{ details.reels_count }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Recommended Reels</th><td style="padding: 6px;">{{ details.recommended_reels_count }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Joined</th><td style="padding: 6px;">{{ details.date_joined }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Last Login</th><td style="padding: 6px;">{{ details.last_login|default:"-" }}</td></tr>
+        </table>
+      </div>
+
+      <div style="border: 1px solid #ddd; border-radius: 8px; padding: 14px;">
+        <h2 style="margin-top: 0;">Reels Recommendation</h2>
+
+        {% if reels %}
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; padding: 8px;">Reel ID</th>
+                <th style="text-align:left; padding: 8px;">Created</th>
+                <th style="text-align:left; padding: 8px;">Status</th>
+                <th style="text-align:left; padding: 8px;">Caption</th>
+                <th style="text-align:left; padding: 8px;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for reel in reels %}
+                <tr style="border-top: 1px solid #efefef;">
+                  <td style="padding: 8px;">#{{ reel.id }}</td>
+                  <td style="padding: 8px;">{{ reel.created_at }}</td>
+                  <td style="padding: 8px;">
+                    {% if reel.is_recommended %}
+                      <span style="color: #1b5e20; font-weight: 600;">Recommended</span>
+                    {% else %}
+                      <span style="color: #7f1d1d; font-weight: 600;">Not Recommended</span>
+                    {% endif %}
+                  </td>
+                  <td style="padding: 8px;">{{ reel.caption|default:"-"|truncatechars:80 }}</td>
+                  <td style="padding: 8px;">
+                    <form method="post" style="display: inline;">
+                      {% csrf_token %}
+                      <input type="hidden" name="username" value="{{ user_obj.username }}">
+                      <input type="hidden" name="reel_id" value="{{ reel.id }}">
+                      {% if reel.is_recommended %}
+                        <input type="hidden" name="recommend" value="0">
+                        <button type="submit" class="button">Unrecommend</button>
+                      {% else %}
+                        <input type="hidden" name="recommend" value="1">
+                        <button type="submit" class="button default">Recommend</button>
+                      {% endif %}
+                    </form>
+                    <a href="{% url 'admin:myapp_post_change' reel.id %}" target="_blank" style="margin-left: 8px;">Open</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>No reels found for this user.</p>
+        {% endif %}
+      </div>
+    {% elif username %}
+      <p>User not found. Please check the username.</p>
+    {% else %}
+      <p>Username daal kar user profile details aur reels recommendation controls dekhein.</p>
+    {% endif %}
+  </div>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/upload.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="upload-container">
+
+    <h4>Create New Post</h4>
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <!-- Upload Type -->
+        <div class="upload-type">
+            <label>
+                <input type="radio" name="type" value="post" checked>
+                Post
+            </label>
+
+            <label>
+                <input type="radio" name="type" value="reel">
+                Reel
+            </label>
+        </div>
+
+        
+
+        <!-- File Upload -->
+        <div class="file-upload">
+            <input type="file" name="media" id="mediaInput" accept="image/*,video/*" required>
+            <label for="mediaInput" class="file-label">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <span>Click to Upload</span>
+            </label>
+        </div>
+
+        <!-- Preview -->
+        <div class="preview-box" id="previewBox"></div>
+
+        <!-- Caption -->
+        <textarea name="caption" placeholder="Write a caption..." rows="3"></textarea>
+
+        <!-- Submit -->
+        <button type="submit" class="upload-btn">Upload</button>
+
+    </form>
+
+</div>
+
+<!-- Preview Script -->
+<script>
+const input = document.getElementById("mediaInput");
+const previewBox = document.getElementById("previewBox");
+const typeRadios = document.querySelectorAll("input[name='type']");
+
+function applyPreviewMode() {
+    const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
+    previewBox.classList.toggle("reel-mode", selectedType === "reel");
+}
+
+input.addEventListener("change", function() {
+    previewBox.innerHTML = "";
+    const file = this.files[0];
+
+    if (file) {
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            if (file.type.startsWith("image")) {
+                previewBox.innerHTML = `<img src="${e.target.result}" class="preview-img">`;
+            } else if (file.type.startsWith("video")) {
+                previewBox.innerHTML = `<video src="${e.target.result}" controls class="preview-video"></video>`;
+            }
+        };
+
+        reader.readAsDataURL(file);
+    }
+});
+
+typeRadios.forEach((radio) => {
+    radio.addEventListener("change", applyPreviewMode);
+});
+applyPreviewMode();
+</script>
+
+{% endblock %}

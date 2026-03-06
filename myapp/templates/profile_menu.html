@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile_menu.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="profile-menu-page">
+    <header class="profile-menu-topbar">
+        <a href="{% url 'profile' request.user.username %}" class="menu-back" aria-label="Back to profile">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h5>Menu</h5>
+    </header>
+
+    <section class="profile-menu-list">
+        <a href="{% url 'edit_profile' %}"><i class="fa-solid fa-gear"></i> Settings</a>
+        <a href="{% url 'payment_settings' %}"><i class="fa-solid fa-indian-rupee-sign"></i> UPI Payment</a>
+        <a href="/story/archive/"><i class="fa-solid fa-box-archive"></i> Archive</a>
+        <a href="/saved-posts/"><i class="fa-regular fa-bookmark"></i> Saved</a>
+        <a href="/liked-reels/"><i class="fa-regular fa-heart"></i> Likes</a>
+        <a href="{% url 'logout' %}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+    </section>
+</div>
+{% endblock %}

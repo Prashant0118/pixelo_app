@@ -1,0 +1,48 @@
+.menu-options-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    background: rgba(6, 12, 24, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+}
+
+.menu-options-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #f6f8ff;
+}
+
+.menu-options-back {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(17, 25, 39, 0.62);
+    color: #f6f8ff;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    text-decoration: none;
+}
+
+:root[data-theme="light"] .menu-options-topbar {
+    background: #ffffff;
+    border-color: #cfdae8;
+}
+
+:root[data-theme="light"] .menu-options-title {
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .menu-options-back {
+    background: #f4f8ff;
+    border-color: #cfdae8;
+    color: #0f172a;
+}

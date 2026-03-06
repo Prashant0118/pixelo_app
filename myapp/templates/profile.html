@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="ig-profile-wrap">
+    <header class="ig-topbar">
+        <a href="{% url 'upload_story' %}" class="top-icon"><i class="fa-regular fa-square-plus"></i></a>
+        <div class="top-center">
+            <h6>{{ profile_user.username }}</h6>
+        </div>
+        <div class="top-right">
+            {% if request.user == profile_user %}
+            <a href="{% url 'notifications' %}" class="top-icon"><i class="fa-regular fa-bell"></i></a>
+            <a href="{% url 'profile_menu' %}" class="top-icon"><i class="fa-solid fa-bars"></i></a>
+            {% endif %}
+        </div>
+    </header>
+
+    <section class="ig-head">
+        {% if profile_story_id %}
+        <a href="{% url 'view_story' profile_story_id %}" class="avatar-link" aria-label="View story">
+            <div class="avatar-block has-story {% if profile_story_seen %}story-seen{% else %}story-unseen{% endif %}">
+                <img src="{{ profile_user.profile.avatar_url }}" alt="{{ profile_user.username }}">
+            </div>
+        </a>
+        {% else %}
+        <div class="avatar-block no-story">
+            <img src="{{ profile_user.profile.avatar_url }}" alt="{{ profile_user.username }}">
+        </div>
+        {% endif %}
+
+        <div class="stats-row">
+            <div>
+                <strong>{{ posts_count }}</strong>
+                <span><i class="fa-regular fa-images"></i> Posts</span>
+            </div>
+            <div>
+                <a href="{% url 'followers_list' profile_user.username %}">
+                    <strong>{{ followers_count }}</strong>
+                    <span>Followers</span>
+                </a>
+            </div>
+            <div>
+                <a href="{% url 'following_list' profile_user.username %}">
+                    <strong>{{ following_count }}</strong>
+                    <span>Friends</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="ig-bio">
+        <h5>{{ profile_user.username|title }}</h5>
+       
+        <p class="bio-line">
+            {% if profile_user.profile.bio %}{{ profile_user.profile.bio }}{% else %}Astute 🤗🤗{% endif %}
+          
+        </p>
+        {% if manual_interests %}
+        <div class="profile-interest-list">
+            {% for category in manual_interests %}
+            <span class="profile-interest-chip">{{ category }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="action-row {% if request.user != profile_user %}action-row-peer{% endif %}">
+        {% if request.user == profile_user %}
+        <a href="{% url 'edit_profile' %}" class="btn-chip">Edit profile</a>
+        <button class="btn-chip" type="button" onclick="shareProfile()">Share profile</button>
+        {% else %}
+            {% if is_following %}
+            <a href="{% url 'unfollow' profile_user.username %}" class="btn-chip btn-chip-inline">
+                <i class="bi bi-person-dash"></i>
+                <span>Unfollow</span>
+            </a>
+            {% else %}
+            <a href="{% url 'follow' profile_user.username %}" class="btn-chip btn-primary-chip btn-chip-inline">
+                <i class="bi {% if is_followed_back %}bi-person-check{% else %}bi-person-plus{% endif %}"></i>
+                <span>{% if is_followed_back %}Follow Back{% else %}Follow{% endif %}</span>
+            </a>
+            {% endif %}
+            {% if can_message %}
+            <a href="{% url 'chat' profile_user.username %}" class="btn-chip btn-chip-inline">
+                <i class="bi bi-chat-dots"></i>
+                <span>Message</span>
+            </a>
+            <button type="button" class="btn-chip btn-lock-chat btn-chip-inline" onclick="lockChatFromProfile('{{ profile_user.username|escapejs }}')">
+                <i class="bi bi-shield-lock"></i>
+                <span>Lock Chat</span>
+            </button>
+            {% elif is_following and not is_followed_back %}
+            <span class="followback-note"></span>
+            {% endif %}
+        {% endif %}
+    </section>
+
+    <section class="tab-row">
+        <button type="button" class="active tab-btn" data-target="posts-grid" title="Posts">
+            <i class="fa-solid fa-table-cells"></i>
+        </button>
+        <button type="button" class="tab-btn" data-target="reels-grid" title="Reels">
+            <i class="fa-solid fa-clapperboard"></i>
+        </button>
+    </section>
+
+    <section class="post-grid" id="posts-grid">
+        {% for post in posts %}
+        <article class="post-tile">
+            <a href="{% url 'home' %}#post-{{ post.id }}" class="d-block h-100 w-100">
+                {% if post.media %}
+                <img src="{{ post.media.url }}" alt="post">
+                {% else %}
+                <div class="post-empty">No media</div>
+                {% endif %}
+            </a>
+            {% if request.user == profile_user %}
+            <div class="tile-menu">
+                <button type="button"
+                        class="tile-menu-btn"
+                        title="Post menu"
+                        aria-label="Post menu"
+                        onclick="toggleTileMenu(event, this)">
+                    <i class="bi bi-three-dots"></i>
+                </button>
+                <div class="tile-menu-panel d-none">
+                    <button type="button"
+                            class="tile-menu-item tile-menu-item-danger"
+                            onclick="deleteProfilePost(event, {{ post.id }}, 'post')">
+                        Delete
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </article>
+        {% empty %}
+        <p class="empty-posts">No posts yet</p>
+        {% endfor %}
+    </section>
+
+    <section class="post-grid d-none" id="reels-grid">
+        {% for reel in reels %}
+        <article class="post-tile" onclick="openReelFromProfile({{ reel.id }})" role="link" tabindex="0" onkeydown="handleReelTileKeydown(event, {{ reel.id }})">
+            {% if reel.media %}
+            <video muted playsinline preload="metadata">
+                <source src="{{ reel.media.url }}" type="video/mp4">
+            </video>
+            <span class="reel-count"><i class="bi bi-play-circle-fill"></i> {{ reel.likes.count }}</span>
+            <button type="button"
+                    class="reel-pay-btn"
+                    onclick="event.stopPropagation(); directPayCreator('{{ reel.user.username|escapejs }}', '{{ reel.user.profile.upi_id|escapejs }}')">
+                <i class="bi bi-currency-rupee"></i> Pay
+            </button>
+            {% if request.user == profile_user %}
+            <div class="tile-menu">
+                <button type="button"
+                        class="tile-menu-btn"
+                        title="Reel menu"
+                        aria-label="Reel menu"
+                        onclick="toggleTileMenu(event, this)">
+                    <i class="bi bi-three-dots"></i>
+                </button>
+                <div class="tile-menu-panel d-none">
+                    <button type="button"
+                            class="tile-menu-item tile-menu-item-danger"
+                            onclick="deleteProfilePost(event, {{ reel.id }}, 'reel')">
+                        Delete
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="post-empty">No reel media</div>
+            {% endif %}
+        </article>
+        {% empty %}
+        <p class="empty-posts">No reels yet</p>
+        {% endfor %}
+    </section>
+</div>
+
+<div class="pay-modal d-none" id="payQrModal" onclick="closePayQrModal(event)">
+    <div class="pay-card">
+        <div class="pay-head">
+            <strong id="payQrTitle">Scan & Pay</strong>
+            <button type="button" class="share-close" onclick="closePayQrModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="pay-body text-center">
+            <img id="payQrImage" src="" alt="UPI payment QR" class="pay-qr-image">
+            <p class="pay-qr-help">Scan this QR from any UPI app on your phone.</p>
+            <p class="pay-qr-upi-line">UPI ID: <strong id="payQrUpiText"></strong></p>
+        </div>
+        <div class="share-foot">
+            <button type="button" class="pay-btn" onclick="copyPayUpi()">Copy UPI</button>
+            <button type="button" class="pay-btn pay-btn-primary" onclick="closePayQrModal()">Done</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let activePayUpiId = "";
+
+const tabButtons = document.querySelectorAll(".tab-btn");
+const tabSections = document.querySelectorAll("#posts-grid, #reels-grid");
+tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+        const target = btn.dataset.target;
+        tabButtons.forEach((item) => item.classList.remove("active"));
+        btn.classList.add("active");
+        tabSections.forEach((section) => {
+            section.classList.toggle("d-none", section.id !== target);
+        });
+    });
+});
+
+function shareProfile() {
+    const url = window.location.href;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => alert("Profile link copied"));
+    } else {
+        alert(url);
+    }
+}
+
+function openReelFromProfile(reelId) {
+    window.location.href = `{% url 'reels' %}?reel=${reelId}`;
+}
+
+function handleReelTileKeydown(event, reelId) {
+    if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openReelFromProfile(reelId);
+    }
+}
+
+function toggleTileMenu(event, buttonEl) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const panel = buttonEl.parentElement.querySelector(".tile-menu-panel");
+    const isHidden = panel.classList.contains("d-none");
+
+    document.querySelectorAll(".tile-menu-panel").forEach((item) => item.classList.add("d-none"));
+    if (isHidden) {
+        panel.classList.remove("d-none");
+    }
+}
+
+function deleteProfilePost(event, postId, typeLabel) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const readableType = typeLabel === "reel" ? "reel" : "post";
+    const shouldDelete = confirm(`Delete this ${readableType}? This cannot be undone.`);
+    if (!shouldDelete) return;
+
+    fetch(`/delete-post/${postId}/`, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCSRF() }
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error("Delete failed");
+        return res.json();
+    })
+    .then((data) => {
+        if (!data.deleted) throw new Error("Delete failed");
+        window.location.reload();
+    })
+    .catch(() => alert(`Unable to delete ${readableType} right now.`));
+}
+
+document.addEventListener("click", () => {
+    document.querySelectorAll(".tile-menu-panel").forEach((item) => item.classList.add("d-none"));
+});
+
+function getCSRF() {
+    const name = "csrftoken=";
+    const parts = document.cookie.split(";");
+    for (let i = 0; i < parts.length; i++) {
+        const c = parts[i].trim();
+        if (c.indexOf(name) === 0) return c.substring(name.length, c.length);
+    }
+    return "";
+}
+
+function lockChatFromProfile(username) {
+    const code = prompt("Set lock code for this chat (min 3 characters):");
+    if (code === null) return;
+    const cleanCode = code.trim();
+    if (cleanCode.length < 3) {
+        alert("Code must be at least 3 characters.");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("code", cleanCode);
+
+    fetch(`/chat-lock/${encodeURIComponent(username)}/`, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCSRF() },
+        body: formData
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error("Unable to lock chat");
+        return res.json();
+    })
+    .then(() => alert(`Chat with @${username} locked.`))
+    .catch(() => alert("Unable to lock chat right now."));
+}
+
+function directPayCreator(username, upiId) {
+    const cleanUpi = (upiId || "").trim();
+    if (!cleanUpi) {
+        alert("Creator has not added a UPI ID yet.");
+        return;
+    }
+
+    const note = `Reel support for @${username}`;
+    const query = `pa=${encodeURIComponent(cleanUpi)}&pn=${encodeURIComponent(username)}&cu=INR&tn=${encodeURIComponent(note)}`;
+    const upiDeepLink = `upi://pay?${query}`;
+    const ua = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(ua);
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+
+    if (isAndroid) {
+        const paytmIntent = `intent://pay?${query}#Intent;scheme=upi;package=net.one97.paytm;end`;
+        window.location.href = paytmIntent;
+        setTimeout(() => { window.location.href = upiDeepLink; }, 700);
+        return;
+    }
+
+    if (isMobile) {
+        window.location.href = upiDeepLink;
+        return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cleanUpi).catch(() => {});
+    }
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiDeepLink)}`;
+    activePayUpiId = cleanUpi;
+    document.getElementById("payQrTitle").textContent = `Pay @${username}`;
+    document.getElementById("payQrImage").src = qrUrl;
+    document.getElementById("payQrUpiText").textContent = cleanUpi;
+    document.getElementById("payQrModal").classList.remove("d-none");
+}
+
+function closePayQrModal(event) {
+    if (event && event.target.id !== "payQrModal") return;
+    document.getElementById("payQrModal").classList.add("d-none");
+}
+
+function copyPayUpi() {
+    if (!activePayUpiId) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(activePayUpiId).then(() => alert("UPI ID copied."));
+        return;
+    }
+    alert(activePayUpiId);
+}
+</script>
+{% endblock %}
