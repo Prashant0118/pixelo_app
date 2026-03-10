@@ -6,7 +6,7 @@
     --text: #f4f7ff;
     --muted: #b8c3da;
     --border: #334766;
-    --primary: #2f8dff;
+    --primary: #111111;
     --danger: #ff4f6d;
     --ig-portrait: 4 / 5;   /* 1080x1350 */
     --ig-tall: 3 / 4;       /* 1080x1440 */
@@ -31,7 +31,7 @@
     --text: #0f172a;
     --muted: #516176;
     --border: #cfdae8;
-    --primary: #2563eb;
+    --primary: #121212;
     --danger: #e11d48;
     --text-strong: #0b1220;
     --icon-muted: #21334f;
@@ -428,7 +428,7 @@ input::placeholder {
 
 .form-control:focus,
 .form-select:focus {
-    box-shadow: 0 0 0 0.2rem rgba(47, 141, 255, 0.2) !important;
+    box-shadow: 0 0 0 0.2rem rgba(255,255,255,0.14) !important;
     border-color: var(--primary) !important;
 }
 

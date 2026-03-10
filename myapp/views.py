@@ -101,6 +101,12 @@ INTEREST_CATEGORY_KEYWORDS = {
     "Food": ["food", "recipe", "cooking", "street food", "meal"],
     "Lifestyle": ["lifestyle", "daily life", "routine", "vlog"],
     "Fitness": ["fitness", "workout", "gym", "exercise", "training"],
+    "Sports": [
+        "sport", "sports", "athlete", "athletic", "match", "tournament", "league",
+        "game", "team", "coach", "attack", "defense", "defence", "serve", "spike",
+        "volleyball", "football", "soccer", "cricket", "badminton", "tennis", "kabaddi",
+        "basketball", "hockey", "baseball", "swimming", "running", "marathon"
+    ],
     "Health": ["health", "wellness", "diet", "healthy"],
     "Meditation": ["meditation", "mindfulness", "breathing", "calm"],
     "Morning Routine": ["morning routine", "5am", "habit", "sunrise"],
@@ -118,6 +124,16 @@ INTEREST_CATEGORY_KEYWORDS = {
     "Portfolio Showcase": ["portfolio", "showcase", "project showcase"],
     "Short Tutorials": ["tutorial", "quick tips", "how to", "guide"],
 }
+
+
+def _keyword_variants(keyword):
+    base = (keyword or "").strip().lower()
+    if not base:
+        return set()
+    compact = base.replace(" ", "")
+    underscored = base.replace(" ", "_")
+    hyphenated = base.replace(" ", "-")
+    return {base, compact, underscored, hyphenated}
 
 
 def _increment_category_scores_from_text(text, scores, weight=1):
@@ -198,7 +214,9 @@ def _build_category_query(category_name):
     keywords = INTEREST_CATEGORY_KEYWORDS.get(category_name, [])
     query = Q()
     for keyword in keywords:
-        query |= Q(caption__icontains=keyword)
+        for variant in _keyword_variants(keyword):
+            query |= Q(caption__icontains=variant)
+            query |= Q(caption__icontains=f"#{variant}")
     return query
 
 
@@ -206,9 +224,15 @@ def _categories_for_text(text):
     if not text:
         return []
     normalized = text.lower()
+    hashtag_normalized = normalized.replace("#", "")
+    searchable_text = f"{normalized} {hashtag_normalized}"
     matched = []
     for category, keywords in INTEREST_CATEGORY_KEYWORDS.items():
-        if any(keyword in normalized for keyword in keywords):
+        if any(
+            variant in searchable_text
+            for keyword in keywords
+            for variant in _keyword_variants(keyword)
+        ):
             matched.append(category)
     return matched
 
@@ -294,9 +318,24 @@ def _fetch_youtube_music_suggestions(query, max_results=10):
         return []
     tracks = []
     for item in payload.get("items", []):
-        title = ((item.get("snippet") or {}).get("title") or "").strip()
-        if title:
-            tracks.append(title[:80])
+        snippet = item.get("snippet") or {}
+        title = (snippet.get("title") or "").strip()
+        channel = (snippet.get("channelTitle") or "").strip()
+        video_id = ((item.get("id") or {}).get("videoId") or "").strip()
+        if not title or not video_id:
+            continue
+        thumbnails = snippet.get("thumbnails") or {}
+        artwork_url = (
+            ((thumbnails.get("medium") or {}).get("url") or "").strip()
+            or ((thumbnails.get("high") or {}).get("url") or "").strip()
+            or ((thumbnails.get("default") or {}).get("url") or "").strip()
+        )
+        label = f"{title} - {channel}" if channel else title
+        tracks.append(_music_option(
+            label=label[:80],
+            youtube_url=f"https://www.youtube.com/watch?v={video_id}",
+            artwork_url=artwork_url,
+        ))
     return tracks
 
 
@@ -308,6 +347,32 @@ def _music_option(label, music_id=None, preview_url="", youtube_url="", artwork_
         "youtube_url": youtube_url or "",
         "artwork_url": artwork_url or "",
     }
+
+
+def _merge_music_options(primary, secondary, limit=50):
+    merged = []
+    seen = set()
+    for row in (primary or []) + (secondary or []):
+        option = _music_option(
+            label=(row or {}).get("label", ""),
+            music_id=(row or {}).get("music_id", ""),
+            preview_url=(row or {}).get("preview_url", ""),
+            youtube_url=(row or {}).get("youtube_url", ""),
+            artwork_url=(row or {}).get("artwork_url", ""),
+        )
+        if not option["label"]:
+            continue
+        dedupe_key = (
+            option["label"].strip().lower(),
+            option["youtube_url"].strip().lower(),
+        )
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        merged.append(option)
+        if len(merged) >= limit:
+            break
+    return merged
 
 
 def _fetch_itunes_music_options(query, max_results=40):
@@ -398,13 +463,11 @@ def _story_music_sections(user):
         "new": [],
     }
     for section_key, query in YOUTUBE_SECTION_QUERY.items():
-        itunes_tracks = _fetch_itunes_music_options(query, max_results=40)
-        if itunes_tracks:
-            sections[section_key] = itunes_tracks
-            continue
-        yt_tracks = _fetch_youtube_music_suggestions(query)
-        if yt_tracks:
-            sections[section_key] = [_music_option(item) for item in yt_tracks]
+        itunes_tracks = _fetch_itunes_music_options(query, max_results=30)
+        yt_tracks = _fetch_youtube_music_suggestions(query, max_results=30)
+        merged_tracks = _merge_music_options(itunes_tracks, yt_tracks, limit=50)
+        if merged_tracks:
+            sections[section_key] = merged_tracks
     return sections
 
 
@@ -464,7 +527,11 @@ def story_music_search_api(request):
     query = (request.GET.get("q") or "").strip()
     if len(query) < 2:
         return JsonResponse({"tracks": []})
-    tracks = _fetch_itunes_music_options(query, max_results=30)
+    tracks = _merge_music_options(
+        _fetch_itunes_music_options(query, max_results=30),
+        _fetch_youtube_music_suggestions(query, max_results=30),
+        limit=50,
+    )
     return JsonResponse({"tracks": tracks})
 
 
@@ -507,7 +574,26 @@ def home(request):
     hidden_categories = category_ranked[featured_limit:]
 
     social_priority_ids = _social_priority_user_ids(request.user)
+    fresh_social_cutoff = timezone.now() - timedelta(hours=18)
     posts_qs = Post.objects.annotate(
+        own_fresh_priority=Case(
+            When(
+                user_id=request.user.id,
+                created_at__gte=fresh_social_cutoff,
+                then=Value(0),
+            ),
+            default=Value(1),
+            output_field=IntegerField(),
+        ),
+        fresh_social_priority=Case(
+            When(
+                user_id__in=social_priority_ids,
+                created_at__gte=fresh_social_cutoff,
+                then=Value(0),
+            ),
+            default=Value(1),
+            output_field=IntegerField(),
+        ),
         social_priority=Case(
             When(user_id__in=social_priority_ids, then=Value(0)),
             default=Value(1),
@@ -520,13 +606,31 @@ def home(request):
                 total_likes=Count("likes", distinct=True),
                 total_comments=Count("comments", distinct=True),
             )
-            .order_by("social_priority", "-created_at", "-is_recommended", "-total_likes", "-total_comments")
+            .order_by(
+                "own_fresh_priority",
+                "fresh_social_priority",
+                "social_priority",
+                "-created_at",
+                "-is_recommended",
+                "-total_likes",
+                "-total_comments",
+            )
         )
     elif selected_category == "All":
-        posts = posts_qs.order_by("social_priority", "-created_at")
+        posts = posts_qs.order_by(
+            "own_fresh_priority",
+            "fresh_social_priority",
+            "social_priority",
+            "-created_at",
+        )
     else:
         category_query = _build_category_query(selected_category)
-        posts = posts_qs.filter(category_query).order_by("social_priority", "-created_at")
+        posts = posts_qs.filter(category_query).order_by(
+            "own_fresh_priority",
+            "fresh_social_priority",
+            "social_priority",
+            "-created_at",
+        )
 
     liked_post_ids = set(
         Like.objects.filter(user=request.user).values_list("post_id", flat=True)
@@ -1105,6 +1209,14 @@ def _detect_chat_media_type(file_obj):
     return ""
 
 
+def _is_user_active_recently(user_obj, now=None, minutes=10):
+    now = now or timezone.now()
+    return bool(
+        getattr(user_obj, "last_login", None)
+        and (now - user_obj.last_login) <= timedelta(minutes=minutes)
+    )
+
+
 def _build_chat_rows(request_user, users_qs):
     rows = []
     now = timezone.now()
@@ -1133,10 +1245,7 @@ def _build_chat_rows(request_user, users_qs):
             subtitle = "Tap to chat"
             time_text = ""
 
-        active_recently = bool(
-            getattr(u, "last_login", None)
-            and (now - u.last_login) <= timedelta(minutes=10)
-        )
+        active_recently = _is_user_active_recently(u, now=now, minutes=10)
         if unread_count > 0 and last_message and last_message.sender_id == u.id:
             status_text = _message_preview_text(last_message)[:48]
         elif not last_message and not active_recently:
@@ -1228,10 +1337,12 @@ def chat(request, username):
         sender=receiver, receiver=request.user
     )
     messages = messages.order_by("timestamp")
+    receiver_active_recently = _is_user_active_recently(receiver, now=timezone.now(), minutes=10)
 
     return render(request, "chat.html", {
         "messages": messages,
         "receiver": receiver,
+        "receiver_active_recently": receiver_active_recently,
         "chat_users": chat_users,
         "chat_rows": chat_rows,
         "chat_search_query": chat_search_query,
@@ -1330,6 +1441,30 @@ def chat_send_api(request, username):
     return JsonResponse({
         "message": _serialize_chat_message(message, request.user)
     })
+
+
+@login_required
+@require_POST
+def chat_delete_api(request, username, message_id):
+    receiver = get_object_or_404(User, username=username)
+    if receiver != request.user and not _is_mutual_follow(request.user, receiver):
+        return JsonResponse({"error": "Chat is available only after follow back."}, status=403)
+
+    message = get_object_or_404(Message, id=message_id)
+    if message.sender_id != request.user.id:
+        return JsonResponse({"error": "Not allowed"}, status=403)
+
+    valid_pair = (
+        (message.sender_id == request.user.id and message.receiver_id == receiver.id)
+        or (message.sender_id == receiver.id and message.receiver_id == request.user.id)
+    )
+    if not valid_pair:
+        return JsonResponse({"error": "Invalid chat message"}, status=400)
+
+    if message.media:
+        message.media.delete(save=False)
+    message.delete()
+    return JsonResponse({"deleted": True, "id": message_id})
 
 
 
@@ -1438,7 +1573,7 @@ def upload(request):
 
     if request.method == "POST":
         media = request.FILES.get("media")
-        caption = request.POST.get("caption")
+        caption = (request.POST.get("caption") or "").strip()
         post_type = request.POST.get("type")
 
         if media:
@@ -1460,6 +1595,9 @@ def upload_story(request):
         image_file = request.FILES.get("image") or request.FILES.get("media")
         music_preview_url = (request.POST.get("music_preview_url") or "").strip()
         music_suggestion = (request.POST.get("music_suggestion") or "").strip()[:80]
+        music_youtube_url = (request.POST.get("music_youtube_url") or "").strip()
+        if music_youtube_url and not music_youtube_url.startswith(("http://", "https://")):
+            music_youtube_url = ""
         if not image_file:
             return render(request, "upload_story.html", _story_upload_context(request.user, "Please select an image."))
 
@@ -1474,6 +1612,7 @@ def upload_story(request):
             "music": None,
             "filter_name": "none",
             "music_suggestion": music_suggestion,
+            "music_source_url": music_youtube_url,
             "caption": "",
             "is_partnership": False,
             "audience": "story",
@@ -1583,11 +1722,15 @@ def comment_ajax(request, post_id):
     text = None
     content_type = request.META.get("CONTENT_TYPE", "")
     if "application/json" in content_type:
-        data = json.loads(request.body or "{}")
+        try:
+            data = json.loads((request.body or b"{}").decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({"error": "Invalid JSON payload"}, status=400)
         text = data.get("text")
     else:
         text = request.POST.get("text")
 
+    text = (text or "").strip()
     if not text:
         return JsonResponse({"error": "Empty comment"}, status=400)
 
@@ -1601,7 +1744,8 @@ def comment_ajax(request, post_id):
         Notification.objects.create(
             sender=request.user,
             receiver=post.user,
-            notification_type="comment"
+            notification_type="comment",
+            post=post,
         )
 
     html = render_to_string("single_comment.html", {
@@ -1631,7 +1775,8 @@ def like_ajax(request, post_id):
                 Notification.objects.create(
                     sender=request.user,
                     receiver=post.user,
-                    notification_type="like"
+                    notification_type="like",
+                    post=post,
                 )
 
         return JsonResponse({

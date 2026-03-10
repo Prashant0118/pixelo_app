@@ -134,6 +134,18 @@
     font-size: 12px;
     color: #e8eefb;
 }
+.story-music-link {
+    margin-top: 6px;
+}
+.story-music-link a {
+    color: #fff;
+    font-size: 12px;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.55);
+    border-radius: 999px;
+    padding: 4px 10px;
+    display: inline-block;
+}
 
 .story-partnership {
     margin-top: 7px;
@@ -159,12 +171,11 @@
 .story-hit.right { right: 0; }
 
 .story-audio {
-    margin-top: 8px;
+    display: none;
 }
 
 .story-audio audio {
-    width: min(260px, 76vw);
-    height: 30px;
+    display: none;
 }
 
 .story-viewers {
@@ -269,15 +280,12 @@
             {% if story.caption %}
             <div class="story-caption">{{ story.caption }}</div>
             {% endif %}
-            {% if story.music_suggestion %}
-            <div class="story-music-name">Music: {{ story.music_suggestion }}</div>
-            {% endif %}
             {% if story.is_partnership %}
             <div class="story-partnership">Partnership</div>
             {% endif %}
             {% if story.music %}
             <div class="story-audio">
-                <audio controls autoplay>
+                <audio id="storyMusic" preload="auto">
                     <source src="{{ story.music.url }}">
                 </audio>
             </div>
@@ -308,16 +316,49 @@ const activeBar = document.querySelector(".story-progress span.active i");
 const nextZone = document.getElementById("storyNext");
 const prevZone = document.getElementById("storyPrev");
 const storyVideo = document.getElementById("storyVideo");
+const storyMusic = document.getElementById("storyMusic");
 let remaining = IMAGE_AUTO_MS;
 let startedAt = null;
 let timer = null;
+let audioStopTimer = null;
+
+function clearAudioStopTimer() {
+    if (audioStopTimer) {
+        clearTimeout(audioStopTimer);
+        audioStopTimer = null;
+    }
+}
+
+function stopStoryMusic() {
+    clearAudioStopTimer();
+    if (!storyMusic) return;
+    storyMusic.pause();
+    try {
+        storyMusic.currentTime = 0;
+    } catch (e) {}
+}
+
+function startStoryMusicFor(ms) {
+    if (!storyMusic || !ms || ms <= 0) return;
+    clearAudioStopTimer();
+    storyMusic.loop = true;
+    try {
+        storyMusic.currentTime = 0;
+    } catch (e) {}
+    storyMusic.play().catch(() => {});
+    audioStopTimer = setTimeout(() => {
+        stopStoryMusic();
+    }, ms);
+}
 
 function goNext() {
+    stopStoryMusic();
     clearTimeout(timer);
     window.location.href = nextUrl;
 }
 
 function goPrev() {
+    stopStoryMusic();
     clearTimeout(timer);
     window.location.href = prevUrl;
 }
@@ -392,12 +433,14 @@ if (storyVideo) {
     storyVideo.addEventListener("loadedmetadata", () => {
         const videoMs = Math.min(Math.max((storyVideo.duration || 7) * 1000, 3000), 20000);
         setDuration(videoMs);
+        startStoryMusicFor(videoMs);
         resumeTimer();
     });
 
     storyVideo.addEventListener("ended", goNext);
 } else {
     setDuration(IMAGE_AUTO_MS);
+    startStoryMusicFor(IMAGE_AUTO_MS);
     resumeTimer();
 }
 
@@ -410,8 +453,15 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("visibilitychange", () => {
-    if (document.hidden) pauseTimer();
-    else resumeTimer();
+    if (document.hidden) {
+        pauseTimer();
+        if (storyMusic) storyMusic.pause();
+    } else {
+        resumeTimer();
+        if (storyMusic) storyMusic.play().catch(() => {});
+    }
 });
+
+window.addEventListener("beforeunload", stopStoryMusic);
 </script>
 {% endblock %}

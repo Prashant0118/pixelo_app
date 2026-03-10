@@ -70,8 +70,8 @@
     font-size: 0.78rem;
 }
 .ss-tab.active {
-    background: #4a8dff;
-    border-color: #4a8dff;
+    background: #111111;
+    border-color: #111111;
     color: #fff;
 }
 .ss-track-list {
@@ -102,7 +102,7 @@
     background: #1a3258;
 }
 .ss-track-row.active {
-    border-color: #4a8dff;
+    border-color: #111111;
     box-shadow: 0 0 0 2px rgba(74, 141, 255, 0.22);
 }
 .ss-track-cover {
@@ -129,8 +129,8 @@
 }
 .ss-submit {
     width: 100%;
-    border: 1px solid #4a8dff;
-    background: #4a8dff;
+    border: 1px solid #111111;
+    background: #111111;
     color: #fff;
     border-radius: 10px;
     padding: 11px;
@@ -146,6 +146,7 @@
     <form method="POST" enctype="multipart/form-data" id="simpleStoryForm">
         {% csrf_token %}
         <input type="hidden" name="music_preview_url" id="musicPreviewUrlInput" value="">
+        <input type="hidden" name="music_youtube_url" id="musicYoutubeUrlInput" value="">
 
         <div class="ss-card">
             <h5 class="ss-title">Upload Story (Image + Music)</h5>
@@ -189,6 +190,7 @@ const musicPreview = document.getElementById("musicPreview");
 const trackList = document.getElementById("trackList");
 const tabs = document.querySelectorAll(".ss-tab");
 const musicPreviewUrlInput = document.getElementById("musicPreviewUrlInput");
+const musicYoutubeUrlInput = document.getElementById("musicYoutubeUrlInput");
 const musicSections = JSON.parse(document.getElementById("music-sections-data").textContent);
 let activeSection = "new";
 let searchRequestToken = 0;
@@ -204,18 +206,19 @@ function trackListEmpty(text) {
 function buildTrackItem(item) {
     if (!item) return null;
     if (typeof item === "string") {
-        return { label: item, preview_url: "", artwork_url: "" };
+        return { label: item, preview_url: "", youtube_url: "", artwork_url: "" };
     }
     return {
         label: item.label || "",
         preview_url: item.preview_url || "",
+        youtube_url: item.youtube_url || "",
         artwork_url: item.artwork_url || "",
     };
 }
 
 function parseTrackLabel(label) {
     const parts = String(label || "").split(" - ");
-    if (parts.length < 2) return { name: label || "", sub: "Song preview" };
+    if (parts.length < 2) return { name: label || "", sub: "Song" };
     return { name: parts[0].trim(), sub: parts.slice(1).join(" - ").trim() };
 }
 
@@ -232,6 +235,7 @@ function safeText(value) {
 function selectTrack(track, rowEl = null) {
     musicSuggestionInput.value = track.label || "";
     musicPreviewUrlInput.value = track.preview_url || "";
+    musicYoutubeUrlInput.value = track.youtube_url || "";
     if (track.preview_url) {
         musicPreview.src = track.preview_url;
         musicPreview.classList.remove("d-none");
@@ -269,6 +273,7 @@ function renderTrackRows(tracks) {
         if (
             musicSuggestionInput.value.trim() === track.label
             && musicPreviewUrlInput.value.trim() === (track.preview_url || "")
+            && musicYoutubeUrlInput.value.trim() === (track.youtube_url || "")
         ) {
             row.classList.add("active");
         }
@@ -317,6 +322,7 @@ imageInput.addEventListener("change", () => {
 musicSuggestionInput.addEventListener("input", () => {
     if (!musicSuggestionInput.value.trim()) {
         musicPreviewUrlInput.value = "";
+        musicYoutubeUrlInput.value = "";
         musicPreview.pause();
         musicPreview.src = "";
         musicPreview.classList.add("d-none");

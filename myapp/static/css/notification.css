@@ -12,6 +12,33 @@
     padding: 12px 14px;
 }
 
+.notif-preview {
+    margin-left: auto;
+    width: 64px;
+    height: 64px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(148, 170, 214, 0.2);
+    background: rgba(9, 15, 28, 0.8);
+    display: grid;
+    place-items: center;
+}
+
+.notif-preview img,
+.notif-preview video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.notif-preview-empty {
+    font-size: 10px;
+    color: #aebcda;
+    text-align: center;
+    padding: 6px;
+}
+
 .notif-avatar-ring {
     width: 46px;
     height: 46px;

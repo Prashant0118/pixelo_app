@@ -119,11 +119,14 @@
 
             <div class="reel-comments-list" id="reel-comments-list-{{ reel.id }}">
                 {% for comment in reel.comments.all %}
-                <p id="comment-{{ comment.id }}">
-                    <strong>{{ comment.user.username }}</strong>
-                    {{ comment.text }}
+                <p id="comment-{{ comment.id }}" class="comment-item">
+                    <a href="{% url 'profile' comment.user.username %}" class="comment-user-link">
+                        <img src="{{ comment.user.profile.avatar_url }}" alt="{{ comment.user.username }}" class="comment-user-avatar">
+                        <strong>{{ comment.user.username }}</strong>
+                    </a>
+                    <span class="comment-text">{{ comment.text }}</span>
                     {% if comment.user == request.user %}
-                    <span onclick="deleteComment({{ comment.id }}, {{ reel.id }})" class="delete-comment">x</span>
+                    <span onclick="deleteComment({{ comment.id }}, {{ reel.id }})" class="delete-comment-btn"><i class="bi bi-trash3-fill"></i></span>
                     {% endif %}
                 </p>
                 {% empty %}
@@ -191,10 +194,11 @@
 <script>
 let activeSharePostId = null;
 let activePayUpiId = "";
-let preferredMuted = true;
+let preferredMuted = false;
 let activeWatchVideo = null;
 let activeWatchStartedAt = null;
 const viewedReelsInSession = new Set();
+let awaitingUserUnmute = false;
 document.body.classList.add("reels-page");
 if (window.innerWidth <= 992) {
     const topBar = document.querySelector(".top-navbar");
@@ -456,6 +460,7 @@ function copyPayUpi() {
 }
 
 const reelItems = document.querySelectorAll(".reel-item");
+const reelsFeed = document.getElementById("reelsFeed");
 const videos = Array.from(reelItems, (item) => item.querySelector("video")).filter(Boolean);
 
 function refreshReelSoundIcon(postId, isMuted) {
@@ -472,6 +477,19 @@ function applySoundPreference(video) {
     refreshReelSoundIcon(postId, video.muted);
 }
 
+function tryPlayWithPreferredSound(video) {
+    if (!video) return;
+    applySoundPreference(video);
+    video.play().catch(() => {
+        // Browser may block autoplay with sound. Fallback to muted playback.
+        video.muted = true;
+        awaitingUserUnmute = true;
+        const postId = video.id.replace("reel-video-", "");
+        refreshReelSoundIcon(postId, true);
+        video.play().catch(() => {});
+    });
+}
+
 function toggleReelSound(postId) {
     const video = document.getElementById(`reel-video-${postId}`);
     if (!video) return;
@@ -486,6 +504,7 @@ function toggleReelSound(postId) {
     if (!preferredMuted) {
         video.play().catch(() => {
             preferredMuted = true;
+            awaitingUserUnmute = true;
             videos.forEach((item) => {
                 item.muted = true;
                 const itemPostId = item.id.replace("reel-video-", "");
@@ -514,8 +533,7 @@ if (videos.length) {
                     flushActiveWatch(false);
                 }
                 pauseAllExcept(video);
-                applySoundPreference(video);
-                video.play().catch(() => {});
+                tryPlayWithPreferredSound(video);
                 activeWatchVideo = video;
                 activeWatchStartedAt = Date.now();
                 if (!viewedReelsInSession.has(postId)) {
@@ -534,10 +552,11 @@ if (videos.length) {
 
     const firstVideo = videos[0];
     if (firstVideo) {
-        applySoundPreference(firstVideo);
-        firstVideo.play().catch(() => {});
+        tryPlayWithPreferredSound(firstVideo);
     }
 }
+
+// CSS scroll-snap handles mobile reel snapping; avoid JS snap jitter.
 
 const targetReelId = new URLSearchParams(window.location.search).get("reel");
 if (targetReelId) {
@@ -547,8 +566,7 @@ if (targetReelId) {
             reelEl.scrollIntoView({ behavior: "smooth", block: "start" });
             const targetVideo = reelEl.querySelector("video");
             if (targetVideo) {
-                applySoundPreference(targetVideo);
-                targetVideo.play().catch(() => {});
+                tryPlayWithPreferredSound(targetVideo);
                 activeWatchVideo = targetVideo;
                 activeWatchStartedAt = Date.now();
                 if (!viewedReelsInSession.has(String(targetReelId))) {
@@ -571,6 +589,20 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("beforeunload", () => {
     flushActiveWatch(false);
 });
+
+document.addEventListener("pointerdown", () => {
+    if (!awaitingUserUnmute) return;
+    awaitingUserUnmute = false;
+    preferredMuted = false;
+    videos.forEach((video) => {
+        video.muted = false;
+        const postId = video.id.replace("reel-video-", "");
+        refreshReelSoundIcon(postId, false);
+        if (!video.paused) {
+            video.play().catch(() => {});
+        }
+    });
+}, { once: true, passive: true });
 </script>
 {% endblock %}
 

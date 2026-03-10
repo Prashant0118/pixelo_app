@@ -91,7 +91,11 @@
                 <img src="{{ receiver.profile.avatar_url }}" alt="{{ receiver.username }}">
                 <div>
                     <strong>{{ receiver.username }}</strong>
+                    {% if receiver_active_recently %}
+                    <small class="chat-online-status"><span class="chat-online-dot-inline"></span>Online</small>
+                    {% else %}
                     <small>Direct conversation</small>
+                    {% endif %}
                 </div>
             </div>
             <div class="chat-head-right">
@@ -104,10 +108,18 @@
                 <div class="msg-row {% if message.sender == request.user %}mine{% else %}theirs{% endif %}{% if message.sender == request.user and not message.is_seen %} pending{% endif %}"
                      data-id="{{ message.id }}"
                      data-content="{{ message.content|escapejs }}"
-                     data-media-url="{% if message.media %}{{ message.media.url|escapejs }}{% endif %}"
-                     data-media-type="{{ message.media_type|default:'text' }}"
-                     data-seen="{% if message.is_seen %}1{% else %}0{% endif %}">
+                    data-media-url="{% if message.media %}{{ message.media.url|escapejs }}{% endif %}"
+                    data-media-type="{{ message.media_type|default:'text' }}"
+                    data-seen="{% if message.is_seen %}1{% else %}0{% endif %}">
+                    {% if message.sender != request.user %}
+                    <div class="msg-peer-avatar" aria-hidden="true">
+                        <img src="{{ receiver.profile.avatar_url }}" alt="{{ receiver.username }}">
+                    </div>
+                    {% endif %}
                     <div class="msg-bubble{% if message.media_type == 'audio' %} audio-horizontal{% endif %}">
+                        {% if message.sender == request.user %}
+                        <button type="button" class="msg-delete-text-btn" data-id="{{ message.id }}" aria-label="Delete message">Delete</button>
+                        {% endif %}
                         {% if message.media %}
                             {% if message.media_type == "image" %}
                             <img class="msg-media" src="{{ message.media.url }}" alt="chat image">
@@ -127,7 +139,6 @@
                         {% if message.content %}
                         <p class="msg-caption">{{ message.content }}</p>
                         {% endif %}
-                        <span class="msg-time">{{ message.timestamp|date:"H:i" }}</span>
                         {% if message.sender == request.user and message.is_seen %}
                         <small class="msg-seen-label">Seen</small>
                         {% endif %}
@@ -166,14 +177,23 @@ const voiceBtn = document.getElementById("voiceBtn");
 const chatMediaInput = document.getElementById("chatMediaInput");
 const chatVoiceInput = document.getElementById("chatVoiceInput");
 const receiverUsername = "{{ receiver.username }}";
+const receiverAvatarUrl = "{{ receiver.profile.avatar_url|escapejs }}";
 const existingMessageIds = new Set();
 const sharedPreviewCache = new Map();
+if ("scrollRestoration" in history) {
+    history.scrollRestoration = "manual";
+}
 let chatSocket = null;
 let voiceRecorder = null;
 let voiceStream = null;
 let voiceChunks = [];
 let isRecordingVoice = false;
 let pendingVoiceFile = null;
+let holdDeleteTimer = null;
+let holdDeleteRow = null;
+const HOLD_DELETE_MS = 2000;
+let autoStickToBottom = true;
+let bottomLockTimer = null;
 
 function getCSRF() {
     const name = "csrftoken=";
@@ -190,6 +210,43 @@ function scrollToBottom(smooth = false) {
         top: chatMessages.scrollHeight,
         behavior: smooth ? "smooth" : "auto"
     });
+}
+
+function isNearBottom(threshold = 80) {
+    const distance = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight;
+    return distance <= threshold;
+}
+
+function scrollToBottomStable(smooth = false) {
+    if (!autoStickToBottom) return;
+    let pass = 0;
+    const maxPasses = 8;
+    const step = () => {
+        scrollToBottom(smooth && pass === 0);
+        pass += 1;
+        if (pass < maxPasses) {
+            requestAnimationFrame(step);
+        }
+    };
+    step();
+    setTimeout(() => scrollToBottom(false), 180);
+    setTimeout(() => scrollToBottom(false), 420);
+}
+
+function startBottomLock(ms = 3000) {
+    if (bottomLockTimer) {
+        clearInterval(bottomLockTimer);
+        bottomLockTimer = null;
+    }
+    autoStickToBottom = true;
+    const startedAt = Date.now();
+    bottomLockTimer = setInterval(() => {
+        scrollToBottom(false);
+        if (Date.now() - startedAt >= ms) {
+            clearInterval(bottomLockTimer);
+            bottomLockTimer = null;
+        }
+    }, 60);
 }
 
 function parseSharedPostId(text) {
@@ -252,22 +309,25 @@ function attachmentHtml(mediaUrl, mediaType) {
     return `<a class="msg-attachment-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open attachment</a>`;
 }
 
-async function renderBubbleContent(row, content, timeText, isSeen = false, mediaUrl = "", mediaType = "text") {
+async function renderBubbleContent(row, content, isSeen = false, mediaUrl = "", mediaType = "text") {
     const bubble = row.querySelector(".msg-bubble");
     if (!bubble) return;
     bubble.classList.toggle("audio-horizontal", !!mediaUrl && mediaType === "audio");
     const seenHtml = row.classList.contains("mine") && isSeen ? `<small class="msg-seen-label">Seen</small>` : "";
+    const deleteHtml = row.classList.contains("mine") && row.dataset.id
+        ? `<button type="button" class="msg-delete-text-btn" data-id="${escapeHtml(row.dataset.id)}" aria-label="Delete message">Delete</button>`
+        : "";
     const mediaHtml = attachmentHtml(mediaUrl, mediaType);
     const captionHtml = content ? `<p class="msg-caption">${escapeHtml(content)}</p>` : "";
     const sharedId = parseSharedPostId(content);
     if (!mediaHtml && sharedId) {
         const preview = await getSharedPreview(sharedId);
         if (preview) {
-            bubble.innerHTML = `${sharedCardHtml(preview)}<span class="msg-time">${escapeHtml(timeText)}</span>${seenHtml}`;
+            bubble.innerHTML = `${deleteHtml}${sharedCardHtml(preview)}${seenHtml}`;
             return;
         }
     }
-    bubble.innerHTML = `${mediaHtml}${captionHtml}<span class="msg-time">${escapeHtml(timeText)}</span>${seenHtml}`;
+    bubble.innerHTML = `${deleteHtml}${mediaHtml}${captionHtml}${seenHtml}`;
 }
 
 function renderMessage(message) {
@@ -282,16 +342,26 @@ function renderMessage(message) {
     row.dataset.mediaUrl = message.media_url || "";
     row.dataset.mediaType = message.media_type || "text";
     row.dataset.seen = message.is_seen ? "1" : "0";
-    row.innerHTML = `<div class="msg-bubble new"></div>`;
+    if (message.is_mine) {
+        row.innerHTML = `<div class="msg-bubble new"></div>`;
+    } else {
+        row.innerHTML = `
+            <div class="msg-peer-avatar" aria-hidden="true">
+                <img src="${escapeHtml(receiverAvatarUrl)}" alt="${escapeHtml(receiverUsername)}">
+            </div>
+            <div class="msg-bubble new"></div>
+        `;
+    }
     chatMessages.appendChild(row);
     renderBubbleContent(
         row,
         message.content || "",
-        message.timestamp.slice(11, 16),
         !!message.is_seen,
         message.media_url || "",
         message.media_type || "text"
-    );
+    ).then(() => {
+        scrollToBottomStable(true);
+    });
     setTimeout(() => {
         const bubble = row.querySelector(".msg-bubble");
         if (bubble) bubble.classList.remove("new");
@@ -305,17 +375,18 @@ function initializeExistingIds() {
     });
 }
 
-function hydrateSharedMessages() {
+async function hydrateSharedMessages() {
     const rows = chatMessages.querySelectorAll(".msg-row[data-content]");
+    const jobs = [];
     rows.forEach((row) => {
         const content = row.dataset.content || "";
         const mediaUrl = row.dataset.mediaUrl || "";
         const mediaType = row.dataset.mediaType || "text";
-        const timeEl = row.querySelector(".msg-bubble span");
-        const timeText = timeEl ? timeEl.textContent : "";
         const isSeen = row.dataset.seen === "1";
-        renderBubbleContent(row, content, timeText, isSeen, mediaUrl, mediaType);
+        jobs.push(renderBubbleContent(row, content, isSeen, mediaUrl, mediaType));
     });
+    await Promise.all(jobs);
+    scrollToBottomStable(false);
 }
 
 function connectWebSocket() {
@@ -328,7 +399,6 @@ function connectWebSocket() {
         if (data.message) {
             if (noMessages) noMessages.remove();
             renderMessage(data.message);
-            scrollToBottom(true);
             return;
         }
         if (data.type === "seen_update" && Array.isArray(data.message_ids)) {
@@ -337,12 +407,9 @@ function connectWebSocket() {
                 if (row) {
                     row.classList.remove("pending");
                     row.dataset.seen = "1";
-                    const timeEl = row.querySelector(".msg-time");
-                    const timeText = timeEl ? timeEl.textContent : "";
                     renderBubbleContent(
                         row,
                         row.dataset.content || "",
-                        timeText,
                         true,
                         row.dataset.mediaUrl || "",
                         row.dataset.mediaType || "text"
@@ -385,6 +452,70 @@ function sendByHttpFallback(text, mediaFile = null) {
     .catch(() => {
         alert("Unable to send message right now.");
     });
+}
+
+function removeMessageRow(row) {
+    if (!row) return;
+    row.remove();
+    const remaining = chatMessages.querySelectorAll(".msg-row").length;
+    if (remaining === 0) {
+        const empty = document.createElement("div");
+        empty.className = "no-messages";
+        empty.id = "noMessages";
+        empty.textContent = "Start the conversation.";
+        chatMessages.appendChild(empty);
+    }
+}
+
+function deleteMessageById(messageId, rowEl) {
+    if (!messageId) return;
+    fetch(`/chat-api/${encodeURIComponent(receiverUsername)}/delete/${encodeURIComponent(messageId)}/`, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCSRF() }
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error("Delete failed");
+        return res.json();
+    })
+    .then((data) => {
+        if (data.deleted) {
+            existingMessageIds.delete(Number(messageId));
+            removeMessageRow(rowEl);
+        }
+    })
+    .catch(() => {
+        alert("Unable to delete message right now.");
+    });
+}
+
+function clearHoldDeleteTimer() {
+    if (holdDeleteTimer) {
+        clearTimeout(holdDeleteTimer);
+    }
+    holdDeleteTimer = null;
+    holdDeleteRow = null;
+}
+
+function hideAllDeleteOptions() {
+    chatMessages.querySelectorAll(".msg-row.mine.delete-ready").forEach((row) => {
+        row.classList.remove("delete-ready");
+    });
+}
+
+function armHoldDelete(target) {
+    const bubble = target.closest(".msg-row.mine .msg-bubble");
+    const row = bubble ? bubble.closest(".msg-row.mine") : null;
+    if (!bubble || !row) return;
+
+    clearHoldDeleteTimer();
+    holdDeleteRow = row;
+    holdDeleteTimer = setTimeout(() => {
+        hideAllDeleteOptions();
+        if (holdDeleteRow) {
+            holdDeleteRow.classList.add("delete-ready");
+        }
+        clearHoldDeleteTimer();
+    }, HOLD_DELETE_MS);
 }
 
 function sendSelectedFile(file) {
@@ -523,10 +654,55 @@ chatVoiceInput.addEventListener("change", function() {
     setPendingVoice(file);
 });
 
+chatMessages.addEventListener("pointerdown", function(event) {
+    if (event.target.closest(".msg-delete-text-btn")) return;
+    armHoldDelete(event.target);
+});
+
+chatMessages.addEventListener("pointerup", function() {
+    clearHoldDeleteTimer();
+});
+
+chatMessages.addEventListener("pointercancel", function() {
+    clearHoldDeleteTimer();
+});
+
+chatMessages.addEventListener("pointerleave", function() {
+    clearHoldDeleteTimer();
+});
+
+chatMessages.addEventListener("click", function(event) {
+    const btn = event.target.closest(".msg-delete-text-btn");
+    if (!btn) return;
+    const row = btn.closest(".msg-row.mine");
+    const messageId = btn.dataset.id || (row && row.dataset.id);
+    if (!row || !messageId) return;
+    if (!confirm("Delete this message?")) return;
+    deleteMessageById(messageId, row);
+});
+
+chatMessages.addEventListener("scroll", function() {
+    autoStickToBottom = isNearBottom(80);
+});
+
 initializeExistingIds();
+startBottomLock(3200);
 hydrateSharedMessages();
-scrollToBottom();
+scrollToBottomStable(false);
 connectWebSocket();
+
+chatMessages.addEventListener("load", () => {
+    scrollToBottomStable(false);
+}, true);
+
+chatMessages.addEventListener("loadedmetadata", () => {
+    scrollToBottomStable(false);
+}, true);
+
+window.addEventListener("load", () => {
+    startBottomLock(3200);
+    scrollToBottomStable(false);
+});
 
 // Screenshot deterrence only (cannot fully block OS/browser screenshots).
 document.addEventListener("keydown", (e) => {

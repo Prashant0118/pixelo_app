@@ -4,7 +4,8 @@ from urllib.request import urlopen
 
 from django.contrib import admin
 from django.contrib import messages
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
+from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.utils import timezone
 from django.conf import settings
 from django.http import HttpResponseRedirect
@@ -317,5 +318,241 @@ class StoryMusicImportAdmin(admin.ModelAdmin):
     list_filter = ("section", "is_active", "created_at")
     search_fields = ("query",)
     actions = [run_youtube_import]
+
+
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
+    extra = 0
+    fields = ("image", "bio", "upi_id", "interests")
+
+def _safe_unregister(model):
+    try:
+        admin.site.unregister(model)
+    except admin.sites.NotRegistered:
+        pass
+
+
+# Keep only Users visible in admin
+_safe_unregister(User)
+_safe_unregister(Group)
+_safe_unregister(Post)
+_safe_unregister(Profile)
+_safe_unregister(Reel)
+_safe_unregister(Follow)
+_safe_unregister(Notification)
+_safe_unregister(Story)
+_safe_unregister(StorySeen)
+_safe_unregister(Message)
+_safe_unregister(Like)
+_safe_unregister(Comment)
+_safe_unregister(StoryMusic)
+_safe_unregister(StoryMusicImport)
+
+
+@admin.register(User)
+class UserAdmin(DjangoUserAdmin):
+    inlines = (ProfileInline,)
+    list_display = ("username", "email", "first_name", "last_name", "is_staff", "is_active")
+    search_fields = ("username", "email", "first_name", "last_name")
+    fieldsets = (
+        ("Account", {"fields": ("username", "email", "is_active", "is_staff")}),
+        ("User Profile", {"fields": ("profile_card",)}),
+        ("User Content", {"fields": ("reels_preview", "posts_preview")}),
+    )
+    readonly_fields = ("profile_card", "reels_preview", "posts_preview")
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<int:user_id>/reels/<int:reel_id>/toggle-recommend/",
+                self.admin_site.admin_view(self.toggle_reel_recommend),
+                name="myapp_user_toggle_reel_recommend",
+            )
+        ]
+        return custom_urls + urls
+
+    def toggle_reel_recommend(self, request, user_id, reel_id):
+        user_obj = User.objects.filter(pk=user_id).first()
+        reel = Post.objects.filter(pk=reel_id, user_id=user_id, type="reel").first()
+        if not user_obj or not reel:
+            messages.error(request, "Reel not found for this user.")
+            return HttpResponseRedirect(reverse("admin:auth_user_changelist"))
+        reel.is_recommended = not reel.is_recommended
+        reel.save(update_fields=["is_recommended"])
+        state_text = "recommended" if reel.is_recommended else "not recommended"
+        messages.success(request, f"Reel #{reel.pk} marked as {state_text}.")
+        return HttpResponseRedirect(reverse("admin:auth_user_change", args=[user_id]))
+
+    def reels_preview(self, obj):
+        if not obj or not obj.pk:
+            return "Save user first to see reels."
+
+        reels = Post.objects.filter(user=obj, type="reel").order_by("-created_at")
+        if not reels.exists():
+            return "No reels uploaded by this user."
+
+        cards = []
+        for reel in reels:
+            toggle_url = reverse("admin:myapp_user_toggle_reel_recommend", args=[obj.pk, reel.pk])
+            if reel.media:
+                media_html = format_html(
+                    "<video controls playsinline preload='metadata' style='width:230px; max-width:100%; background:#000; border-radius:8px;'>"
+                    "<source src='{}'>"
+                    "</video>",
+                    reel.media.url,
+                )
+            else:
+                media_html = format_html("<div style='padding:8px; border:1px solid #ddd;'>No media</div>")
+
+            state_color = "#1b5e20" if reel.is_recommended else "#7f1d1d"
+            state_text = "Recommended" if reel.is_recommended else "Not recommended"
+
+            cards.append(
+                format_html(
+                    "<div style='display:inline-block; width:250px; margin:8px; padding:10px; border:1px solid #ddd; border-radius:10px; vertical-align:top;'>"
+                    "{}"
+                    "<div style='margin-top:8px; font-size:12px; color:#555;'>Reel ID: {}</div>"
+                    "<div style='margin-top:6px; font-weight:600; color:{};'>{}</div>"
+                    "<div style='margin-top:8px;'><a href='{}'>Toggle Recommend</a></div>"
+                    "</div>",
+                    media_html,
+                    reel.pk,
+                    state_color,
+                    state_text,
+                    toggle_url,
+                )
+            )
+
+        return mark_safe("".join(str(card) for card in cards))
+
+    reels_preview.short_description = "User reels (manage)"
+
+    def profile_card(self, obj):
+        if not obj:
+            return "No user selected."
+        profile = Profile.objects.filter(user=obj).first()
+        image_url = ""
+        if profile and profile.image:
+            try:
+                image_url = profile.image.url
+            except Exception:
+                image_url = ""
+        if not image_url:
+            try:
+                image_url = obj.profile.avatar_url
+            except Exception:
+                image_url = ""
+        bio = (profile.bio or "").strip() if profile else ""
+        interests = ", ".join(profile.interests) if profile and profile.interests else ""
+        followers_count = Follow.objects.filter(following=obj).count()
+        following_count = Follow.objects.filter(follower=obj).count()
+        posts_count = Post.objects.filter(user=obj, type="post").count()
+        reels_count = Post.objects.filter(user=obj, type="reel").count()
+
+        avatar_html = ""
+        if image_url:
+            avatar_html = format_html(
+                "<img src='{}' alt='{}' style='width:88px; height:88px; border-radius:50%; object-fit:cover; border:1px solid #ddd;' />",
+                image_url,
+                obj.username,
+            )
+        else:
+            avatar_html = format_html(
+                "<div style='width:88px; height:88px; border-radius:50%; background:#e5e7eb; display:flex; align-items:center; justify-content:center; font-weight:700; color:#334155;'>"
+                "{}</div>",
+                (obj.username or "U")[:1].upper(),
+            )
+
+        interest_html = ""
+        if interests:
+            chips = []
+            for item in interests.split(","):
+                label = item.strip()
+                if not label:
+                    continue
+                chips.append(
+                    format_html(
+                        "<span style='border:1px solid #314a72; border-radius:999px; background:rgba(16,29,52,0.82); color:#dbe7ff; padding:4px 10px; font-size:12px; display:inline-block; margin:4px 6px 0 0;'>"
+                        "{}</span>",
+                        label,
+                    )
+                )
+            if chips:
+                interest_html = format_html(
+                    "<div style='margin-top:8px; display:flex; flex-wrap:wrap;'>{}</div>",
+                    mark_safe("".join(str(c) for c in chips)),
+                )
+
+        return format_html(
+            "<div style='display:flex; gap:16px; align-items:center; padding:14px; border:1px solid #253349; border-radius:14px; background:#0f1b2f; color:#f6f8ff;'>"
+            "{}"
+            "<div style='min-width:0; flex:1;'>"
+            "<div style='font-size:18px; font-weight:700;'>@{}</div>"
+            "<div style='color:#a8b6cd; font-size:13px; margin-top:2px;'>{}</div>"
+            "<div style='display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:8px; margin-top:10px;'>"
+            "<div style='text-align:center; background:rgba(14,20,34,0.88); border:1px solid #253349; border-radius:12px; padding:8px 6px;'>"
+            "<strong style='display:block; font-size:14px;'>{}</strong><span style='color:#a8b6cd; font-size:11px;'>Posts</span></div>"
+            "<div style='text-align:center; background:rgba(14,20,34,0.88); border:1px solid #253349; border-radius:12px; padding:8px 6px;'>"
+            "<strong style='display:block; font-size:14px;'>{}</strong><span style='color:#a8b6cd; font-size:11px;'>Reels</span></div>"
+            "<div style='text-align:center; background:rgba(14,20,34,0.88); border:1px solid #253349; border-radius:12px; padding:8px 6px;'>"
+            "<strong style='display:block; font-size:14px;'>{}</strong><span style='color:#a8b6cd; font-size:11px;'>Followers</span></div>"
+            "</div>"
+            "<div style='display:flex; gap:10px; margin-top:8px; font-size:12px; color:#cbd5e1;'>"
+            "<span>Following: <strong style='color:#f6f8ff;'>{}</strong></span>"
+            "</div>"
+            "{}"
+            "</div>"
+            "</div>",
+            avatar_html,
+            obj.username,
+            bio or "No bio",
+            posts_count,
+            reels_count,
+            followers_count,
+            following_count,
+            mark_safe(interest_html),
+        )
+
+    profile_card.short_description = "Profile preview"
+
+    def posts_preview(self, obj):
+        if not obj or not obj.pk:
+            return "Save user first to see posts."
+
+        posts = Post.objects.filter(user=obj, type="post").order_by("-created_at")[:20]
+        if not posts.exists():
+            return "No posts uploaded by this user."
+
+        items = []
+        for post in posts:
+            if post.media:
+                media_html = format_html(
+                    "<div style='width:230px; max-width:100%;'>"
+                    "<img src='{}' style='width:100%; border-radius:8px;' />"
+                    "</div>",
+                    post.media.url,
+                )
+            else:
+                media_html = format_html("<div style='padding:8px; border:1px solid #ddd;'>No media</div>")
+
+            caption = (post.caption or "").strip()[:80] or "No caption"
+            items.append(
+                format_html(
+                    "<div style='display:inline-block; width:250px; margin:8px; padding:10px; border:1px solid #ddd; border-radius:10px; vertical-align:top;'>"
+                    "{}"
+                    "<div style='margin-top:8px; font-size:12px; color:#555;'>Post ID: {}</div>"
+                    "<div style='margin-top:6px; font-size:12px; color:#333;'>{}</div>"
+                    "</div>",
+                    media_html,
+                    post.pk,
+                    caption,
+                )
+            )
+
+        return mark_safe("".join(str(item) for item in items))
+
+    posts_preview.short_description = "User posts"
 
 

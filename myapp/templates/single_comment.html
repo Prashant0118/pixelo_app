@@ -1,7 +1,11 @@
-<p id="comment-{{ comment.id }}">
-    <strong>{{ comment.user.username }}</strong>
-    {{ comment.text }}
+<p id="comment-{{ comment.id }}" class="comment-item">
+    <a href="{% url 'profile' comment.user.username %}" class="comment-user-link">
+        <img src="{{ comment.user.profile.avatar_url }}" alt="{{ comment.user.username }}" class="comment-user-avatar">
+        <strong>{{ comment.user.username }}</strong>
+    </a>
+    <span class="comment-text">{{ comment.text }}</span>
     {% if comment.user == request.user %}
-    <span onclick="deleteComment({{ comment.id }})" style="color:red; cursor:pointer;">x</span>
+    <span onclick="deleteComment({{ comment.id }}, {{ comment.post.id }})"
+          class="delete-comment-btn"><i class="bi bi-trash3-fill"></i></span>
     {% endif %}
 </p>

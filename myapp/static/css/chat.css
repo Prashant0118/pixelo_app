@@ -6,18 +6,18 @@
     --chat-border: #2b3e5c;
     --chat-text: #eaf1ff;
     --chat-muted: #9baecc;
-    --chat-accent: #3b82f6;
+    --chat-accent: #121212;
     --chat-success: #22c55e;
     --chat-page-bg:
-        radial-gradient(circle at 12% 10%, rgba(47, 141, 255, 0.08), transparent 32%),
+        radial-gradient(circle at 12% 10%, rgba(255,255,255,0.06), transparent 32%),
         radial-gradient(circle at 90% 80%, rgba(14, 165, 233, 0.07), transparent 30%),
         var(--chat-bg);
     --chat-panel-bg: linear-gradient(180deg, rgba(15, 24, 41, 0.96), rgba(12, 20, 35, 0.92));
     --chat-panel-head-bg: rgba(13, 21, 36, 0.97);
     --chat-main-head-bg: rgba(15, 24, 40, 0.92);
     --chat-main-bg:
-        radial-gradient(circle at 18% 18%, rgba(59, 130, 246, 0.09), transparent 32%),
-        radial-gradient(circle at 84% 72%, rgba(37, 99, 235, 0.06), transparent 30%),
+        radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.07), transparent 32%),
+        radial-gradient(circle at 84% 72%, rgba(255, 255, 255, 0.05), transparent 30%),
         #0a1426;
     --chat-input-bg: rgba(12, 20, 34, 0.97);
 }
@@ -29,18 +29,18 @@
     --chat-border: #ccdae9;
     --chat-text: #0f172a;
     --chat-muted: #516176;
-    --chat-accent: #2563eb;
+    --chat-accent: #121212;
     --chat-success: #16a34a;
     --chat-page-bg:
-        radial-gradient(circle at 12% 10%, rgba(37, 99, 235, 0.09), transparent 34%),
-        radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.07), transparent 32%),
+        radial-gradient(circle at 12% 10%, rgba(255, 255, 255, 0.07), transparent 34%),
+        radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.06), transparent 32%),
         var(--chat-bg);
     --chat-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(243, 247, 253, 0.92));
     --chat-panel-head-bg: rgba(255, 255, 255, 0.96);
     --chat-main-head-bg: rgba(255, 255, 255, 0.96);
     --chat-main-bg:
-        radial-gradient(circle at 18% 18%, rgba(37, 99, 235, 0.08), transparent 34%),
-        radial-gradient(circle at 84% 72%, rgba(59, 130, 246, 0.06), transparent 30%),
+        radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.06), transparent 34%),
+        radial-gradient(circle at 84% 72%, rgba(255, 255, 255, 0.05), transparent 30%),
         #eef3fb;
     --chat-input-bg: rgba(255, 255, 255, 0.96);
 }
@@ -76,7 +76,9 @@
     height: 100vh;
     color: var(--chat-text);
     background: transparent;
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    font-family: "Segoe UI Variable Text", "Segoe UI", "Inter", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
 .chat-users {
@@ -98,9 +100,9 @@
 
 .chat-users-head h6 {
     margin: 0;
-    font-size: 1.02rem;
-    font-weight: 650;
-    letter-spacing: 0.01em;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.015em;
 }
 
 .chat-users-head small {
@@ -128,7 +130,7 @@
 
 .chat-search-form input:focus {
     border-color: var(--chat-accent);
-    box-shadow: 0 0 0 3px rgba(47, 141, 255, 0.2);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.14);
 }
 
 .chat-search-form button {
@@ -248,7 +250,7 @@
 
 .chat-avatar-wrap.has-unread {
     padding: 2px;
-    background: linear-gradient(145deg, #60a5fa, #3b82f6);
+    background: linear-gradient(145deg, #1a1a1a, #121212);
 }
 
 .chat-avatar-wrap.has-unread img {
@@ -273,9 +275,10 @@
 
 .chat-user-meta strong {
     display: block;
-    font-size: 0.98rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    line-height: 1.2;
+    line-height: 1.25;
+    letter-spacing: 0.01em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -284,8 +287,10 @@
 .chat-user-meta small {
     display: block;
     color: var(--chat-muted);
-    margin-top: 2px;
-    font-size: 0.85rem;
+    margin-top: 3px;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -383,15 +388,32 @@
 
 .user-chip strong {
     display: block;
-    font-size: 0.98rem;
+    font-size: 0.96rem;
     font-weight: 650;
-    line-height: 1.15;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
 }
 
 .user-chip small,
 .chat-watermark {
     color: var(--chat-muted);
     font-size: 0.78rem;
+}
+
+.chat-online-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #7ff0ad !important;
+    font-weight: 600;
+}
+
+.chat-online-dot-inline {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
 }
 
 .chat-head-right {
@@ -419,6 +441,8 @@
 
 .msg-row {
     display: flex;
+    align-items: flex-end;
+    gap: 8px;
     margin-bottom: 12px;
 }
 
@@ -430,15 +454,33 @@
     justify-content: flex-start;
 }
 
+.msg-peer-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    flex: 0 0 30px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: #0f1728;
+}
+
+.msg-peer-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .msg-bubble {
     max-width: min(68%, 620px);
     border-radius: 14px;
     padding: 10px 12px 7px;
     box-shadow: 0 10px 24px rgba(4, 10, 19, 0.2);
+    position: relative;
 }
 
 .msg-row.mine .msg-bubble {
-    background: linear-gradient(135deg, #2f7df0, #3b82f6);
+    background: linear-gradient(135deg, #151515, #121212);
     color: #fff;
     border-bottom-right-radius: 4px;
 }
@@ -456,13 +498,39 @@
 
 .msg-bubble p {
     margin: 0;
-    line-height: 1.38;
+    font-size: 0.95rem;
+    line-height: 1.52;
+    letter-spacing: 0.005em;
     white-space: pre-wrap;
     word-break: break-word;
 }
 
 .msg-caption {
     margin-top: 8px;
+}
+
+.msg-delete-text-btn {
+    display: none;
+    border: 1px solid rgba(255, 160, 170, 0.68);
+    background: rgba(145, 25, 38, 0.9);
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin: 0 0 8px auto;
+    line-height: 1.1;
+    cursor: pointer;
+}
+
+.msg-row.mine.delete-ready .msg-delete-text-btn {
+    display: inline-block;
+}
+
+.msg-delete-text-btn:hover {
+    background: rgba(190, 35, 52, 0.98);
+    border-color: rgba(255, 182, 190, 0.95);
 }
 
 .msg-media {
@@ -491,7 +559,7 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: rgba(47, 141, 255, 0.2);
+    background: rgba(255,255,255,0.14);
     color: #dcebff;
     display: inline-flex;
     align-items: center;
@@ -500,19 +568,12 @@
 }
 
 .msg-bubble.audio-horizontal {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.msg-bubble.audio-horizontal .msg-time {
-    margin-top: 0;
-    min-width: 34px;
-    display: inline-block;
+    display: block;
 }
 
 .msg-bubble.audio-horizontal .msg-seen-label {
-    margin-top: 0;
+    margin-top: 7px;
+    text-align: right;
 }
 
 .msg-attachment-link {
@@ -524,18 +585,26 @@
 .msg-bubble span {
     margin-top: 5px;
     display: block;
-    font-size: 11px;
-    opacity: 0.78;
+    font-size: 0.72rem;
+    opacity: 0.86;
     text-align: right;
+    letter-spacing: 0.02em;
 }
 
 .msg-seen-label {
     margin-top: 1px;
     display: block;
     text-align: right;
-    font-size: 11px;
+    font-size: 0.71rem;
     color: #9fd1ff;
     font-weight: 600;
+    letter-spacing: 0.02em;
+    opacity: 0.96;
+}
+
+.msg-row.mine .msg-seen-label {
+    color: #7ff0ad;
+    font-weight: 700;
 }
 
 .msg-bubble.new {
@@ -613,7 +682,15 @@
     border-radius: 10px;
     padding: 11px 13px;
     outline: none;
-    font-size: 0.94rem;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    letter-spacing: 0.005em;
+}
+
+.chat-input-bar input::placeholder,
+.chat-search-form input::placeholder {
+    letter-spacing: 0.01em;
+    font-size: 0.88rem;
 }
 
 .chat-file-input {
@@ -662,14 +739,14 @@
 
 .chat-input-bar input:focus {
     border-color: var(--chat-accent);
-    box-shadow: 0 0 0 3px rgba(47, 141, 255, 0.2);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.14);
 }
 
 .chat-input-bar button {
     border: 1px solid #5584c1;
     border-radius: 10px;
     padding: 9px 13px;
-    background: linear-gradient(135deg, #2f7df0, #3b82f6);
+    background: linear-gradient(135deg, #151515, #121212);
     color: #fff;
     font-weight: 650;
     display: inline-flex;

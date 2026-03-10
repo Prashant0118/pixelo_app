@@ -47,7 +47,7 @@ body{
     display:block;
     margin-top:10px;
     font-size:14px;
-    color:#0095f6;
+    color:#111111;
     cursor:pointer;
     font-weight:500;
 }
@@ -78,7 +78,7 @@ body{
 
 .input-group input:focus,
 .input-group textarea:focus{
-    border-color:#2f8dff;
+    border-color:#111111;
     outline:none;
     box-shadow:0 0 0 2px rgba(0,149,246,0.1);
 }
@@ -112,8 +112,8 @@ body{
 }
 
 .interest-option input:checked + span{
-    border-color:#2f8dff;
-    background:rgba(47,141,255,0.18);
+    border-color:#111111;
+    background:rgba(255,255,255,0.08);
     color:#ffffff;
 }
 
@@ -123,7 +123,7 @@ body{
     padding:12px;
     border:none;
     border-radius:10px;
-    background:#0095f6;
+    background:#111111;
     color:white;
     font-weight:600;
     cursor:pointer;
@@ -159,7 +159,7 @@ body{
 }
 
 :root[data-theme="light"] .interest-option input:checked + span {
-    background: rgba(37, 99, 235, 0.12);
-    border-color: #2563eb;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #121212;
     color: #0f172a;
 }

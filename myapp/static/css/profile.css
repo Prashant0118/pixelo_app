@@ -147,12 +147,13 @@ body {
 
 .avatar-block.has-story.story-unseen {
     border: 2px solid transparent;
-    background: linear-gradient(135deg, #ffd04a, #ff4b88, #7d4fff);
+    background: linear-gradient(135deg, #ff7cc3, #ff2f92, #ff0f7b);
+    box-shadow: 0 0 0 2px rgba(255, 47, 146, 0.18);
 }
 
 .avatar-block.has-story.story-seen {
-    border-color: #5a6780;
-    background: #111d33;
+    border-color: #7a7a7a;
+    background: #1a1a1a;
 }
 
 .avatar-block.no-story {
@@ -689,7 +690,7 @@ body {
     --border: #cfdae8;
     --text: #0f172a;
     --muted: #5b6c82;
-    --accent: #2563eb;
+    --accent: #121212;
     background: linear-gradient(180deg, #ffffff, #f3f7fd);
     border-color: #cfdae8;
 }
@@ -740,7 +741,7 @@ body {
 }
 
 :root[data-theme="light"] .avatar-add {
-    background: #2563eb;
+    background: #121212;
     color: #ffffff;
     border-color: #ffffff;
 }
@@ -776,8 +777,8 @@ body {
 
 :root[data-theme="light"] .btn-primary-chip {
     color: #ffffff;
-    background: #2563eb;
-    border-color: #2563eb;
+    background: #121212;
+    border-color: #121212;
 }
 
 :root[data-theme="light"] .btn-lock-chat {
@@ -877,8 +878,8 @@ body {
 }
 
 :root[data-theme="light"] .pay-btn-primary {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: #121212;
+    border-color: #121212;
     color: #ffffff;
 }
 

@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from urllib.parse import quote
 from django.contrib.auth.hashers import make_password, check_password
+from django.urls import reverse
 
 
 class Profile(models.Model):
@@ -49,9 +50,18 @@ class Follow(models.Model):
 class Notification(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_notifications")
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    post = models.ForeignKey("Post", on_delete=models.SET_NULL, null=True, blank=True, related_name="notifications")
     notification_type = models.CharField(max_length=50)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def target_url(self):
+        if not self.post_id:
+            return ""
+        if self.post.type == "reel":
+            return reverse("reels") + f"?reel={self.post_id}"
+        return reverse("home") + f"#post-{self.post_id}"
 
 
 class Story(models.Model):
@@ -67,6 +77,7 @@ class Story(models.Model):
     filter_name = models.CharField(max_length=40, default="none")
     music = models.FileField(upload_to="stories/music/", blank=True, null=True)
     music_suggestion = models.CharField(max_length=80, blank=True)
+    music_source_url = models.URLField(blank=True)
     caption = models.CharField(max_length=220, blank=True)
     is_partnership = models.BooleanField(default=False)
     audience = models.CharField(max_length=20, choices=AUDIENCE_CHOICES, default="story")

@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-%1i1b3^72fjhcd2vj(-*uvb@7=6+29%!c@$+3k=sg^-(fcp4(e
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.29.185", "*"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.29.185",]
 
 
 # Application definition
@@ -145,6 +145,6 @@ CHANNEL_LAYERS = {
     }
 }
 
-YOUTUBE_API_KEY = os.getenv("AIzaSyA8SQSkorFcKhlBgUtSuCKstCrIOZsR4Xk")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
 

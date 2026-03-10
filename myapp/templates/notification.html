@@ -32,6 +32,21 @@
                         </div>
                         <div class="text-muted small mt-1">{{ n.created_at|timesince }} ago</div>
                     </div>
+                    {% if n.post %}
+                        <a href="{{ n.target_url }}" class="notif-preview">
+                            {% if n.post.media %}
+                                {% if n.post.type == "reel" %}
+                                    <video muted playsinline preload="metadata">
+                                        <source src="{{ n.post.media.url }}">
+                                    </video>
+                                {% else %}
+                                    <img src="{{ n.post.media.url }}" alt="post preview">
+                                {% endif %}
+                            {% else %}
+                                <div class="notif-preview-empty">No media</div>
+                            {% endif %}
+                        </a>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>

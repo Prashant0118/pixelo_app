@@ -5,9 +5,11 @@
 
 .reels-feed {
     height: var(--reels-vh);
-    overflow-y: auto;
+    overflow-y: scroll;
     scroll-snap-type: y mandatory;
     background: #000;
+    touch-action: pan-y pinch-zoom;
+    -webkit-overflow-scrolling: touch;
 }
 
 .reels-back-btn {
@@ -51,6 +53,7 @@
     height: 100%;
     object-fit: cover;
     display: block;
+    touch-action: pan-y;
 }
 
 .reel-sound-toggle {
@@ -184,6 +187,35 @@
     margin: 0 0 8px;
 }
 
+.reel-comments-list .comment-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reel-comments-list .comment-user-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.reel-comments-list .comment-user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    flex: 0 0 24px;
+}
+
+.reel-comments-list .comment-text {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .reel-comment-form {
     border-top: 1px solid #2a364f;
     padding: 10px 12px;
@@ -205,11 +237,12 @@
     border-radius: 8px;
     padding: 8px 12px;
     color: #fff;
-    background: #0095f6;
+    background: #111111;
     cursor: pointer;
 }
 
-.delete-comment {
+.delete-comment,
+.delete-comment-btn {
     color: #cf2e2e;
     cursor: pointer;
     margin-left: 4px;
@@ -438,6 +471,14 @@ body.reels-page .reels-feed {
 }
 
 @media (max-width: 992px) {
+    .reels-feed {
+        scroll-snap-type: y mandatory;
+    }
+
+    .reel-item {
+        scroll-snap-stop: always;
+    }
+
     body.reels-page .top-navbar,
     body.reels-page .mobile-bottom {
         display: none !important;

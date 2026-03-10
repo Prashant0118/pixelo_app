@@ -14,6 +14,7 @@ urlpatterns = [
     path("chat-lock/<str:username>/", views.lock_chat, name="lock_chat"),
     path("chat-api/<str:username>/messages/", views.chat_messages_api, name="chat_messages_api"),
     path("chat-api/<str:username>/send/", views.chat_send_api, name="chat_send_api"),
+    path("chat-api/<str:username>/delete/<int:message_id>/", views.chat_delete_api, name="chat_delete_api"),
     path('search/', views.search, name="search"),
     path('search-suggestions/', views.search_suggestions, name="search_suggestions"),
     path('upload/', views.upload, name="upload"),

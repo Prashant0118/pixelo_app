@@ -1,0 +1,320 @@
+/* Global black theme overrides loaded after page-specific CSS */
+:root {
+    --bg: #000000;
+    --surface: #080808;
+    --surface-2: #111111;
+    --text: #f5f7fb;
+    --text-strong: #ffffff;
+    --muted: #c0c7d6;
+    --border: #2a2a2a;
+    --icon-muted: #f0f3fa;
+    --input-bg: #0d0d0d;
+    --primary: #111111;
+    --chat-accent: #111111;
+    --accent: #111111;
+    --icon-wrapper-bg: rgba(255, 255, 255, 0.03);
+    --icon-wrapper-border: rgba(255, 255, 255, 0.12);
+    --icon-wrapper-hover-bg: rgba(255, 255, 255, 0.08);
+    --icon-wrapper-hover-border: rgba(255, 255, 255, 0.22);
+}
+
+html,
+body {
+    background: #000000 !important;
+    color: var(--text) !important;
+}
+
+.main-layout,
+.feed,
+.sidebar,
+.right-panel,
+.top-navbar,
+.content-area,
+.mobile-bottom {
+    background: #000000 !important;
+}
+
+.feed,
+.sidebar,
+.right-panel,
+.top-navbar,
+.mobile-bottom,
+.story-container,
+.post-card,
+.card,
+.modal-content,
+.dropdown-menu,
+.list-group-item,
+.offcanvas,
+.table,
+.table-responsive {
+    border-color: var(--border) !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+small,
+label,
+strong,
+li,
+td,
+th,
+input,
+textarea,
+select,
+button {
+    color: var(--text) !important;
+}
+
+i.bi,
+i.fa-solid,
+i.fa-regular,
+i.fa-brands,
+svg {
+    color: var(--icon-muted) !important;
+    fill: currentColor;
+}
+
+a {
+    color: var(--text) !important;
+}
+
+a:hover {
+    color: #ffffff !important;
+}
+
+input,
+textarea,
+select,
+.form-control,
+.form-select {
+    background: #0d0d0d !important;
+    border-color: #2a2a2a !important;
+    color: #f5f7fb !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #98a1b3 !important;
+}
+
+.btn {
+    border-color: #2c2c2c !important;
+}
+
+.btn-primary,
+.btn-success,
+.btn-info,
+.btn-warning,
+.btn-danger,
+.button,
+.chip.active,
+.active > .page-link,
+.page-link:focus,
+.page-link:hover {
+    background: #111111 !important;
+    border-color: #2f2f2f !important;
+    color: #f5f7fb !important;
+}
+
+.btn-light,
+.btn-outline-light,
+.btn-outline-secondary {
+    background: #111111 !important;
+    color: #f5f7fb !important;
+}
+
+.badge {
+    background: #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+.badge-count,
+.badge-dot {
+    background: var(--badge-red) !important;
+    color: #ffffff !important;
+}
+
+.text-muted {
+    color: var(--muted) !important;
+}
+
+/* Home/Post page hard overrides */
+body.home-page {
+    background: #000000 !important;
+}
+
+body.home-page .feed,
+body.home-page .top-navbar,
+body.home-page .mobile-bottom,
+body.home-page .story-container,
+body.home-page .post-card,
+body.home-page .card,
+body.home-page .share-card {
+    background: #0a0a0a !important;
+    border-color: #2a2a2a !important;
+    box-shadow: none !important;
+}
+
+body.home-page .chip,
+body.home-page .chip-more,
+body.home-page .category-nav-btn,
+body.home-page .icon-btn {
+    background: #111111 !important;
+    border-color: #303030 !important;
+    color: #f5f7fb !important;
+}
+
+body.home-page .chip.active {
+    background: #161616 !important;
+    border-color: #3a3a3a !important;
+    box-shadow: none !important;
+}
+
+body.home-page .mobile-bottom a:nth-child(3) {
+    background: #141414 !important;
+    border-color: #333333 !important;
+    box-shadow: none !important;
+}
+
+/* Profile page hard overrides */
+.ig-profile-wrap {
+    --surface: #0c0c0c !important;
+    --surface-2: #141414 !important;
+    --border: #2b2b2b !important;
+    --text: #f5f7fb !important;
+    --muted: #b9c1d2 !important;
+    --accent: #111111 !important;
+    background: #000000 !important;
+    border-color: #222222 !important;
+}
+
+.ig-topbar,
+.menu-dropdown,
+.tab-row,
+.post-grid,
+.pay-card,
+.tile-menu-panel {
+    background: #0b0b0b !important;
+    border-color: #2a2a2a !important;
+}
+
+.btn-primary-chip,
+.pay-btn-primary {
+    background: #111111 !important;
+    border-color: #333333 !important;
+    color: #ffffff !important;
+}
+
+.bio-line a {
+    color: #ffffff !important;
+}
+
+/* Chat page hard overrides */
+:root,
+:root[data-theme="light"] {
+    --chat-bg: #000000 !important;
+    --chat-surface: #0b0b0b !important;
+    --chat-surface-soft: #121212 !important;
+    --chat-border: #2a2a2a !important;
+    --chat-text: #f5f7fb !important;
+    --chat-muted: #b9c1d2 !important;
+    --chat-accent: #111111 !important;
+    --chat-page-bg: #000000 !important;
+    --chat-panel-bg: #0c0c0c !important;
+    --chat-panel-head-bg: #0f0f0f !important;
+    --chat-main-head-bg: #0f0f0f !important;
+    --chat-main-bg: #0a0a0a !important;
+    --chat-input-bg: #0d0d0d !important;
+}
+
+.chat-shell,
+.chat-users,
+.chat-main,
+.chat-users-head,
+.chat-users-footer,
+.chat-main-head,
+.chat-messages,
+.chat-composer,
+.chat-search-row,
+.chat-home-btn,
+.chat-user-row,
+.chat-user-row.active,
+.chat-user-row:hover,
+.msg-row .msg-bubble,
+.msg-row.mine .msg-bubble,
+.msg-row.theirs .msg-bubble {
+    background: #0b0b0b !important;
+    border-color: #2a2a2a !important;
+    color: #f5f7fb !important;
+    box-shadow: none !important;
+}
+
+.chat-search-form input,
+.chat-composer input,
+.chat-composer textarea,
+.chat-search-form button,
+.chat-main-head .chat-back-arrow,
+.chat-main-head .chat-watermark,
+.chat-composer button {
+    background: #111111 !important;
+    border-color: #303030 !important;
+    color: #f5f7fb !important;
+}
+
+.chat-shell i,
+.chat-shell .bi,
+.chat-shell .fa-solid,
+.chat-shell .fa-regular,
+.chat-shell .fa-brands {
+    color: #f0f3fa !important;
+}
+
+.chat-messages .msg-row.mine .msg-bubble {
+    background: #4a4a4a !important;
+    border-color: #5b5b5b !important;
+    color: #ffffff !important;
+}
+
+.chat-messages .msg-row.mine.pending .msg-bubble {
+    background: #565656 !important;
+}
+
+.chat-messages .msg-row.theirs .msg-bubble {
+    background: #3f3f3f !important;
+    border-color: #565656 !important;
+    color: #f5f7fb !important;
+}
+
+.feed-user-avatar.has-story.story-unseen,
+.avatar-block.has-story.story-unseen,
+.story-avatar.unseen {
+    background: linear-gradient(135deg, #ff7cc3, #ff2f92, #ff0f7b) !important;
+    border-color: #ff2f92 !important;
+}
+
+.feed-user-avatar.has-story.story-seen,
+.avatar-block.has-story.story-seen,
+.story-avatar.seen {
+    background: #7a7a7a !important;
+    border-color: #7a7a7a !important;
+}
+
+/* Catch explicit white inline backgrounds from legacy templates */
+[style*="background: #fff"],
+[style*="background:#fff"],
+[style*="background: white"],
+[style*="background:white"],
+[style*="background-color: #fff"],
+[style*="background-color:#fff"],
+[style*="background-color: white"],
+[style*="background-color:white"] {
+    background: #111111 !important;
+    color: #f5f7fb !important;
+}
