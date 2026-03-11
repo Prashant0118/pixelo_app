@@ -74,7 +74,12 @@
 
             <div class="reel-overlay">
                 <div class="reel-meta">
-                    <a href="{% url 'profile' reel.user.username %}" class="reel-user">@{{ reel.user.username }}</a>
+                    <a href="{% url 'profile' reel.user.username %}" class="reel-user">
+                        <span class="reel-user-avatar-wrap">
+                            <img src="{{ reel.user.profile.avatar_url }}" alt="{{ reel.user.username }}" class="reel-user-avatar">
+                        </span>
+                        <span>@{{ reel.user.username }}</span>
+                    </a>
                     <p class="reel-caption">{{ reel.caption }}</p>
                 </div>
 
@@ -199,6 +204,7 @@ let activeWatchVideo = null;
 let activeWatchStartedAt = null;
 const viewedReelsInSession = new Set();
 let awaitingUserUnmute = false;
+let userHasInteracted = false;
 document.body.classList.add("reels-page");
 if (window.innerWidth <= 992) {
     const topBar = document.querySelector(".top-navbar");
@@ -473,7 +479,7 @@ function refreshReelSoundIcon(postId, isMuted) {
 function applySoundPreference(video) {
     if (!video || !video.id) return;
     const postId = video.id.replace("reel-video-", "");
-    video.muted = preferredMuted;
+    video.muted = preferredMuted || !userHasInteracted;
     refreshReelSoundIcon(postId, video.muted);
 }
 
@@ -493,6 +499,10 @@ function tryPlayWithPreferredSound(video) {
 function toggleReelSound(postId) {
     const video = document.getElementById(`reel-video-${postId}`);
     if (!video) return;
+    if (!userHasInteracted) {
+        awaitingUserUnmute = true;
+        return;
+    }
     preferredMuted = !video.muted;
     videos.forEach((item) => {
         item.muted = preferredMuted;
@@ -591,6 +601,7 @@ window.addEventListener("beforeunload", () => {
 });
 
 document.addEventListener("pointerdown", () => {
+    userHasInteracted = true;
     if (!awaitingUserUnmute) return;
     awaitingUserUnmute = false;
     preferredMuted = false;
@@ -603,6 +614,21 @@ document.addEventListener("pointerdown", () => {
         }
     });
 }, { once: true, passive: true });
+
+document.addEventListener("keydown", () => {
+    userHasInteracted = true;
+    if (!awaitingUserUnmute) return;
+    awaitingUserUnmute = false;
+    preferredMuted = false;
+    videos.forEach((video) => {
+        video.muted = false;
+        const postId = video.id.replace("reel-video-", "");
+        refreshReelSoundIcon(postId, false);
+        if (!video.paused) {
+            video.play().catch(() => {});
+        }
+    });
+}, { once: true });
 </script>
 {% endblock %}
 
