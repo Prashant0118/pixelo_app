@@ -56,10 +56,9 @@
     <section class="ig-bio">
         <h5>{{ profile_user.username|title }}</h5>
        
-        <p class="bio-line">
-            {% if profile_user.profile.bio %}{{ profile_user.profile.bio }}{% else %}Astute 🤗🤗{% endif %}
-          
-        </p>
+        {% if profile_user.profile.bio %}
+        <p class="bio-line">{{ profile_user.profile.bio }}</p>
+        {% endif %}
         {% if manual_interests %}
         <div class="profile-interest-list">
             {% for category in manual_interests %}
@@ -365,3 +364,4 @@ function copyPayUpi() {
 }
 </script>
 {% endblock %}
+
