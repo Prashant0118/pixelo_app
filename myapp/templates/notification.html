@@ -10,46 +10,53 @@
     <h4 class="mb-3">Notifications</h4>
 
     {% if notifications %}
-        <div class="list-group notif-list">
-            {% for n in notifications %}
-                <div class="list-group-item notif-item">
-                    <a href="{% url 'profile' n.sender.username %}" class="notif-avatar-ring">
-                        <img src="{{ n.sender.profile.avatar_url }}" alt="{{ n.sender.username }}">
-                    </a>
-                    <div class="notif-content">
-                        <div>
-                            {% if n.notification_type == "follow" %}
-                                <strong>{{ n.sender.username }}</strong> started following you.
-                            {% elif n.notification_type == "like" %}
-                                <strong>{{ n.sender.username }}</strong> liked your post.
-                            {% elif n.notification_type == "comment" %}
-                                <strong>{{ n.sender.username }}</strong> commented on your post.
-                            {% elif n.notification_type == "follow_accepted" %}
-                                <strong>{{ n.sender.username }}</strong> accepted your follow request.
-                            {% else %}
-                                <strong>{{ n.sender.username }}</strong> sent you a notification.
-                            {% endif %}
-                        </div>
-                        <div class="text-muted small mt-1">{{ n.created_at|timesince }} ago</div>
-                    </div>
-                    {% if n.post %}
-                        <a href="{{ n.target_url }}" class="notif-preview">
-                            {% if n.post.media %}
-                                {% if n.post.type == "reel" %}
-                                    <video muted playsinline preload="metadata">
-                                        <source src="{{ n.post.media.url }}">
-                                    </video>
-                                {% else %}
-                                    <img src="{{ n.post.media.url }}" alt="post preview">
+        {% for section in sections %}
+            {% if section.rows %}
+                <div class="notif-section">
+                    <div class="notif-section-title">{{ section.title }}</div>
+                    <div class="list-group notif-list">
+                        {% for n in section.rows %}
+                            <div class="list-group-item notif-item">
+                                <a href="{% url 'profile' n.sender.username %}" class="notif-avatar-ring">
+                                    <img src="{{ n.sender.profile.avatar_url }}" alt="{{ n.sender.username }}">
+                                </a>
+                                <div class="notif-content">
+                                    <div class="notif-text">
+                                        {% if n.notification_type == "follow" %}
+                                            <strong>{{ n.sender.username }}</strong> started following you.
+                                        {% elif n.notification_type == "like" %}
+                                            <strong>{{ n.sender.username }}</strong> liked your post.
+                                        {% elif n.notification_type == "comment" %}
+                                            <strong>{{ n.sender.username }}</strong> commented on your post.
+                                        {% elif n.notification_type == "follow_accepted" %}
+                                            <strong>{{ n.sender.username }}</strong> accepted your follow request.
+                                        {% else %}
+                                            <strong>{{ n.sender.username }}</strong> sent you a notification.
+                                        {% endif %}
+                                    </div>
+                                    <div class="notif-time">{{ n.created_at|timesince }} ago</div>
+                                </div>
+                                {% if n.post %}
+                                    <a href="{{ n.target_url }}" class="notif-preview">
+                                        {% if n.post.media %}
+                                            {% if n.post.type == "reel" %}
+                                                <video muted playsinline preload="metadata">
+                                                    <source src="{{ n.post.media.url }}">
+                                                </video>
+                                            {% else %}
+                                                <img src="{{ n.post.media.url }}" alt="post preview">
+                                            {% endif %}
+                                        {% else %}
+                                            <div class="notif-preview-empty">No media</div>
+                                        {% endif %}
+                                    </a>
                                 {% endif %}
-                            {% else %}
-                                <div class="notif-preview-empty">No media</div>
-                            {% endif %}
-                        </a>
-                    {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
-            {% endfor %}
-        </div>
+            {% endif %}
+        {% endfor %}
     {% else %}
         <p class="text-muted">No notifications yet.</p>
     {% endif %}

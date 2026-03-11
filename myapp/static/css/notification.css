@@ -1,25 +1,43 @@
+.notif-section {
+    margin-bottom: 18px;
+}
+
+.notif-section-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #e6e9ef;
+    margin: 6px 2px 10px;
+    letter-spacing: 0.2px;
+}
+
 .notif-list {
-    border-radius: 12px;
+    border-radius: 0;
     overflow: hidden;
+    border: none;
 }
 
 .notif-item {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
-    background: rgba(19, 31, 50, 0.78);
-    border-color: #2b3f5e !important;
-    padding: 12px 14px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 10px 4px;
+}
+
+.notif-item:last-child {
+    border-bottom: none;
 }
 
 .notif-preview {
     margin-left: auto;
-    width: 64px;
-    height: 64px;
+    width: 52px;
+    height: 52px;
     border-radius: 10px;
     overflow: hidden;
-    border: 1px solid rgba(148, 170, 214, 0.2);
-    background: rgba(9, 15, 28, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #14171c;
     display: grid;
     place-items: center;
 }
@@ -34,18 +52,18 @@
 
 .notif-preview-empty {
     font-size: 10px;
-    color: #aebcda;
+    color: #9aa0a6;
     text-align: center;
     padding: 6px;
 }
 
 .notif-avatar-ring {
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    padding: 2px;
-    background: linear-gradient(145deg, #f9ce34, #ee2a7b, #6228d7);
-    flex: 0 0 46px;
+    padding: 0;
+    background: transparent;
+    flex: 0 0 44px;
     display: inline-block;
 }
 
@@ -54,24 +72,44 @@
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid #111b2f;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     display: block;
 }
 
 .notif-content {
     min-width: 0;
-    color: #eaf0ff;
+    color: #e6e9ef;
+    font-size: 15px;
+    line-height: 1.25;
+}
+
+.notif-text {
+    color: #e6e9ef;
+}
+
+.notif-time {
+    font-size: 12px;
+    color: #9aa0a6;
+    margin-top: 2px;
+}
+
+:root[data-theme="light"] .notif-section-title {
+    color: #0f172a;
 }
 
 :root[data-theme="light"] .notif-item {
-    background: #ffffff;
-    border-color: #cfdae8 !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 :root[data-theme="light"] .notif-avatar-ring img {
-    border-color: #ffffff;
+    border-color: rgba(15, 23, 42, 0.08);
 }
 
-:root[data-theme="light"] .notif-content {
+:root[data-theme="light"] .notif-content,
+:root[data-theme="light"] .notif-text {
     color: #0f172a;
+}
+
+:root[data-theme="light"] .notif-time {
+    color: #6b7280;
 }

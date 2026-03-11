@@ -709,8 +709,35 @@ def notifications(request):
 
     notifications_qs.filter(is_read=False).update(is_read=True)
 
+    # Group notifications like Instagram: Today, Yesterday, Last 7 days, Older
+    from django.utils import timezone
+    from datetime import timedelta
+
+    today = timezone.localdate()
+    yesterday = today - timedelta(days=1)
+    last7_start = today - timedelta(days=7)
+
+    sections = [
+        {"title": "Today", "rows": []},
+        {"title": "Yesterday", "rows": []},
+        {"title": "Last 7 days", "rows": []},
+        {"title": "Earlier", "rows": []},
+    ]
+
+    for n in notifications_qs:
+        n_date = timezone.localtime(n.created_at).date()
+        if n_date == today:
+            sections[0]["rows"].append(n)
+        elif n_date == yesterday:
+            sections[1]["rows"].append(n)
+        elif last7_start <= n_date < yesterday:
+            sections[2]["rows"].append(n)
+        else:
+            sections[3]["rows"].append(n)
+
     return render(request, "notification.html", {
-        "notifications": notifications_qs
+        "notifications": notifications_qs,
+        "sections": sections,
     })
 
 
