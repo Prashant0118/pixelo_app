@@ -27,11 +27,37 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-change-me")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes", "on")
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.29.185","*","pixelo-app-1.onrender.com"]
+DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.29.185"]
+raw_allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
+ALLOWED_HOSTS = []
+if raw_allowed_hosts:
+    # Support space- or comma-separated values.
+    tokens = raw_allowed_hosts.replace(",", " ").split()
+    ALLOWED_HOSTS.extend(tokens)
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = DEFAULT_ALLOWED_HOSTS[:]
+
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-ALLOWED_HOSTS += os.getenv("ALLOWED_HOSTS", "").split()
+
+# Known production host
+ALLOWED_HOSTS.append("pixelo-app-1.onrender.com")
+
+# Normalize / de-dup
+clean_hosts = []
+for h in ALLOWED_HOSTS:
+    h = h.strip()
+    if not h:
+        continue
+    if "://" in h:
+        h = h.split("://", 1)[1]
+    h = h.rstrip("/")
+    clean_hosts.append(h)
+ALLOWED_HOSTS = list(dict.fromkeys(clean_hosts))
+
+if os.getenv("LOG_ALLOWED_HOSTS", "0").lower() in ("1", "true", "yes", "on"):
+    print(f"Resolved ALLOWED_HOSTS: {ALLOWED_HOSTS}")
 
 
 # Application definition
