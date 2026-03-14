@@ -68,6 +68,8 @@ if os.getenv("LOG_ALLOWED_HOSTS", "0").lower() in ("1", "true", "yes", "on"):
 # Application definition
 
 INSTALLED_APPS = [
+    'cloudinary_storage',
+    'cloudinary',
     'myapp.apps.MyappConfig',
     'channels',
 
@@ -174,13 +176,23 @@ USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 STATIC_URL = '/static/'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # Do not add myapp/static to STATICFILES_DIRS because it is already
 # discovered via INSTALLED_APPS, which causes duplicate collection.
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Cloudinary for user uploads (images/videos) when CLOUDINARY_URL is set.
+if os.getenv("CLOUDINARY_URL"):
+    STORAGES = {
+        "default": {"BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage"},
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        },
+    }
+else:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 LOGIN_URL = '/login/'
 
