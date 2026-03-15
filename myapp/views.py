@@ -6,6 +6,8 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 
 from django.dispatch import receiver
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
@@ -1233,6 +1235,18 @@ def _detect_chat_media_type(file_obj):
         return "video"
     if content_type.startswith("audio/"):
         return "audio"
+    # Fallback to filename-based detection when content_type is missing/unknown.
+    name = (getattr(file_obj, "name", "") or "").lower()
+    guessed, _ = mimetypes.guess_type(name)
+    if guessed:
+        if guessed.startswith("image/"):
+            return "image"
+        if guessed.startswith("video/"):
+            return "video"
+        if guessed.startswith("audio/"):
+            return "audio"
+    if name.endswith((".heic", ".heif")):
+        return "image"
     return ""
 
 
@@ -1397,16 +1411,37 @@ def lock_chat(request, username):
 
 
 def _serialize_chat_message(message, request_user):
+    media_url = ""
+    if message.media:
+        try:
+            media_url = message.media.url
+        except ValueError:
+            media_url = ""
+    media_type = message.media_type
+    if message.media and not media_type:
+        guessed, _ = mimetypes.guess_type(message.media.name or "")
+        if guessed:
+            if guessed.startswith("image/"):
+                media_type = "image"
+            elif guessed.startswith("video/"):
+                media_type = "video"
+            elif guessed.startswith("audio/"):
+                media_type = "audio"
     return {
         "id": message.id,
         "content": message.content,
-        "media_url": message.media.url if message.media else "",
-        "media_type": message.media_type,
+        "media_url": media_url,
+        "media_type": media_type,
         "is_mine": message.sender_id == request_user.id,
         "is_seen": message.is_seen,
         "sender": message.sender.username,
         "timestamp": message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
     }
+
+
+def _chat_group_name(user_id, peer_id):
+    low_id, high_id = sorted([user_id, peer_id])
+    return f"chat_{low_id}_{high_id}"
 
 
 @login_required
@@ -1464,6 +1499,31 @@ def chat_send_api(request, username):
     if media_file:
         message.media = media_file
     message.save()
+
+    channel_layer = get_channel_layer()
+    if channel_layer:
+        media_url = ""
+        if message.media:
+            try:
+                media_url = message.media.url
+            except ValueError:
+                media_url = ""
+        async_to_sync(channel_layer.group_send)(
+            _chat_group_name(request.user.id, receiver.id),
+            {
+                "type": "chat_message",
+                "message": {
+                    "id": message.id,
+                    "content": message.content,
+                    "media_url": media_url,
+                    "media_type": message.media_type,
+                    "sender": request.user.username,
+                    "sender_id": request.user.id,
+                    "is_seen": message.is_seen,
+                    "timestamp": message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                },
+            },
+        )
 
     return JsonResponse({
         "message": _serialize_chat_message(message, request.user)
