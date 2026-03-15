@@ -68,8 +68,6 @@ if os.getenv("LOG_ALLOWED_HOSTS", "0").lower() in ("1", "true", "yes", "on"):
 # Application definition
 
 INSTALLED_APPS = [
-    'cloudinary_storage',
-    'cloudinary',
     'myapp.apps.MyappConfig',
     'channels',
 
@@ -81,6 +79,15 @@ INSTALLED_APPS = [
     'daphne',
     'django.contrib.staticfiles',
 ]
+
+# Add Cloudinary apps only when installed (avoids local ModuleNotFoundError).
+try:
+    import cloudinary_storage  # noqa: F401
+    import cloudinary  # noqa: F401
+except ModuleNotFoundError:
+    pass
+else:
+    INSTALLED_APPS = ['cloudinary_storage', 'cloudinary'] + INSTALLED_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
