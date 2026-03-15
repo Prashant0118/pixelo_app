@@ -45,10 +45,6 @@ if RENDER_EXTERNAL_HOSTNAME:
 else:
     CSRF_TRUSTED_ORIGINS = []
 
-# Known production host
-ALLOWED_HOSTS.append("pixelo-app-1.onrender.com")
-CSRF_TRUSTED_ORIGINS.append("https://pixelo-app-1.onrender.com")
-
 # Normalize / de-dup
 clean_hosts = []
 for h in ALLOWED_HOSTS:
@@ -186,6 +182,8 @@ STATIC_URL = '/static/'
 # Do not add myapp/static to STATICFILES_DIRS because it is already
 # discovered via INSTALLED_APPS, which causes duplicate collection.
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# Compatibility for third-party packages expecting STATICFILES_STORAGE
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
