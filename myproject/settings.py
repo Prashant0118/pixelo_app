@@ -228,8 +228,10 @@ STORAGES = {
 
 # Cloudinary for user uploads (images/videos) when CLOUDINARY_URL is valid.
 if CLOUDINARY_ENABLED:
+    # Use resource_type=auto to support both images and videos on the same FileField.
     STORAGES["default"] = {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        "OPTIONS": {"resource_type": "auto"},
     }
 
 LOGIN_URL = '/login/'
