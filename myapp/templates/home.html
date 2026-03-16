@@ -70,8 +70,12 @@
                            playsinline
                            webkit-playsinline
                            preload="metadata"
+                           {% if post.type == "reel" %}muted{% endif %}
                            {% if post.type == "reel" %}autoplay loop{% endif %}>
-                        <source src="{{ post.media.url }}">
+                        {% with media_name=post.media.name|lower %}
+                        <source src="{{ post.media.url }}"
+                                type="{% if media_name|slice:'-5:' == '.webm' %}video/webm{% else %}video/mp4{% endif %}">
+                        {% endwith %}
                     </video>
                 {% else %}
                     <img src="{{ post.media.url }}" class="img-fluid w-100 feed-media">

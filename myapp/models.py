@@ -22,15 +22,13 @@ class Profile(models.Model):
     @property
     def avatar_url(self):
         if self.image and self.image.name:
-            if self.image.name in ("default.jpg", "default.png"):
-                return f"{settings.STATIC_URL}images/default.png"
-            try:
-                # Avoid storage.exists() because Cloudinary "auto" delivery URLs
-                # can 400 on HEAD requests. Just return the URL if available.
-                return self.image.url
-            except ValueError:
-                pass
-        return f"{settings.STATIC_URL}images/default.png"
+            if self.image.name not in ("default.jpg", "default.png"):
+                try:
+                    # Avoid storage.exists() because Cloudinary "auto" delivery URLs
+                    # can 400 on HEAD requests. Just return the URL if available.
+                    return self.image.url
+                except ValueError:
+                    pass
 
         display_name = self.user.get_full_name().strip() or self.user.username or "User"
         initials = "".join([part[0] for part in display_name.split() if part][:2]).upper() or "U"

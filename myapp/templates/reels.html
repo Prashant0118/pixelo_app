@@ -53,13 +53,17 @@
                 {% if reel.type == 'reel' or reel.media.url|lower|slice:"-4:" == ".mp4" or reel.media.url|lower|slice:"-5:" == ".webm" %}
                     <video class="reel-media"
                            id="reel-video-{{ reel.id }}"
-                           src="{{ reel.media.url }}"
                            autoplay
                            muted
                            playsinline
                            webkit-playsinline
                            preload="metadata"
-                           loop></video>
+                           loop>
+                        {% with media_name=reel.media.name|lower %}
+                        <source src="{{ reel.media.url }}"
+                                type="{% if media_name|slice:'-5:' == '.webm' %}video/webm{% else %}video/mp4{% endif %}">
+                        {% endwith %}
+                    </video>
                     <button type="button"
                             class="reel-sound-toggle"
                             id="reel-sound-btn-{{ reel.id }}"
