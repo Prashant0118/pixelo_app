@@ -1498,7 +1498,19 @@ def chat_send_api(request, username):
     )
     if media_file:
         message.media = media_file
-    message.save()
+    try:
+        message.save()
+    except Exception as exc:
+        # Provide a clear error for client + server logs to debug storage issues.
+        err_text = f"Upload failed: {exc.__class__.__name__}"
+        try:
+            detail = str(exc)
+            if detail:
+                err_text = f"{err_text} - {detail}"
+        except Exception:
+            pass
+        print(f"[chat_send_api] {err_text}")
+        return JsonResponse({"error": err_text}, status=500)
 
     channel_layer = get_channel_layer()
     if channel_layer:

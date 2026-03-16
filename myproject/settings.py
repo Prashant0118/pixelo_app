@@ -29,7 +29,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-change-me")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes", "on")
 
-DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.29.185"]
+DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.29.185", "pixelo-app.onrender.com"]
 raw_allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
 ALLOWED_HOSTS = []
 if raw_allowed_hosts:
