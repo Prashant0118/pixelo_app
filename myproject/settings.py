@@ -106,6 +106,10 @@ if CLOUDINARY_ENABLED:
     has_cloudinary = importlib.util.find_spec("cloudinary") is not None
     if has_cloudinary_storage and has_cloudinary:
         INSTALLED_APPS = ['cloudinary_storage', 'cloudinary'] + INSTALLED_APPS
+        # Ensure non-image uploads (video/audio) work with Cloudinary.
+        CLOUDINARY_STORAGE = {
+            "RESOURCE_TYPE": "auto",
+        }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
