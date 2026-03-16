@@ -424,7 +424,7 @@ function connectWebSocket() {
     };
 }
 
-function sendByHttpFallback(text, mediaFile = null) {
+async function sendByHttpFallback(text, mediaFile = null) {
     const formData = new FormData();
     if (text) {
         formData.append("message", text);
@@ -433,25 +433,36 @@ function sendByHttpFallback(text, mediaFile = null) {
         formData.append("media", mediaFile);
     }
 
-    fetch(`/chat-api/${encodeURIComponent(receiverUsername)}/send/`, {
-        method: "POST",
-        headers: { "X-CSRFToken": getCSRF() },
-        body: formData
-    })
-    .then((res) => {
-        if (!res.ok) throw new Error("Send failed");
-        return res.json();
-    })
-    .then((data) => {
+    try {
+        const res = await fetch(`/chat-api/${encodeURIComponent(receiverUsername)}/send/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": getCSRF() },
+            body: formData
+        });
+        if (!res.ok) {
+            let msg = "Unable to send message right now.";
+            try {
+                const data = await res.json();
+                if (data && data.error) msg = data.error;
+            } catch (err) {
+                try {
+                    const text = await res.text();
+                    if (text) msg = text;
+                } catch (innerErr) {
+                    // ignore parse errors
+                }
+            }
+            throw new Error(msg);
+        }
+        const data = await res.json();
         if (noMessages) noMessages.remove();
         renderMessage(data.message);
         scrollToBottom(true);
         chatMediaInput.value = "";
         chatVoiceInput.value = "";
-    })
-    .catch(() => {
-        alert("Unable to send message right now.");
-    });
+    } catch (error) {
+        alert(error && error.message ? error.message : "Unable to send message right now.");
+    }
 }
 
 function removeMessageRow(row) {

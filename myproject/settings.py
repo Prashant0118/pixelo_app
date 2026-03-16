@@ -20,6 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 import os
+import importlib.util
 import dj_database_url
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -41,9 +42,16 @@ if not ALLOWED_HOSTS:
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+# CSRF trusted origins
+raw_csrf_origins = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+CSRF_TRUSTED_ORIGINS = []
+if raw_csrf_origins:
+    # Support space- or comma-separated values.
+    tokens = raw_csrf_origins.replace(",", " ").split()
+    CSRF_TRUSTED_ORIGINS.extend(tokens)
+elif RENDER_EXTERNAL_HOSTNAME:
     CSRF_TRUSTED_ORIGINS = [f"https://{RENDER_EXTERNAL_HOSTNAME}"]
-else:
-    CSRF_TRUSTED_ORIGINS = []
 
 # Normalize / de-dup
 clean_hosts = []
@@ -59,6 +67,19 @@ ALLOWED_HOSTS = list(dict.fromkeys(clean_hosts))
 
 if os.getenv("LOG_ALLOWED_HOSTS", "0").lower() in ("1", "true", "yes", "on"):
     print(f"Resolved ALLOWED_HOSTS: {ALLOWED_HOSTS}")
+
+# If CSRF_TRUSTED_ORIGINS is still empty, derive from ALLOWED_HOSTS so
+# file uploads via fetch() work on production domains.
+if not CSRF_TRUSTED_ORIGINS:
+    derived = []
+    for host in ALLOWED_HOSTS:
+        if not host:
+            continue
+        is_local = host in ("localhost", "127.0.0.1") or host.startswith("192.168.") or host.startswith("10.") or host.startswith("172.")
+        if is_local or DEBUG:
+            derived.append(f"http://{host}")
+        derived.append(f"https://{host}")
+    CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(derived))
 
 
 # Application definition
@@ -76,14 +97,15 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 ]
 
-# Add Cloudinary apps only when installed (avoids local ModuleNotFoundError).
-try:
-    import cloudinary_storage  # noqa: F401
-    import cloudinary  # noqa: F401
-except ModuleNotFoundError:
-    pass
-else:
-    INSTALLED_APPS = ['cloudinary_storage', 'cloudinary'] + INSTALLED_APPS
+CLOUDINARY_URL = (os.getenv("CLOUDINARY_URL") or "").strip()
+CLOUDINARY_ENABLED = CLOUDINARY_URL.startswith("cloudinary://")
+
+# Add Cloudinary apps only when available and properly configured.
+if CLOUDINARY_ENABLED:
+    has_cloudinary_storage = importlib.util.find_spec("cloudinary_storage") is not None
+    has_cloudinary = importlib.util.find_spec("cloudinary") is not None
+    if has_cloudinary_storage and has_cloudinary:
+        INSTALLED_APPS = ['cloudinary_storage', 'cloudinary'] + INSTALLED_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -200,8 +222,8 @@ STORAGES = {
     },
 }
 
-# Cloudinary for user uploads (images/videos) when CLOUDINARY_URL is set.
-if os.getenv("CLOUDINARY_URL"):
+# Cloudinary for user uploads (images/videos) when CLOUDINARY_URL is valid.
+if CLOUDINARY_ENABLED:
     STORAGES["default"] = {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     }
@@ -215,5 +237,4 @@ CHANNEL_LAYERS = {
 }
 
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
-
 
