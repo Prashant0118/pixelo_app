@@ -22,8 +22,9 @@ class Profile(models.Model):
     def avatar_url(self):
         if self.image and self.image.name:
             try:
-                if self.image.storage.exists(self.image.name):
-                    return self.image.url
+                # Avoid storage.exists() because Cloudinary "auto" delivery URLs
+                # can 400 on HEAD requests. Just return the URL if available.
+                return self.image.url
             except ValueError:
                 pass
 
