@@ -64,7 +64,7 @@
     <div ondblclick="doubleLike({{ post.id }})">
         {% if post.media %}
             <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
-                {% if post.media.url|lower|slice:"-4:" == ".mp4" or post.media.url|lower|slice:"-5:" == ".webm" or post.media.url|lower|slice:"-4:" == ".mov" or post.media.url|lower|slice:"-4:" == ".m4v" %}
+                {% if post.type == 'reel' or post.media.url|lower|slice:"-4:" == ".mp4" or post.media.url|lower|slice:"-5:" == ".webm" or post.media.url|lower|slice:"-4:" == ".mov" or post.media.url|lower|slice:"-4:" == ".m4v" %}
                     <video class="w-100 feed-media feed-video-media {% if post.type == 'reel' %}feed-reel-video{% endif %}"
                            controls
                            playsinline

@@ -50,7 +50,7 @@
     <article class="reel-item" id="reel-{{ reel.id }}">
         <div class="reel-media-wrap" ondblclick="handleDoubleTapLike({{ reel.id }})">
             {% if reel.media %}
-                {% if reel.media.url|lower|slice:"-4:" == ".mp4" or reel.media.url|lower|slice:"-5:" == ".webm" %}
+                {% if reel.type == 'reel' or reel.media.url|lower|slice:"-4:" == ".mp4" or reel.media.url|lower|slice:"-5:" == ".webm" %}
                     <video class="reel-media"
                            id="reel-video-{{ reel.id }}"
                            src="{{ reel.media.url }}"

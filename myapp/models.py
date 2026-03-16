@@ -6,6 +6,7 @@ from django.db import models
 from urllib.parse import quote
 from django.contrib.auth.hashers import make_password, check_password
 from django.urls import reverse
+from django.conf import settings
 
 
 class Profile(models.Model):
@@ -21,12 +22,15 @@ class Profile(models.Model):
     @property
     def avatar_url(self):
         if self.image and self.image.name:
+            if self.image.name in ("default.jpg", "default.png"):
+                return f"{settings.STATIC_URL}images/default.png"
             try:
                 # Avoid storage.exists() because Cloudinary "auto" delivery URLs
                 # can 400 on HEAD requests. Just return the URL if available.
                 return self.image.url
             except ValueError:
                 pass
+        return f"{settings.STATIC_URL}images/default.png"
 
         display_name = self.user.get_full_name().strip() or self.user.username or "User"
         initials = "".join([part[0] for part in display_name.split() if part][:2]).upper() or "U"
