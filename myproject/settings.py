@@ -101,6 +101,8 @@ if not CSRF_TRUSTED_ORIGINS:
 INSTALLED_APPS = [
     'myapp.apps.MyappConfig',
     'channels',
+    'cloudinary',
+    'cloudinary_storage',
 
     'django.contrib.admin',
     'django.contrib.auth',
@@ -263,3 +265,20 @@ CHANNEL_LAYERS = {
 
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
+
+# settings.py
+
+import os
+from pathlib import Path
+import cloudinary   # 👈 yahan import karo
+
+# baaki settings...
+
+cloudinary.config(
+    cloud_name = "dhh5tfygz",
+    api_key = "544393381655137",
+    api_secret = "E_b_1af7MJwp9IRdI4DdIDV9tdg"
+)
+
+# 👇 ye bhi ensure karo
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
