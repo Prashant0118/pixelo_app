@@ -109,8 +109,18 @@ class Story(models.Model):
     @property
     def media_url(self):
         try:
-            if self.media and getattr(self.media, "name", ""):
-                return self.media.url
+            if not (self.media and getattr(self.media, "name", "")):
+                return ""
+            name = self.media.name
+            if name.startswith("http://") or name.startswith("https://"):
+                return name
+            try:
+                storage = self.media.storage
+                if hasattr(storage, "exists") and not storage.exists(name):
+                    return ""
+            except Exception:
+                pass
+            return self.media.url
         except Exception:
             return ""
         return ""

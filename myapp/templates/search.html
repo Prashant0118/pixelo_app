@@ -22,7 +22,7 @@
 
     <div class="discover-grid" aria-label="Recommended reels">
         {% for reel in recommended_reels %}
-            {% if reel.media %}
+            {% if reel.media_url %}
             <a class="discover-card" href="{% url 'reels' %}?reel={{ reel.id }}" title="{{ reel.user.username }}">
                 <video muted autoplay loop playsinline preload="metadata" class="discover-media">
                     <source src="{{ reel.media_url }}">

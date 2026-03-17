@@ -62,9 +62,10 @@
 
     <!-- Media -->
     <div ondblclick="doubleLike({{ post.id }})">
-        {% if post.media %}
+        {% with media_url=post.media_url media_name=post.media_name %}
+        {% if media_url %}
             <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
-                {% if post.type == 'reel' or post.media.url|lower|slice:"-4:" == ".mp4" or post.media.url|lower|slice:"-5:" == ".webm" or post.media.url|lower|slice:"-4:" == ".mov" or post.media.url|lower|slice:"-4:" == ".m4v" %}
+                {% if post.type == 'reel' or post.is_video %}
                     <video class="w-100 feed-media feed-video-media {% if post.type == 'reel' %}feed-reel-video{% endif %}"
                            controls
                            playsinline
@@ -72,16 +73,19 @@
                            preload="metadata"
                            {% if post.type == "reel" %}muted{% endif %}
                            {% if post.type == "reel" %}autoplay loop{% endif %}>
-                        {% with media_name=post.media.name|lower %}
-                        <source src="{{ post.media.url }}"
+                        <source src="{{ media_url }}"
                                 type="{% if media_name|slice:'-5:' == '.webm' %}video/webm{% else %}video/mp4{% endif %}">
-                        {% endwith %}
                     </video>
                 {% else %}
-                    <img src="{{ post.media.url }}" class="img-fluid w-100 feed-media">
+                    <img src="{{ media_url }}" class="img-fluid w-100 feed-media">
                 {% endif %}
             </div>
+        {% else %}
+            <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
+                <div class="text-muted small p-3">Media unavailable</div>
+            </div>
         {% endif %}
+        {% endwith %}
     </div>
 
     <!-- Actions -->

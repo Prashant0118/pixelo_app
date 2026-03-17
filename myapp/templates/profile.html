@@ -145,7 +145,7 @@
     <section class="post-grid d-none" id="reels-grid">
         {% for reel in reels %}
         <article class="post-tile" onclick="openReelFromProfile({{ reel.id }})" role="link" tabindex="0" onkeydown="handleReelTileKeydown(event, {{ reel.id }})">
-            {% if reel.media %}
+            {% if reel.media_url %}
             <video muted playsinline preload="metadata">
                 <source src="{{ reel.media_url }}" type="video/mp4">
             </video>
@@ -174,7 +174,7 @@
             </div>
             {% endif %}
             {% else %}
-            <div class="post-empty">No reel media</div>
+            <div class="post-empty">Media unavailable</div>
             {% endif %}
         </article>
         {% empty %}
@@ -364,4 +364,3 @@ function copyPayUpi() {
 }
 </script>
 {% endblock %}
-

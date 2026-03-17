@@ -48,15 +48,19 @@
         <div class="collection-grid">
             {% for item in saved_items %}
             <a class="collection-item" href="{% url 'profile' item.user.username %}">
-                {% if item.media %}
+                {% with media_url=item.media_url %}
+                {% if media_url %}
                     {% if item.type == "reel" %}
                     <video muted playsinline preload="metadata">
-                        <source src="{{ item.media_url }}">
+                        <source src="{{ media_url }}">
                     </video>
                     {% else %}
-                    <img src="{{ item.media.url }}" alt="saved media">
+                    <img src="{{ media_url }}" alt="saved media">
                     {% endif %}
+                {% else %}
+                    <div class="text-muted small p-2">Media unavailable</div>
                 {% endif %}
+                {% endwith %}
                 <div class="item-meta">
                     <span class="owner">@{{ item.user.username }}</span>
                     <span class="type-badge">{{ item.type|title }}</span>
@@ -74,9 +78,13 @@
         <div class="collection-grid">
             {% for item in saved_posts %}
             <a class="collection-item" href="{% url 'profile' item.user.username %}">
-                {% if item.media %}
-                <img src="{{ item.media_url }}" alt="saved post">
+                {% with media_url=item.media_url %}
+                {% if media_url %}
+                <img src="{{ media_url }}" alt="saved post">
+                {% else %}
+                <div class="text-muted small p-2">Media unavailable</div>
                 {% endif %}
+                {% endwith %}
                 <div class="item-meta">
                     <span class="owner">@{{ item.user.username }}</span>
                     <span class="type-badge">Post</span>
@@ -94,11 +102,15 @@
         <div class="collection-grid">
             {% for item in saved_reels %}
             <a class="collection-item" href="{% url 'reels' %}?reel={{ item.id }}">
-                {% if item.media %}
+                {% with media_url=item.media_url %}
+                {% if media_url %}
                 <video muted playsinline preload="metadata">
-                    <source src="{{ item.media_url }}">
+                    <source src="{{ media_url }}">
                 </video>
+                {% else %}
+                <div class="text-muted small p-2">Media unavailable</div>
                 {% endif %}
+                {% endwith %}
                 <div class="item-meta">
                     <span class="owner">@{{ item.user.username }}</span>
                     <span class="type-badge">Reel</span>
