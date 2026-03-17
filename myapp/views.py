@@ -1711,6 +1711,15 @@ def upload(request):
                     return render(request, "upload.html", {
                         "error": "Reel upload only supports video files (mp4, webm, mov, m4v, etc.).",
                     })
+            # Ensure filename has a video extension so Cloudinary picks VIDEO resource type.
+            name = getattr(media, "name", "") or ""
+            ext = os.path.splitext(name)[1].lower()
+            if not ext:
+                guessed_ext = mimetypes.guess_extension(content_type) if content_type else ""
+                if guessed_ext and guessed_ext.startswith("."):
+                    media.name = f"{name}{guessed_ext}"
+                else:
+                    media.name = f"{name}.mp4"
 
         Post.objects.create(
             user=request.user,
