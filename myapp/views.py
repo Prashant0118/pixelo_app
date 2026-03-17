@@ -908,9 +908,10 @@ def reels(request):
 
 
 @login_required
-@require_POST
 def reel_watch_ping(request, post_id):
     reel = get_object_or_404(Post, id=post_id, type="reel")
+    if request.method != "POST":
+        return JsonResponse({"ok": True})
     seconds_raw = request.POST.get("seconds", "0")
     mark_view_raw = request.POST.get("mark_view", "0")
 
