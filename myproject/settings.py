@@ -227,12 +227,13 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Storage backends
 # - staticfiles: WhiteNoise for hashed static assets in production
 # - default: Cloudinary for uploads when configured, else local filesystem
+
 STORAGES = {
+    "default": {
+        "BACKEND": "myapp.storage.MediaCloudinaryAutoStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
 }
 
@@ -278,5 +279,3 @@ cloudinary.config(
     api_secret = "E_b_1af7MJwp9IRdI4DdIDV9tdg"
 )
 
-# 👇 ye bhi ensure karo
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
