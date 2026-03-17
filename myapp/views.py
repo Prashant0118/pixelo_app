@@ -564,6 +564,21 @@ def _social_priority_user_ids(user):
     return following_ids | follower_ids
 
 
+def _ensure_profiles_for_user_ids(user_ids):
+    ids = {uid for uid in (user_ids or []) if uid}
+    if not ids:
+        return
+    existing_ids = set(
+        Profile.objects.filter(user_id__in=ids).values_list("user_id", flat=True)
+    )
+    missing_ids = [uid for uid in ids if uid not in existing_ids]
+    if missing_ids:
+        Profile.objects.bulk_create(
+            [Profile(user_id=uid) for uid in missing_ids],
+            ignore_conflicts=True,
+        )
+
+
 @login_required
 def home(request):
     category_ranked = _ordered_reel_categories_for_user(request.user)
@@ -847,6 +862,12 @@ def reels(request):
         "likes", "comments__user"
     )
 
+    share_followers = _shareable_followers(request.user)
+    # Ensure profiles exist for reel owners + share followers to avoid template errors.
+    reel_user_ids = set(reels_qs.values_list("user_id", flat=True))
+    follower_ids = set(share_followers.values_list("id", flat=True))
+    _ensure_profiles_for_user_ids(reel_user_ids | follower_ids | {request.user.id})
+
     liked_post_ids = set(
         Like.objects.filter(user=request.user).values_list("post_id", flat=True)
     )
@@ -882,7 +903,7 @@ def reels(request):
         "reels": ranked_reels,
         "selected_category": selected_category,
         "liked_post_ids": liked_post_ids,
-        "share_followers": _shareable_followers(request.user),
+        "share_followers": share_followers,
     })
 
 
