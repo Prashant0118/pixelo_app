@@ -1721,12 +1721,23 @@ def upload(request):
                 else:
                     media.name = f"{name}.mp4"
 
-        Post.objects.create(
-            user=request.user,
-            media=media,
-            caption=caption,
-            type=post_type
-        )
+        try:
+            post = Post.objects.create(
+                user=request.user,
+                media=media,
+                caption=caption,
+                type=post_type
+            )
+        except Exception as exc:
+            err_text = f"Upload failed: {exc.__class__.__name__}"
+            try:
+                detail = str(exc)
+                if detail:
+                    err_text = f"{err_text} - {detail}"
+            except Exception:
+                pass
+            print(f"[upload] {err_text}")
+            return render(request, "upload.html", {"error": err_text})
 
         return redirect("home")
 
