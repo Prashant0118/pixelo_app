@@ -1715,12 +1715,13 @@ def upload(request):
             # Ensure filename has a video extension so Cloudinary picks VIDEO resource type.
             name = getattr(media, "name", "") or ""
             ext = os.path.splitext(name)[1].lower()
-            if not ext:
+            video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
+            if content_type.startswith("video/") and ext not in video_exts:
                 guessed_ext = mimetypes.guess_extension(content_type) if content_type else ""
-                if guessed_ext and guessed_ext.startswith("."):
-                    media.name = f"{name}{guessed_ext}"
-                else:
-                    media.name = f"{name}.mp4"
+                if guessed_ext not in video_exts:
+                    guessed_ext = ".mp4"
+                base = name[:-len(ext)] if ext else name
+                media.name = f"{base}{guessed_ext}"
 
         try:
             post = Post.objects.create(
