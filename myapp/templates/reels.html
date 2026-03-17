@@ -49,8 +49,17 @@
     {% for reel in reels %}
     <article class="reel-item" id="reel-{{ reel.id }}">
         <div class="reel-media-wrap" ondblclick="handleDoubleTapLike({{ reel.id }})">
-            {% if reel.media %}
-                {% if reel.type == 'reel' or reel.media.url|lower|slice:"-4:" == ".mp4" or reel.media.url|lower|slice:"-5:" == ".webm" %}
+                {% if reel.media %}
+                {% if reel.type == 'reel'
+                    or reel.media_name|slice:"-4:" == ".mp4"
+                    or reel.media_name|slice:"-5:" == ".webm"
+                    or reel.media_name|slice:"-4:" == ".mov"
+                    or reel.media_name|slice:"-4:" == ".m4v"
+                    or reel.media_name|slice:"-4:" == ".avi"
+                    or reel.media_name|slice:"-4:" == ".mkv"
+                    or reel.media_name|slice:"-4:" == ".ogv"
+                    or reel.media_name|slice:"-4:" == ".3gp"
+                    or reel.media_name|slice:"-5:" == ".3gpp" %}
                     <video class="reel-media"
                            id="reel-video-{{ reel.id }}"
                            autoplay
@@ -59,8 +68,8 @@
                            webkit-playsinline
                            preload="metadata"
                            loop>
-                        {% with media_name=reel.media.name|lower %}
-                        <source src="{{ reel.media.url }}"
+                        {% with media_name=reel.media_name %}
+                        <source src="{{ reel.media_url }}"
                                 type="{% if media_name|slice:'-5:' == '.webm' %}video/webm{% else %}video/mp4{% endif %}">
                         {% endwith %}
                     </video>
@@ -72,7 +81,7 @@
                         <i class="bi bi-volume-mute-fill" id="reel-sound-icon-{{ reel.id }}"></i>
                     </button>
                 {% else %}
-                    <img class="reel-media" src="{{ reel.media.url }}" alt="reel media">
+                    <img class="reel-media" src="{{ reel.media_url }}" alt="reel media">
                 {% endif %}
             {% endif %}
 
@@ -635,7 +644,6 @@ document.addEventListener("keydown", () => {
 }, { once: true });
 </script>
 {% endblock %}
-
 
 
 

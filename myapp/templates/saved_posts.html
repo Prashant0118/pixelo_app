@@ -51,7 +51,7 @@
                 {% if item.media %}
                     {% if item.type == "reel" %}
                     <video muted playsinline preload="metadata">
-                        <source src="{{ item.media.url }}">
+                        <source src="{{ item.media_url }}">
                     </video>
                     {% else %}
                     <img src="{{ item.media.url }}" alt="saved media">
@@ -75,7 +75,7 @@
             {% for item in saved_posts %}
             <a class="collection-item" href="{% url 'profile' item.user.username %}">
                 {% if item.media %}
-                <img src="{{ item.media.url }}" alt="saved post">
+                <img src="{{ item.media_url }}" alt="saved post">
                 {% endif %}
                 <div class="item-meta">
                     <span class="owner">@{{ item.user.username }}</span>
@@ -96,7 +96,7 @@
             <a class="collection-item" href="{% url 'reels' %}?reel={{ item.id }}">
                 {% if item.media %}
                 <video muted playsinline preload="metadata">
-                    <source src="{{ item.media.url }}">
+                    <source src="{{ item.media_url }}">
                 </video>
                 {% endif %}
                 <div class="item-meta">

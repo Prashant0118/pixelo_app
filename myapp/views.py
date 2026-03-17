@@ -1673,15 +1673,30 @@ def upload(request):
     if request.method == "POST":
         media = request.FILES.get("media")
         caption = (request.POST.get("caption") or "").strip()
-        post_type = request.POST.get("type")
+        post_type = (request.POST.get("type") or "post").strip().lower()
+        if post_type not in ("post", "reel"):
+            post_type = "post"
 
-        if media:
-            Post.objects.create(
-                user=request.user,
-                media=media,
-                caption=caption,
-                type=post_type
-            )
+        if not media:
+            return render(request, "upload.html", {
+                "error": "Please select a file to upload.",
+            })
+
+        if post_type == "reel":
+            content_type = (getattr(media, "content_type", "") or "").lower()
+            if not content_type.startswith("video/"):
+                guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
+                if not (guessed and guessed.startswith("video/")):
+                    return render(request, "upload.html", {
+                        "error": "Reel upload only supports video files (mp4, webm, mov, m4v, etc.).",
+                    })
+
+        Post.objects.create(
+            user=request.user,
+            media=media,
+            caption=caption,
+            type=post_type
+        )
 
         return redirect("home")
 

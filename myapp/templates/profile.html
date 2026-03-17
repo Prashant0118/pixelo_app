@@ -113,7 +113,7 @@
         <article class="post-tile">
             <a href="{% url 'home' %}#post-{{ post.id }}" class="d-block h-100 w-100">
                 {% if post.media %}
-                <img src="{{ post.media.url }}" alt="post">
+                <img src="{{ post.media_url }}" alt="post">
                 {% else %}
                 <div class="post-empty">No media</div>
                 {% endif %}
@@ -147,7 +147,7 @@
         <article class="post-tile" onclick="openReelFromProfile({{ reel.id }})" role="link" tabindex="0" onkeydown="handleReelTileKeydown(event, {{ reel.id }})">
             {% if reel.media %}
             <video muted playsinline preload="metadata">
-                <source src="{{ reel.media.url }}" type="video/mp4">
+                <source src="{{ reel.media_url }}" type="video/mp4">
             </video>
             <span class="reel-count"><i class="bi bi-play-circle-fill"></i> {{ reel.likes.count }}</span>
             <button type="button"

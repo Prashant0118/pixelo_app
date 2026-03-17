@@ -22,12 +22,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 import os
 import importlib.util
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-change-me")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if os.getenv("DEBUG", "True").lower() in ("1", "true", "yes", "on"):
+        SECRET_KEY = "dev-insecure-change-me"
+    else:
+        raise ImproperlyConfigured("SECRET_KEY is required when DEBUG is False.")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes", "on")
+DEBUG = os.getenv("DEBUG", "False").lower() in ("1", "true", "yes", "on")
 
 DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.29.185", "pixelo-app.onrender.com"]
 raw_allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
@@ -49,7 +55,13 @@ CSRF_TRUSTED_ORIGINS = []
 if raw_csrf_origins:
     # Support space- or comma-separated values.
     tokens = raw_csrf_origins.replace(",", " ").split()
-    CSRF_TRUSTED_ORIGINS.extend(tokens)
+    for token in tokens:
+        token = token.strip()
+        if not token:
+            continue
+        if "://" not in token:
+            token = f"https://{token}"
+        CSRF_TRUSTED_ORIGINS.append(token)
 elif RENDER_EXTERNAL_HOSTNAME:
     CSRF_TRUSTED_ORIGINS = [f"https://{RENDER_EXTERNAL_HOSTNAME}"]
 
@@ -75,6 +87,8 @@ if not CSRF_TRUSTED_ORIGINS:
     for host in ALLOWED_HOSTS:
         if not host:
             continue
+        if host == "*":
+            continue
         is_local = host in ("localhost", "127.0.0.1") or host.startswith("192.168.") or host.startswith("10.") or host.startswith("172.")
         if is_local or DEBUG:
             derived.append(f"http://{host}")
@@ -99,13 +113,13 @@ INSTALLED_APPS = [
 
 CLOUDINARY_URL = (os.getenv("CLOUDINARY_URL") or "").strip()
 CLOUDINARY_ENABLED = CLOUDINARY_URL.startswith("cloudinary://")
+HAS_CLOUDINARY_STORAGE = importlib.util.find_spec("cloudinary_storage") is not None
+HAS_CLOUDINARY = importlib.util.find_spec("cloudinary") is not None
+CAN_USE_CLOUDINARY = CLOUDINARY_ENABLED and HAS_CLOUDINARY_STORAGE and HAS_CLOUDINARY
 
 # Add Cloudinary apps only when available and properly configured.
-if CLOUDINARY_ENABLED:
-    has_cloudinary_storage = importlib.util.find_spec("cloudinary_storage") is not None
-    has_cloudinary = importlib.util.find_spec("cloudinary") is not None
-    if has_cloudinary_storage and has_cloudinary:
-        INSTALLED_APPS = ['cloudinary_storage', 'cloudinary'] + INSTALLED_APPS
+if CAN_USE_CLOUDINARY:
+    INSTALLED_APPS = ['cloudinary_storage', 'cloudinary'] + INSTALLED_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -223,11 +237,21 @@ STORAGES = {
 }
 
 # Cloudinary for user uploads (images/videos) when CLOUDINARY_URL is valid.
-if CLOUDINARY_ENABLED:
+if CAN_USE_CLOUDINARY:
     # Use a custom storage that picks image/video resource types based on file extension.
     STORAGES["default"] = {
         "BACKEND": "myapp.storage.MediaCloudinaryAutoStorage",
     }
+
+# Security settings for production behind a proxy (Render/Heroku/etc.)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", str(not DEBUG)).lower() in ("1", "true", "yes", "on")
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", str(not DEBUG)).lower() in ("1", "true", "yes", "on")
+CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", str(not DEBUG)).lower() in ("1", "true", "yes", "on")
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "0" if DEBUG else "3600"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "True").lower() in ("1", "true", "yes", "on")
+SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "True").lower() in ("1", "true", "yes", "on")
+SECURE_REFERRER_POLICY = "same-origin"
 
 LOGIN_URL = '/login/'
 

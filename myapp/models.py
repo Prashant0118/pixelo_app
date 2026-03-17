@@ -94,9 +94,44 @@ class Story(models.Model):
     @property
     def preview_url(self):
         if self.image:
-            return self.image.url
+            try:
+                return self.image.url
+            except Exception:
+                pass
         if self.media:
-            return self.media.url
+            try:
+                return self.media.url
+            except Exception:
+                pass
+        return ""
+    @property
+    def media_url(self):
+        try:
+            if self.media and getattr(self.media, "name", ""):
+                return self.media.url
+        except Exception:
+            return ""
+        return ""
+
+    @property
+    def media_name(self):
+        try:
+            name = (self.media.name or "")
+        except Exception:
+            name = ""
+        if not name and self.image:
+            try:
+                name = (self.image.name or "")
+            except Exception:
+                name = ""
+        return (name or "").lower()
+    @property
+    def music_url(self):
+        try:
+            if self.music and getattr(self.music, "name", ""):
+                return self.music.url
+        except Exception:
+            return ""
         return ""
 
 
@@ -182,6 +217,22 @@ class Message(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     is_seen = models.BooleanField(default=False)
 
+    @property
+    def media_url(self):
+        try:
+            if self.media and getattr(self.media, "name", ""):
+                return self.media.url
+        except Exception:
+            return ""
+        return ""
+
+    @property
+    def media_name(self):
+        try:
+            return (self.media.name or "").lower()
+        except Exception:
+            return ""
+
 
 class ChatLock(models.Model):
     owner = models.ForeignKey(User, related_name="chat_locks", on_delete=models.CASCADE)
@@ -240,6 +291,22 @@ class Post(models.Model):
     is_recommended = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def media_url(self):
+        try:
+            if self.media and getattr(self.media, "name", ""):
+                return self.media.url
+        except Exception:
+            return ""
+        return ""
+
+    @property
+    def media_name(self):
+        try:
+            return (self.media.name or "").lower()
+        except Exception:
+            return ""
 
     def __str__(self):
         return f"{self.user.username} - {self.type}"
