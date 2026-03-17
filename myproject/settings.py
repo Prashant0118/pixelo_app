@@ -101,8 +101,6 @@ if not CSRF_TRUSTED_ORIGINS:
 INSTALLED_APPS = [
     'myapp.apps.MyappConfig',
     'channels',
-    'cloudinary',
-    'cloudinary_storage',
 
     'django.contrib.admin',
     'django.contrib.auth',
