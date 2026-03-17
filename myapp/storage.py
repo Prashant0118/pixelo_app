@@ -1,5 +1,6 @@
 import os
 
+import cloudinary.uploader
 from cloudinary_storage.storage import MediaCloudinaryStorage, RESOURCE_TYPES
 
 
@@ -38,3 +39,19 @@ class MediaCloudinaryAutoStorage(MediaCloudinaryStorage):
         if ext in VIDEO_EXTENSIONS or ext in AUDIO_EXTENSIONS:
             return RESOURCE_TYPES["VIDEO"]
         return RESOURCE_TYPES["IMAGE"]
+
+    def _upload(self, name, content):
+        """
+        Force video resource type when content-type indicates video/audio,
+        even if filename extension is missing or non-standard (e.g. WhatsApp names).
+        """
+        resource_type = self._get_resource_type(name)
+        content_type = (getattr(content, "content_type", "") or "").lower()
+        if content_type.startswith("video/") or content_type.startswith("audio/"):
+            resource_type = RESOURCE_TYPES["VIDEO"]
+
+        options = {'use_filename': True, 'resource_type': resource_type, 'tags': self.TAG}
+        folder = os.path.dirname(name)
+        if folder:
+            options['folder'] = folder
+        return cloudinary.uploader.upload(content, **options)
