@@ -50,16 +50,7 @@
     <article class="reel-item" id="reel-{{ reel.id }}">
         <div class="reel-media-wrap" ondblclick="handleDoubleTapLike({{ reel.id }})">
                 {% if reel.media %}
-                {% if reel.type == 'reel'
-                    or reel.media_name|slice:"-4:" == ".mp4"
-                    or reel.media_name|slice:"-5:" == ".webm"
-                    or reel.media_name|slice:"-4:" == ".mov"
-                    or reel.media_name|slice:"-4:" == ".m4v"
-                    or reel.media_name|slice:"-4:" == ".avi"
-                    or reel.media_name|slice:"-4:" == ".mkv"
-                    or reel.media_name|slice:"-4:" == ".ogv"
-                    or reel.media_name|slice:"-4:" == ".3gp"
-                    or reel.media_name|slice:"-5:" == ".3gpp" %}
+                {% if reel.type == 'reel' or reel.is_video %}
                     <video class="reel-media"
                            id="reel-video-{{ reel.id }}"
                            autoplay
@@ -644,7 +635,6 @@ document.addEventListener("keydown", () => {
 }, { once: true });
 </script>
 {% endblock %}
-
 
 
 

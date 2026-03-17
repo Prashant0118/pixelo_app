@@ -7,6 +7,8 @@ from urllib.parse import quote
 from django.contrib.auth.hashers import make_password, check_password
 from django.urls import reverse
 from django.conf import settings
+import mimetypes
+import os
 
 
 class Profile(models.Model):
@@ -307,6 +309,17 @@ class Post(models.Model):
             return (self.media.name or "").lower()
         except Exception:
             return ""
+
+    @property
+    def is_video(self):
+        name = self.media_name
+        if not name:
+            return False
+        ext = os.path.splitext(name)[1].lower()
+        if ext in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}:
+            return True
+        guessed, _ = mimetypes.guess_type(name)
+        return bool(guessed and guessed.startswith("video/"))
 
     def __str__(self):
         return f"{self.user.username} - {self.type}"
