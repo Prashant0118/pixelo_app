@@ -491,7 +491,7 @@ def _story_gallery_items(user, limit=30):
             continue
         seen.add(storage_name)
         items.append({
-            "url": post.media.url,
+            "url": post.media_url,
             "storage_name": storage_name,
             "kind": "video" if _is_video_file(storage_name) else "image",
         })
@@ -505,8 +505,11 @@ def _story_gallery_items(user, limit=30):
         if storage_name in seen:
             continue
         seen.add(storage_name)
+        preview_url = story.preview_url
+        if not preview_url:
+            continue
         items.append({
-            "url": media_file.url,
+            "url": preview_url,
             "storage_name": storage_name,
             "kind": "video" if story.is_video else "image",
         })
@@ -2000,7 +2003,7 @@ def post_share_preview(request, post_id):
         "id": post.id,
         "type": post.type,
         "caption": post.caption or "",
-        "media_url": post.media.url if post.media else "",
+        "media_url": post.media_url,
         "username": post.user.username,
         "profile_url": reverse("profile", args=[post.user.username]),
         "target_url": target_url,

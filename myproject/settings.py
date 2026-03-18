@@ -112,7 +112,14 @@ INSTALLED_APPS = [
 ]
 
 CLOUDINARY_URL = (os.getenv("CLOUDINARY_URL") or "").strip()
-CLOUDINARY_ENABLED = CLOUDINARY_URL.startswith("cloudinary://")
+CLOUDINARY_CLOUD_NAME = (os.getenv("CLOUDINARY_CLOUD_NAME") or "").strip()
+CLOUDINARY_API_KEY = (os.getenv("CLOUDINARY_API_KEY") or "").strip()
+CLOUDINARY_API_SECRET = (os.getenv("CLOUDINARY_API_SECRET") or "").strip()
+
+CLOUDINARY_ENABLED = (
+    CLOUDINARY_URL.startswith("cloudinary://")
+    or (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
+)
 HAS_CLOUDINARY_STORAGE = importlib.util.find_spec("cloudinary_storage") is not None
 HAS_CLOUDINARY = importlib.util.find_spec("cloudinary") is not None
 CAN_USE_CLOUDINARY = CLOUDINARY_ENABLED and HAS_CLOUDINARY_STORAGE and HAS_CLOUDINARY
@@ -120,6 +127,19 @@ CAN_USE_CLOUDINARY = CLOUDINARY_ENABLED and HAS_CLOUDINARY_STORAGE and HAS_CLOUD
 # Add Cloudinary apps only when available and properly configured.
 if CAN_USE_CLOUDINARY:
     INSTALLED_APPS = ['cloudinary_storage', 'cloudinary'] + INSTALLED_APPS
+
+    # Configure explicit credentials when CLOUDINARY_URL is not provided.
+    if not CLOUDINARY_URL and CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+        try:
+            import cloudinary
+            cloudinary.config(
+                cloud_name=CLOUDINARY_CLOUD_NAME,
+                api_key=CLOUDINARY_API_KEY,
+                api_secret=CLOUDINARY_API_SECRET,
+            )
+        except Exception:
+            # Fail soft: the storage backend will surface configuration errors.
+            pass
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -228,20 +248,29 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # - staticfiles: WhiteNoise for hashed static assets in production
 # - default: Cloudinary for uploads when configured, else local filesystem
 
-STORAGES = {
-    "default": {
-        "BACKEND": "myapp.storage.MediaCloudinaryAutoStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
-
-# Cloudinary for user uploads (images/videos) when CLOUDINARY_URL is valid.
 if CAN_USE_CLOUDINARY:
     # Use a custom storage that picks image/video resource types based on file extension.
-    STORAGES["default"] = {
-        "BACKEND": "myapp.storage.MediaCloudinaryAutoStorage",
+    STORAGES = {
+        "default": {
+            "BACKEND": "myapp.storage.MediaCloudinaryAutoStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+else:
+    # Local filesystem storage for uploads (dev or when Cloudinary isn't configured).
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {
+                "location": MEDIA_ROOT,
+                "base_url": MEDIA_URL,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
     }
 
 # Security settings for production behind a proxy (Render/Heroku/etc.)
@@ -265,17 +294,5 @@ CHANNEL_LAYERS = {
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
 
-# settings.py
-
-import os
-from pathlib import Path
-import cloudinary   # 👈 yahan import karo
-
-# baaki settings...
-
-cloudinary.config(
-    cloud_name = "dhh5tfygz",
-    api_key = "544393381655137",
-    api_secret = "E_b_1af7MJwp9IRdI4DdIDV9tdg"
-)
+# NOTE: Cloudinary credentials should be provided via environment variables.
 

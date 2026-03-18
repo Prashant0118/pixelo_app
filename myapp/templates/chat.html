@@ -108,7 +108,7 @@
                 <div class="msg-row {% if message.sender == request.user %}mine{% else %}theirs{% endif %}{% if message.sender == request.user and not message.is_seen %} pending{% endif %}"
                      data-id="{{ message.id }}"
                      data-content="{{ message.content|escapejs }}"
-                    data-media-url="{% if message.media %}{{ message.media.url|escapejs }}{% endif %}"
+                    data-media-url="{% if message.media_url %}{{ message.media_url|escapejs }}{% endif %}"
                     data-media-type="{{ message.media_type|default:'text' }}"
                     data-seen="{% if message.is_seen %}1{% else %}0{% endif %}">
                     {% if message.sender != request.user %}
@@ -122,16 +122,16 @@
                         {% endif %}
                         {% if message.media %}
                             {% if message.media_type == "image" %}
-                            <img class="msg-media" src="{{ message.media.url }}" alt="chat image">
+                            <img class="msg-media" src="{{ message.media_url }}" alt="chat image">
                             {% elif message.media_type == "video" %}
                             <video class="msg-media" controls preload="metadata">
-                                <source src="{{ message.media.url }}">
+                                <source src="{{ message.media_url }}">
                             </video>
                             {% elif message.media_type == "audio" %}
                             <div class="msg-audio-inline">
                                 <i class="bi bi-mic-fill"></i>
                                 <audio class="msg-audio" controls preload="metadata">
-                                    <source src="{{ message.media.url }}">
+                                    <source src="{{ message.media_url }}">
                                 </audio>
                             </div>
                             {% endif %}

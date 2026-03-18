@@ -229,7 +229,7 @@
     <div class="story-backdrop" aria-hidden="true">
         {% if story.is_video and story.media %}
         <video autoplay muted playsinline loop>
-            <source src="{{ story.media.url }}">
+            <source src="{{ story.media_url }}">
         </video>
         {% elif story.preview_url %}
         <img src="{{ story.preview_url }}" alt="">
@@ -267,7 +267,7 @@
 
         {% if story.is_video and story.media %}
         <video id="storyVideo" class="story-media" autoplay playsinline preload="metadata" controls style="filter: {{ story_filter_css }};">
-            <source src="{{ story.media.url }}">
+            <source src="{{ story.media_url }}">
         </video>
         {% elif story.preview_url %}
         <img class="story-media" src="{{ story.preview_url }}" alt="story" style="filter: {{ story_filter_css }};">
@@ -286,7 +286,7 @@
             {% if story.music %}
             <div class="story-audio">
                 <audio id="storyMusic" preload="auto">
-                    <source src="{{ story.music.url }}">
+                    <source src="{{ story.music_url }}">
                 </audio>
             </div>
             {% endif %}

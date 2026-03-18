@@ -21,7 +21,7 @@
             <div class="card bg-dark text-light border-secondary h-100">
                 {% if story.is_video and story.media %}
                 <video class="card-img-top" style="height:180px; object-fit:cover;" muted playsinline preload="metadata">
-                    <source src="{{ story.media.url }}">
+                    <source src="{{ story.media_url }}">
                 </video>
                 {% elif story.preview_url %}
                 <img src="{{ story.preview_url }}" class="card-img-top" style="height:180px; object-fit:cover;" alt="story">
