@@ -11,6 +11,14 @@ import mimetypes
 import os
 
 
+def _cloudinary_video_url(url):
+    if not url:
+        return ""
+    if "res.cloudinary.com" in url and "/image/upload/" in url:
+        return url.replace("/image/upload/", "/video/upload/", 1)
+    return url
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(upload_to="profile_pics/", default="default.jpg")
@@ -113,6 +121,8 @@ class Story(models.Model):
                 return ""
             name = self.media.name
             if name.startswith("http://") or name.startswith("https://"):
+                if self.media_type == "video":
+                    return _cloudinary_video_url(name)
                 return name
             try:
                 storage = self.media.storage
@@ -120,7 +130,10 @@ class Story(models.Model):
                     return ""
             except Exception:
                 pass
-            return self.media.url
+            url = self.media.url
+            if self.media_type == "video":
+                return _cloudinary_video_url(url)
+            return url
         except Exception:
             return ""
         return ""
@@ -233,7 +246,10 @@ class Message(models.Model):
     def media_url(self):
         try:
             if self.media and getattr(self.media, "name", ""):
-                return self.media.url
+                url = self.media.url
+                if self.media_type in ("video", "audio"):
+                    return _cloudinary_video_url(url)
+                return url
         except Exception:
             return ""
         return ""
@@ -308,7 +324,10 @@ class Post(models.Model):
     def media_url(self):
         try:
             if self.media and getattr(self.media, "name", ""):
-                return self.media.url
+                url = self.media.url
+                if self.type == "reel" or self.is_video:
+                    return _cloudinary_video_url(url)
+                return url
         except Exception:
             return ""
         return ""
