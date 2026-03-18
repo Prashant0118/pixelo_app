@@ -67,16 +67,27 @@ function renderUsers(users, queryValue) {
         return;
     }
 
-    usersList.innerHTML = visibleUsers.map((user) => (
-        `<div class="user-row">`
-        + `<a class="user-link" href="/profile/${encodeURIComponent(user.username)}/">`
-        + `<span class="user-name">${user.username}</span>`
-        + "</a>"
-        + `<button type="button" class="user-delete-btn" data-username="${user.username}" aria-label="Remove user">`
-        + '<i class="bi bi-x-lg"></i>'
-        + "</button>"
-        + "</div>"
-    )).join("");
+    usersList.innerHTML = visibleUsers.map((user) => {
+        const username = user.username || "";
+        const displayName = user.display_name || username || "User";
+        const avatarUrl = user.avatar_url || "";
+        return (
+            `<div class="user-row">`
+            + `<a class="user-link" href="/profile/${encodeURIComponent(username)}/">`
+            + `<div class="user-meta">`
+            + `<img class="user-avatar" src="${avatarUrl}" alt="${displayName}">`
+            + `<div class="user-text">`
+            + `<span class="user-name">${displayName}</span>`
+            + `<span class="user-handle">@${username}</span>`
+            + `</div>`
+            + `</div>`
+            + "</a>"
+            + `<button type="button" class="user-delete-btn" data-username="${username}" aria-label="Remove user">`
+            + '<i class="bi bi-x-lg"></i>'
+            + "</button>"
+            + "</div>"
+        );
+    }).join("");
 
     usersList.querySelectorAll(".user-delete-btn").forEach((btn) => {
         btn.addEventListener("click", function () {

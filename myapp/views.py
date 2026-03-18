@@ -2,7 +2,7 @@ import json
 import mimetypes
 import os
 from collections import defaultdict
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 from urllib.request import urlopen
 
 from django.dispatch import receiver
@@ -1640,7 +1640,7 @@ def search_suggestions(request):
         return JsonResponse({"users": []})
 
     normalized_query = " ".join(query.split())
-    users = User.objects.filter(
+    users = User.objects.select_related("profile").filter(
         Q(username__icontains=normalized_query)
         | Q(first_name__icontains=normalized_query)
         | Q(last_name__icontains=normalized_query)
@@ -1659,7 +1659,11 @@ def search_suggestions(request):
 
     return JsonResponse({
         "users": [
-            {"username": user.username}
+            {
+                "username": user.username,
+                "display_name": user.get_full_name().strip() or user.username,
+                "avatar_url": _user_avatar_url(user),
+            }
             for user in users
         ]
     })
@@ -1874,6 +1878,30 @@ def view_story(request, story_id):
     })
 
 from django.template.loader import render_to_string
+
+def _user_avatar_url(user):
+    try:
+        profile = user.profile
+    except Exception:
+        profile = None
+
+    if profile and getattr(profile, "image", None) and getattr(profile.image, "name", ""):
+        if profile.image.name not in ("default.jpg", "default.png"):
+            try:
+                return profile.image.url
+            except ValueError:
+                pass
+
+    display_name = user.get_full_name().strip() or user.username or "User"
+    initials = "".join([part[0] for part in display_name.split() if part][:2]).upper() or "U"
+    svg = (
+        "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'>"
+        "<rect width='256' height='256' fill='#2f8dff'/>"
+        "<text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' "
+        "font-family='Segoe UI,Arial,sans-serif' font-size='96' font-weight='700' fill='white'>"
+        f"{initials}</text></svg>"
+    )
+    return f"data:image/svg+xml;utf8,{quote(svg)}"
 
 @login_required
 def comment_ajax(request, post_id):

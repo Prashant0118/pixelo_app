@@ -83,6 +83,38 @@ body {
     text-decoration: none;
 }
 
+.user-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #1a2233;
+    border: 1px solid #2a3448;
+    flex-shrink: 0;
+}
+
+.user-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.user-name {
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.user-handle {
+    font-size: 0.84rem;
+    color: #9aa4b9;
+}
+
 .user-delete-btn {
     border: 0;
     background: transparent;
@@ -181,14 +213,16 @@ body {
 :root[data-theme="light"] .search-icon,
 :root[data-theme="light"] .search-input,
 :root[data-theme="light"] .user-row,
-:root[data-theme="light"] .user-link {
+:root[data-theme="light"] .user-link,
+:root[data-theme="light"] .user-name {
     color: #0f172a;
 }
 
 :root[data-theme="light"] .search-input::placeholder,
 :root[data-theme="light"] .user-row.muted,
 :root[data-theme="light"] .empty-text,
-:root[data-theme="light"] .user-delete-btn {
+:root[data-theme="light"] .user-delete-btn,
+:root[data-theme="light"] .user-handle {
     color: #5b6c82;
 }
 

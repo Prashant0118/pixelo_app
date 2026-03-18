@@ -19,6 +19,31 @@ def _cloudinary_video_url(url):
     return url
 
 
+def _cloudinary_public_id_from_name(name):
+    raw = (name or "").strip()
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return ""
+    if raw.startswith("/"):
+        raw = raw[1:]
+    return raw
+
+
+def _cloudinary_url_for(name, resource_type):
+    public_id = _cloudinary_public_id_from_name(name)
+    if not public_id:
+        return ""
+    try:
+        import cloudinary.utils
+        url, _ = cloudinary.utils.cloudinary_url(
+            public_id,
+            resource_type=resource_type,
+            type="upload",
+        )
+        return url or ""
+    except Exception:
+        return ""
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(upload_to="profile_pics/", default="default.jpg")
@@ -120,6 +145,11 @@ class Story(models.Model):
             if not (self.media and getattr(self.media, "name", "")):
                 return ""
             name = self.media.name
+            if getattr(settings, "CAN_USE_CLOUDINARY", False):
+                resource_type = "video" if self.media_type == "video" else "image"
+                url = _cloudinary_url_for(name, resource_type)
+                if url:
+                    return url
             if name.startswith("http://") or name.startswith("https://"):
                 if self.media_type == "video":
                     return _cloudinary_video_url(name)
@@ -246,6 +276,16 @@ class Message(models.Model):
     def media_url(self):
         try:
             if self.media and getattr(self.media, "name", ""):
+                name = (self.media.name or "")
+                if getattr(settings, "CAN_USE_CLOUDINARY", False):
+                    resource_type = "video" if self.media_type in ("video", "audio") else "image"
+                    url = _cloudinary_url_for(name, resource_type)
+                    if url:
+                        return url
+                if name.startswith("http://") or name.startswith("https://"):
+                    if self.media_type in ("video", "audio"):
+                        return _cloudinary_video_url(name)
+                    return name
                 url = self.media.url
                 if self.media_type in ("video", "audio"):
                     return _cloudinary_video_url(url)
@@ -324,6 +364,16 @@ class Post(models.Model):
     def media_url(self):
         try:
             if self.media and getattr(self.media, "name", ""):
+                name = (self.media.name or "")
+                if getattr(settings, "CAN_USE_CLOUDINARY", False):
+                    resource_type = "video" if (self.type == "reel" or self.is_video) else "image"
+                    url = _cloudinary_url_for(name, resource_type)
+                    if url:
+                        return url
+                if name.startswith("http://") or name.startswith("https://"):
+                    if self.type == "reel" or self.is_video:
+                        return _cloudinary_video_url(name)
+                    return name
                 url = self.media.url
                 if self.type == "reel" or self.is_video:
                     return _cloudinary_video_url(url)
