@@ -114,6 +114,14 @@ body {
     display: block;
 }
 
+.upload-duration {
+    margin: 10px auto 0;
+    max-width: 420px;
+    text-align: center;
+    font-size: 0.82rem;
+    color: #9fb1cf;
+}
+
 /* Caption */
 textarea {
     width: 100%;
@@ -200,4 +208,8 @@ textarea:focus {
 :root[data-theme="light"] .preview-box {
     background: #eef3fb;
     border-color: #cfdae8;
+}
+
+:root[data-theme="light"] .upload-duration {
+    color: #5c6d84;
 }

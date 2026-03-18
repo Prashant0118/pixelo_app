@@ -1,6 +1,9 @@
 import json
 import mimetypes
 import os
+import struct
+import subprocess
+import tempfile
 from collections import defaultdict
 from urllib.parse import urlencode, quote
 from urllib.request import urlopen
@@ -298,6 +301,126 @@ def _is_video_file(name, content_type=""):
         return True
     guessed, _ = mimetypes.guess_type(name or "")
     return bool(guessed and guessed.startswith("video/"))
+
+
+def _ffprobe_duration_seconds(path):
+    try:
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=6,
+        )
+    except Exception:
+        return None
+    if probe.returncode != 0:
+        return None
+    try:
+        return float((probe.stdout or "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _mp4_duration_seconds(path):
+    try:
+        filesize = os.path.getsize(path)
+        with open(path, "rb") as handle:
+            offset = 0
+            while offset < filesize:
+                handle.seek(offset)
+                header = handle.read(8)
+                if len(header) < 8:
+                    break
+                size, atom_type = struct.unpack(">I4s", header)
+                header_size = 8
+                if size == 1:
+                    ext = handle.read(8)
+                    if len(ext) < 8:
+                        break
+                    size = struct.unpack(">Q", ext)[0]
+                    header_size = 16
+                elif size == 0:
+                    size = filesize - offset
+                if size < header_size:
+                    break
+
+                if atom_type == b"moov":
+                    moov_end = offset + size
+                    inner_offset = offset + header_size
+                    while inner_offset < moov_end:
+                        handle.seek(inner_offset)
+                        inner_header = handle.read(8)
+                        if len(inner_header) < 8:
+                            break
+                        inner_size, inner_type = struct.unpack(">I4s", inner_header)
+                        inner_header_size = 8
+                        if inner_size == 1:
+                            ext = handle.read(8)
+                            if len(ext) < 8:
+                                break
+                            inner_size = struct.unpack(">Q", ext)[0]
+                            inner_header_size = 16
+                        elif inner_size == 0:
+                            inner_size = moov_end - inner_offset
+                        if inner_size < inner_header_size:
+                            break
+
+                        if inner_type == b"mvhd":
+                            handle.seek(inner_offset + inner_header_size)
+                            version_data = handle.read(1)
+                            if not version_data:
+                                return None
+                            version = struct.unpack(">B", version_data)[0]
+                            handle.read(3)  # flags
+                            if version == 1:
+                                handle.read(8 + 8)
+                                timescale = struct.unpack(">I", handle.read(4))[0]
+                                duration = struct.unpack(">Q", handle.read(8))[0]
+                            else:
+                                handle.read(4 + 4)
+                                timescale = struct.unpack(">I", handle.read(4))[0]
+                                duration = struct.unpack(">I", handle.read(4))[0]
+                            if not timescale:
+                                return None
+                            return duration / timescale
+
+                        inner_offset += inner_size
+
+                offset += size
+    except Exception:
+        return None
+    return None
+
+
+def _video_duration_seconds(uploaded_file):
+    if not uploaded_file:
+        return None
+    temp_path = None
+    try:
+        suffix = os.path.splitext(getattr(uploaded_file, "name", "") or "")[1].lower()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            for chunk in uploaded_file.chunks():
+                tmp.write(chunk)
+            temp_path = tmp.name
+        try:
+            uploaded_file.seek(0)
+        except Exception:
+            pass
+
+        duration = _ffprobe_duration_seconds(temp_path)
+        if duration is not None:
+            return duration
+
+        if suffix in {".mp4", ".m4v", ".mov"}:
+            return _mp4_duration_seconds(temp_path)
+        return None
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 
 def _fetch_youtube_music_suggestions(query, max_results=10):
@@ -1729,6 +1852,12 @@ def upload(request):
                     guessed_ext = ".mp4"
                 base = name[:-len(ext)] if ext else name
                 media.name = f"{base}{guessed_ext}"
+
+            duration = _video_duration_seconds(media)
+            if duration is not None and duration > 60:
+                return render(request, "upload.html", {
+                    "error": "Reels must be 60 seconds or shorter. Please upload longer videos as a post.",
+                })
 
         try:
             post = Post.objects.create(

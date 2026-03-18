@@ -13,6 +13,7 @@
     {% if error %}
     <div class="alert alert-danger" role="alert">{{ error }}</div>
     {% endif %}
+    <div class="alert alert-danger d-none" role="alert" id="reelDurationError"></div>
 
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
@@ -43,6 +44,7 @@
 
         <!-- Preview -->
         <div class="preview-box" id="previewBox"></div>
+        <div class="upload-duration d-none" role="status" id="uploadDurationInfo"></div>
 
         <!-- Caption -->
         <textarea name="caption" placeholder="Write a caption... (Use hashtags)" rows="3"></textarea>
@@ -59,15 +61,87 @@
 const input = document.getElementById("mediaInput");
 const previewBox = document.getElementById("previewBox");
 const typeRadios = document.querySelectorAll("input[name='type']");
+const reelDurationError = document.getElementById("reelDurationError");
+const uploadDurationInfo = document.getElementById("uploadDurationInfo");
+const form = document.querySelector("form");
+
+function showReelError(message) {
+    if (!reelDurationError) return;
+    reelDurationError.textContent = message;
+    reelDurationError.classList.remove("d-none");
+}
+
+function clearReelError() {
+    if (!reelDurationError) return;
+    reelDurationError.textContent = "";
+    reelDurationError.classList.add("d-none");
+}
+
+function showDurationInfo(message) {
+    if (!uploadDurationInfo) return;
+    uploadDurationInfo.textContent = message;
+    uploadDurationInfo.classList.remove("d-none");
+}
+
+function clearDurationInfo() {
+    if (!uploadDurationInfo) return;
+    uploadDurationInfo.textContent = "";
+    uploadDurationInfo.classList.add("d-none");
+}
+
+function formatDuration(seconds) {
+    if (!Number.isFinite(seconds) || seconds <= 0) return "0:00";
+    const total = Math.floor(seconds);
+    const mins = Math.floor(total / 60);
+    const secs = String(total % 60).padStart(2, "0");
+    return `${mins}:${secs}`;
+}
 
 function applyPreviewMode() {
     const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
     previewBox.classList.toggle("reel-mode", selectedType === "reel");
 }
 
-input.addEventListener("change", function() {
+async function validateReelDuration(file) {
+    const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
+    if (selectedType !== "reel") {
+        clearReelError();
+        return true;
+    }
+    if (!file) {
+        clearReelError();
+        return true;
+    }
+    if (!file.type.startsWith("video/")) {
+        showReelError("Reel upload only supports video files.");
+        return false;
+    }
+    const tempUrl = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.src = tempUrl;
+    const duration = await new Promise((resolve) => {
+        video.onloadedmetadata = () => resolve(video.duration || 0);
+        video.onerror = () => resolve(0);
+    });
+    URL.revokeObjectURL(tempUrl);
+    if (duration > 0) {
+        showDurationInfo(`Video duration: ${formatDuration(duration)}${selectedType === "reel" ? " (max 1:00)" : ""}`);
+    } else {
+        clearDurationInfo();
+    }
+    if (duration > 60.1) {
+        showReelError("Reels must be 60 seconds or shorter. Upload longer videos as a post.");
+        return false;
+    }
+    clearReelError();
+    return true;
+}
+
+input.addEventListener("change", async function() {
     previewBox.innerHTML = "";
     const file = this.files[0];
+    clearDurationInfo();
 
     if (file) {
         const reader = new FileReader();
@@ -75,19 +149,48 @@ input.addEventListener("change", function() {
         reader.onload = function(e) {
             if (file.type.startsWith("image")) {
                 previewBox.innerHTML = `<img src="${e.target.result}" class="preview-img">`;
+                clearDurationInfo();
             } else if (file.type.startsWith("video")) {
                 previewBox.innerHTML = `<video src="${e.target.result}" controls class="preview-video"></video>`;
             }
         };
 
         reader.readAsDataURL(file);
+        await validateReelDuration(file);
     }
 });
 
 typeRadios.forEach((radio) => {
-    radio.addEventListener("change", applyPreviewMode);
+    radio.addEventListener("change", async () => {
+        applyPreviewMode();
+        const file = input.files && input.files[0];
+        if (!file) {
+            clearReelError();
+            clearDurationInfo();
+            return;
+        }
+        const ok = await validateReelDuration(file);
+        if (!ok) {
+            input.value = "";
+            previewBox.innerHTML = "";
+            clearDurationInfo();
+        }
+    });
 });
 applyPreviewMode();
+
+if (form) {
+    form.addEventListener("submit", async (event) => {
+        const file = input.files && input.files[0];
+        const ok = await validateReelDuration(file);
+        if (!ok) {
+            event.preventDefault();
+            input.value = "";
+            previewBox.innerHTML = "";
+            clearDurationInfo();
+        }
+    });
+}
 </script>
 
 {% endblock %}
