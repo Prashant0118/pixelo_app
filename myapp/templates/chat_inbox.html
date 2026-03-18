@@ -28,18 +28,22 @@
             {% if chat_search_query %}
                 <div class="chat-search-results">
                     {% for user in chat_search_results %}
-                        <a href="{% url 'chat' user.username %}" class="chat-user-row chat-search-row">
-                            <div class="chat-avatar-wrap">
-                                <img src="{{ user.profile.avatar_url }}" alt="{{ user.username }}">
-                            </div>
-                            <div class="chat-user-meta">
-                                <strong>{{ user.username }}</strong>
-                                <small>Open chat</small>
-                            </div>
-                            <div class="chat-row-actions">
-                                <i class="bi bi-chevron-right"></i>
-                            </div>
-                        </a>
+                        <div class="chat-user-row chat-search-row">
+                            <a href="{% url 'profile' user.username %}" class="chat-avatar-link" aria-label="Open profile">
+                                <div class="chat-avatar-wrap">
+                                    <img src="{{ user.profile.avatar_url }}" alt="{{ user.username }}">
+                                </div>
+                            </a>
+                            <a href="{% url 'chat' user.username %}" class="chat-user-link" aria-label="Open chat">
+                                <div class="chat-user-meta">
+                                    <strong>{{ user.username }}</strong>
+                                    <small>Open chat</small>
+                                </div>
+                                <div class="chat-row-actions">
+                                    <i class="bi bi-chevron-right"></i>
+                                </div>
+                            </a>
+                        </div>
                     {% empty %}
                         <p class="no-users">No friend/follower found for "{{ chat_search_query }}".</p>
                     {% endfor %}
@@ -47,27 +51,31 @@
             {% endif %}
 
             {% for row in chat_rows %}
-                <a href="{% url 'chat' row.user.username %}" class="chat-user-row{% if row.is_unread %} unread{% endif %}">
-                    <div class="chat-avatar-wrap{% if row.unread_count > 0 %} has-unread{% endif %}">
-                        <img src="{{ row.user.profile.avatar_url }}" alt="{{ row.user.username }}">
-                        {% if row.active_recently %}
-                        <span class="online-dot"></span>
-                        {% endif %}
-                    </div>
-                    <div class="chat-user-meta">
-                        <strong>{{ row.user.username }}</strong>
-                        <small>
-                            {{ row.status_text }}
-                            {% if row.time_text %}&middot; {{ row.time_text }}{% endif %}
-                        </small>
-                    </div>
-                    <div class="chat-row-actions">
-                        <i class="bi bi-chevron-right"></i>
-                    </div>
+                <div class="chat-user-row{% if row.is_unread %} unread{% endif %}">
+                    <a href="{% url 'profile' row.user.username %}" class="chat-avatar-link" aria-label="Open profile">
+                        <div class="chat-avatar-wrap{% if row.unread_count > 0 %} has-unread{% endif %}">
+                            <img src="{{ row.user.profile.avatar_url }}" alt="{{ row.user.username }}">
+                            {% if row.active_recently %}
+                            <span class="online-dot"></span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    <a href="{% url 'chat' row.user.username %}" class="chat-user-link" aria-label="Open chat">
+                        <div class="chat-user-meta">
+                            <strong>{{ row.user.username }}</strong>
+                            <small>
+                                {{ row.status_text }}
+                                {% if row.time_text %}&middot; {{ row.time_text }}{% endif %}
+                            </small>
+                        </div>
+                        <div class="chat-row-actions">
+                            <i class="bi bi-chevron-right"></i>
+                        </div>
+                    </a>
                     {% if row.unread_count > 0 %}
                     <span class="chat-unread-count">{{ row.unread_count }}</span>
                     {% endif %}
-                </a>
+                </div>
             {% empty %}
                 <p class="no-users">No conversations yet. Search a contact to begin.</p>
             {% endfor %}

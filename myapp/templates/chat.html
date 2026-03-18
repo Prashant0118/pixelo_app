@@ -88,7 +88,9 @@
                 <i class="bi bi-arrow-left"></i>
             </a>
             <div class="user-chip">
-                <img src="{{ receiver.profile.avatar_url }}" alt="{{ receiver.username }}">
+                <a href="{% url 'profile' receiver.username %}" class="chat-profile-link" aria-label="Open profile">
+                    <img src="{{ receiver.profile.avatar_url }}" alt="{{ receiver.username }}">
+                </a>
                 <div>
                     <strong>{{ receiver.username }}</strong>
                     {% if receiver_active_recently %}
@@ -112,9 +114,9 @@
                     data-media-type="{{ message.media_type|default:'text' }}"
                     data-seen="{% if message.is_seen %}1{% else %}0{% endif %}">
                     {% if message.sender != request.user %}
-                    <div class="msg-peer-avatar" aria-hidden="true">
+                    <a href="{% url 'profile' receiver.username %}" class="msg-peer-avatar" aria-label="Open profile">
                         <img src="{{ receiver.profile.avatar_url }}" alt="{{ receiver.username }}">
-                    </div>
+                    </a>
                     {% endif %}
                     <div class="msg-bubble{% if message.media_type == 'audio' %} audio-horizontal{% endif %}">
                         {% if message.sender == request.user %}
@@ -346,9 +348,9 @@ function renderMessage(message) {
         row.innerHTML = `<div class="msg-bubble new"></div>`;
     } else {
         row.innerHTML = `
-            <div class="msg-peer-avatar" aria-hidden="true">
+            <a href="/profile/${encodeURIComponent(receiverUsername)}/" class="msg-peer-avatar" aria-label="Open profile">
                 <img src="${escapeHtml(receiverAvatarUrl)}" alt="${escapeHtml(receiverUsername)}">
-            </div>
+            </a>
             <div class="msg-bubble new"></div>
         `;
     }
