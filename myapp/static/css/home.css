@@ -224,11 +224,12 @@ body.home-page .top-navbar {
     background: rgba(16, 27, 51, 0.88);
     border:1px solid rgba(132, 155, 205, 0.22);
     border-radius:20px;
-    margin:20px auto;
-    max-width:640px;
+    margin:18px auto;
+    /* slightly smaller cards for a cleaner desktop layout */
+    max-width:600px;
     width:100%;
     overflow: hidden;
-    box-shadow: 0 16px 35px rgba(3, 8, 21, 0.45);
+    box-shadow: 0 14px 28px rgba(3, 8, 21, 0.38);
 }
 
 .card .card-header{
@@ -315,7 +316,8 @@ body.home-page .top-navbar {
 }
 
 .card video{
-    max-height:620px;
+    /* reduce max height so posts appear a bit smaller */
+    max-height:540px;
     object-fit:cover;
 }
 
@@ -332,6 +334,19 @@ body.home-page .top-navbar {
 .feed-media-frame.is-reel {
     /* Use a taller aspect for reels so vertical videos display properly in the feed */
     aspect-ratio: 3 / 4;
+}
+
+@media (min-width: 1024px) {
+    /* Desktop: allow taller vertical videos but constrain height to avoid huge blocks */
+    .feed-media-frame.is-reel {
+        aspect-ratio: 9 / 16;
+        max-height: 720px;
+    }
+
+    /* Slightly increase card width on wide screens while keeping it compact */
+    .post-card, .card {
+        max-width: 720px;
+    }
 }
 
 .feed-media {
