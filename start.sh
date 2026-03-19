@@ -7,18 +7,20 @@ python manage.py collectstatic --noinput
 
 
 
+
 # Create superuser safely using env variables
 python manage.py shell <<EOF
 import os
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
-username = os.getenv("Prashant_kasuhik")
-password = os.getenv("pkt0115n")
-email = os.getenv("prashantkasuhik118@gmail.com")
+username = os.getenv("DJANGO_SUPERUSER_USERNAME")
+password = os.getenv("DJANGO_SUPERUSER_PASSWORD")
+email = os.getenv("DJANGO_SUPERUSER_EMAIL")
 
 if username and password and not User.objects.filter(username=username).exists():
     User.objects.create_superuser(username, email, password)
 EOF
-# Start ASGI server (channels/daphne)
+
+# Start server
 daphne -b 0.0.0.0 -p ${PORT} myproject.asgi:application
