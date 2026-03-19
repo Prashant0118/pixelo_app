@@ -330,7 +330,8 @@ body.home-page .top-navbar {
 }
 
 .feed-media-frame.is-reel {
-    aspect-ratio: var(--ig-square);
+    /* Use a taller aspect for reels so vertical videos display properly in the feed */
+    aspect-ratio: 3 / 4;
 }
 
 .feed-media {

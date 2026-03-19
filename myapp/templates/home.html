@@ -64,7 +64,7 @@
     <div ondblclick="doubleLike({{ post.id }})">
         {% with media_url=post.media_url media_name=post.media_name %}
         {% if media_url %}
-            <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
+            <div class="feed-media-frame {% if post.type == 'reel' or post.is_video %}is-reel{% else %}is-post{% endif %}">
                 {% if post.type == 'reel' or post.is_video %}
                     <video class="w-100 feed-media feed-video-media {% if post.type == 'reel' %}feed-reel-video{% endif %}"
                            controls
