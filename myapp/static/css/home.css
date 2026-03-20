@@ -317,7 +317,7 @@ body.home-page .top-navbar {
 
 .card video{
     /* reduce max height so posts appear a bit smaller */
-    max-height:500px;
+    max-height:540px;
     object-fit:cover;
 }
 
@@ -328,31 +328,31 @@ body.home-page .top-navbar {
 }
 
 .feed-media-frame.is-post {
-    aspect-ratio: 4 / 5 ;
+    aspect-ratio: var(--ig-square);
 }
 
 .feed-media-frame.is-reel {
     /* Use a taller aspect for reels so vertical videos display properly in the feed */
-    aspect-ratio: 9 / 16;
+    aspect-ratio: 3 / 4;
 }
 
 @media (min-width: 1024px) {
     /* Desktop: allow taller vertical videos but constrain height to avoid huge blocks */
     .feed-media-frame.is-reel {
         aspect-ratio: 9 / 16;
-        max-height: 700px;
+        max-height: 720px;
     }
 
     /* Slightly increase card width on wide screens while keeping it compact */
     .post-card, .card {
-        max-width: 640px;
+        max-width: 720px;
     }
 }
 
 .feed-media {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     display: block;
 }
 
@@ -361,7 +361,7 @@ body.home-page .top-navbar {
     display:flex;
     align-items:center;
     gap:15px;
-    font-size:10px;
+    font-size:20px;
 }
 
 .post-actions button{
