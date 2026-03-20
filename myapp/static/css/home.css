@@ -317,7 +317,7 @@ body.home-page .top-navbar {
 
 .card video{
     /* reduce max height so posts appear a bit smaller */
-    max-height:540px;
+    max-height:500px;
     object-fit:cover;
 }
 
@@ -345,7 +345,7 @@ body.home-page .top-navbar {
 
     /* Slightly increase card width on wide screens while keeping it compact */
     .post-card, .card {
-        max-width: 720px;
+        max-width: 640px;
     }
 }
 
