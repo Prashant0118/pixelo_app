@@ -328,7 +328,7 @@ body.home-page .top-navbar {
 }
 
 .feed-media-frame.is-post {
-    aspect-ratio: var(--ig-square);
+    aspect-ratio: 4 / 5 ;
 }
 
 .feed-media-frame.is-reel {
@@ -339,8 +339,8 @@ body.home-page .top-navbar {
 @media (min-width: 1024px) {
     /* Desktop: allow taller vertical videos but constrain height to avoid huge blocks */
     .feed-media-frame.is-reel {
-        aspect-ratio: 9 / 16;
-        max-height: 720px;
+        aspect-ratio: 1 / 1;
+        max-height: 700px;
     }
 
     /* Slightly increase card width on wide screens while keeping it compact */
