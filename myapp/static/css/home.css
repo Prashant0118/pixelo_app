@@ -328,7 +328,7 @@ body.home-page .top-navbar {
 }
 
 .feed-media-frame.is-post {
-    aspect-ratio: var(--ig-square);
+    aspect-ratio: 4 / 5;
 }
 
 .feed-media-frame.is-reel {
@@ -352,7 +352,7 @@ body.home-page .top-navbar {
 .feed-media {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
 }
 
@@ -376,7 +376,7 @@ body.home-page .top-navbar {
 }
 
 .liked{
-    color:red;
+    color:rgb(252, 10, 10);
 }
 
 /* ===== LIKE COUNT ===== */
