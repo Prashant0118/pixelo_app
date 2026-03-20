@@ -336,11 +336,11 @@ body.home-page .top-navbar {
     aspect-ratio: 3 / 4;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1000px) {
     /* Desktop: allow taller vertical videos but constrain height to avoid huge blocks */
     .feed-media-frame.is-reel {
         aspect-ratio: 9 / 16;
-        max-height: 720px;
+        max-height: 650px;
     }
 
     /* Slightly increase card width on wide screens while keeping it compact */
