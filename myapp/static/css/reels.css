@@ -499,30 +499,35 @@ body.reels-page .reels-feed {
 @media (min-width: 993px) {
     /* Desktop: center reels like Shorts */
     body.reels-page .reels-feed {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
+        display: block;
         padding: 0;
         scroll-snap-type: y mandatory;
     }
 
     body.reels-page .reel-item,
     body.reels-page .reel-media-wrap {
-        width: min(420px, 100%);
-        margin: 0 auto;
+        width: 100%;
+        margin: 0;
     }
 
     body.reels-page .reel-item {
         height: var(--reels-vh);
         scroll-snap-align: start;
         scroll-snap-stop: always;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     body.reels-page .reel-media {
         width: 100%;
         height: 100%;
         object-fit: cover;
+    }
+
+    body.reels-page .reel-media-wrap {
+        width: min(420px, 100%);
+        height: 100%;
     }
 }
 
