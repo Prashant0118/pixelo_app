@@ -325,6 +325,8 @@ body.home-page .top-navbar {
     width: 100%;
     overflow: hidden;
     background: #0b1220;
+    display: grid;
+    place-items: center;
 }
 
 .feed-media-frame.is-post {
@@ -332,15 +334,17 @@ body.home-page .top-navbar {
 }
 
 .feed-media-frame.is-reel {
-    /* Use a taller aspect for reels so vertical videos display properly in the feed */
-    aspect-ratio: 3 / 4;
+    /* Base reel shape: tall vertical like Shorts */
+    aspect-ratio: 9 / 16;
+    max-width: 360px;
+    margin: 0 auto;
 }
 
 @media (min-width: 1000px) {
-    /* Desktop: allow taller vertical videos but constrain height to avoid huge blocks */
+    /* Desktop: keep reels tall and centered like Shorts */
     .feed-media-frame.is-reel {
-        aspect-ratio: 9 / 16;
-        max-height: 650px;
+        width: min(360px, 100%);
+        height: min(70vh, 720px);
     }
 
     /* Slightly increase card width on wide screens while keeping it compact */
@@ -352,7 +356,7 @@ body.home-page .top-navbar {
 .feed-media {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     display: block;
 }
 
