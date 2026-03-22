@@ -496,6 +496,33 @@ body.reels-page .reels-feed {
     z-index: 1100;
 }
 
+@media (min-width: 993px) {
+    /* Desktop: center reels like Shorts */
+    body.reels-page .reels-feed {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 40px 0;
+    }
+
+    body.reels-page .reel-item,
+    body.reels-page .reel-media-wrap {
+        width: min(420px, 100%);
+        margin: 0 auto;
+    }
+
+    body.reels-page .reel-item {
+        height: min(78vh, 820px);
+    }
+
+    body.reels-page .reel-media {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+}
+
 .reels-feed {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
