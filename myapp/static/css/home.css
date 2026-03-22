@@ -344,6 +344,15 @@ body.home-page .top-navbar {
     background: #0b1220;
 }
 
+@media (min-width: 1000px) {
+    /* Desktop: make posts narrower like mobile feed */
+    .post-card, .card {
+        max-width: 520px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
 .feed-media-frame.is-reel {
     /* Base reel shape: tall vertical like Shorts */
     aspect-ratio: 9 / 16;
