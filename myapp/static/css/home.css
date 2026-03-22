@@ -329,19 +329,19 @@ body.home-page .top-navbar {
 }
 
 .feed-media-frame.is-post {
-    aspect-ratio: auto;
+    aspect-ratio: 4 / 5;
 }
 
 /* Ensure post videos fill the full post frame (mobile-like) */
 .feed-media-frame.is-post video,
 .feed-media-frame.is-post .feed-video-media {
     width: 100%;
-    height: auto;
-    object-fit: contain;
+    height: 100%;
+    object-fit: cover;
     object-position: center;
     display: block;
     max-height: none;
-    background: #0b1220;
+    background: transparent;
 }
 
 @media (min-width: 1000px) {
