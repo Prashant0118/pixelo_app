@@ -332,6 +332,15 @@ body.home-page .top-navbar {
     aspect-ratio: 4 / 5;
 }
 
+/* Ensure post videos fill the full post frame (mobile-like) */
+.feed-media-frame.is-post video,
+.feed-media-frame.is-post .feed-video-media {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .feed-media-frame.is-reel {
     /* Base reel shape: tall vertical like Shorts */
     aspect-ratio: 9 / 16;
