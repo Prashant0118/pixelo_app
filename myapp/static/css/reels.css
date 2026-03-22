@@ -503,7 +503,8 @@ body.reels-page .reels-feed {
         flex-direction: column;
         align-items: center;
         justify-content: flex-start;
-        padding: 40px 0;
+        padding: 0;
+        scroll-snap-type: y mandatory;
     }
 
     body.reels-page .reel-item,
@@ -513,7 +514,9 @@ body.reels-page .reels-feed {
     }
 
     body.reels-page .reel-item {
-        height: min(78vh, 820px);
+        height: var(--reels-vh);
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
     }
 
     body.reels-page .reel-media {
