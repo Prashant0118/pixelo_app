@@ -102,6 +102,13 @@ function applyPreviewMode() {
     previewBox.classList.toggle("reel-mode", selectedType === "reel");
 }
 
+function setSelectedType(value) {
+    const radio = document.querySelector(`input[name='type'][value='${value}']`);
+    if (radio && !radio.checked) {
+        radio.checked = true;
+    }
+}
+
 async function validateReelDuration(file) {
     const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
     if (selectedType !== "reel") {
@@ -131,8 +138,12 @@ async function validateReelDuration(file) {
         clearDurationInfo();
     }
     if (duration > 60.1) {
-        showReelError("Reels must be 60 seconds or shorter. Upload longer videos as a post.");
-        return false;
+        // Auto-switch to post for longer videos.
+        setSelectedType("post");
+        applyPreviewMode();
+        clearReelError();
+        showDurationInfo(`Video duration: ${formatDuration(duration)} (too long for reels, will upload as Post)`);
+        return true;
     }
     clearReelError();
     return true;
