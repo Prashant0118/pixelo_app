@@ -1834,25 +1834,28 @@ def upload(request):
                 "error": "Please select a file to upload.",
             })
 
+        content_type = (getattr(media, "content_type", "") or "").lower()
+        name = getattr(media, "name", "") or ""
+        ext = os.path.splitext(name)[1].lower()
+        video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
+
+        # Ensure video files always keep a video extension (helps detection + playback).
+        if content_type.startswith("video/") and ext not in video_exts:
+            guessed_ext = mimetypes.guess_extension(content_type) if content_type else ""
+            if guessed_ext not in video_exts:
+                guessed_ext = ".mp4"
+            base = name[:-len(ext)] if ext else name
+            media.name = f"{base}{guessed_ext}"
+            name = getattr(media, "name", "") or ""
+            ext = os.path.splitext(name)[1].lower()
+
         if post_type == "reel":
-            content_type = (getattr(media, "content_type", "") or "").lower()
             if not content_type.startswith("video/"):
                 guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
                 if not (guessed and guessed.startswith("video/")):
                     return render(request, "upload.html", {
                         "error": "Reel upload only supports video files (mp4, webm, mov, m4v, etc.).",
                     })
-            # Ensure filename has a video extension so Cloudinary picks VIDEO resource type.
-            name = getattr(media, "name", "") or ""
-            ext = os.path.splitext(name)[1].lower()
-            video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
-            if content_type.startswith("video/") and ext not in video_exts:
-                guessed_ext = mimetypes.guess_extension(content_type) if content_type else ""
-                if guessed_ext not in video_exts:
-                    guessed_ext = ".mp4"
-                base = name[:-len(ext)] if ext else name
-                media.name = f"{base}{guessed_ext}"
-
             duration = _video_duration_seconds(media)
             if duration is not None and duration > 60:
                 # Longer videos should be treated as posts, not reels.
