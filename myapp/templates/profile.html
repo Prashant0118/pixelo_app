@@ -111,7 +111,7 @@
     <section class="post-grid" id="posts-grid">
         {% for post in posts %}
         <article class="post-tile">
-            <a href="{% url 'home' %}#post-{{ post.id }}" class="d-block h-100 w-100">
+            <a href="{% url 'home' %}?user={{ profile_user.username|urlencode }}#post-{{ post.id }}" class="d-block h-100 w-100">
                 {% if post.media %}
                 <img src="{{ post.media_url }}" alt="post">
                 {% else %}
@@ -203,6 +203,7 @@
 
 <script>
 let activePayUpiId = "";
+const profileUsername = "{{ profile_user.username|escapejs }}";
 
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabSections = document.querySelectorAll("#posts-grid, #reels-grid");
@@ -227,7 +228,8 @@ function shareProfile() {
 }
 
 function openReelFromProfile(reelId) {
-    window.location.href = `{% url 'reels' %}?reel=${reelId}`;
+    const userParam = profileUsername ? `&user=${encodeURIComponent(profileUsername)}` : "";
+    window.location.href = `{% url 'reels' %}?reel=${reelId}${userParam}`;
 }
 
 function handleReelTileKeydown(event, reelId) {

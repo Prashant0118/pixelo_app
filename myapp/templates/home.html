@@ -9,6 +9,13 @@
 
 {% block content %}
 
+{% if is_profile_feed %}
+<section class="home-hero">
+    <h2>@{{ profile_user.username }}</h2>
+    <p>Posts & reels by this user</p>
+    <a href="{% url 'home' %}" class="chip chip-more" style="margin-top: 6px; display: inline-flex;">Back to Home</a>
+</section>
+{% else %}
 <section class="home-hero">
     <h2>Hello {{ request.user.username|title }}</h2>
     <p>Discover new ideas today. Showing: {{ selected_category }}</p>
@@ -36,6 +43,7 @@
         </button>
     </div>
 </section>
+{% endif %}
 
 <!-- ================= POSTS ================= -->
 {% for post in posts %}

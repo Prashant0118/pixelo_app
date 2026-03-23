@@ -707,6 +707,39 @@ def _ensure_profiles_for_user_ids(user_ids):
 
 @login_required
 def home(request):
+    profile_username = (request.GET.get("user") or "").strip()
+    if profile_username:
+        profile_user = get_object_or_404(User, username=profile_username)
+        posts = Post.objects.filter(user=profile_user).order_by("-created_at")
+
+        liked_post_ids = set(
+            Like.objects.filter(user=request.user).values_list("post_id", flat=True)
+        )
+        saved_post_ids = set(
+            request.user.saved_posts.values_list("id", flat=True)
+        )
+        posts = list(posts)
+        for post in posts:
+            post.story_id = None
+
+        context = {
+            "posts": posts,
+            "selected_category": "All",
+            "featured_categories": [],
+            "hidden_categories": [],
+            "story_items": [],
+            "active_story_user_ids": [],
+            "unseen_story_user_ids": [],
+            "current_user_story": None,
+            "current_user_story_seen": True,
+            "liked_post_ids": liked_post_ids,
+            "saved_post_ids": saved_post_ids,
+            "share_followers": _shareable_followers(request.user),
+            "is_profile_feed": True,
+            "profile_user": profile_user,
+        }
+        return render(request, 'home.html', context)
+
     category_ranked = _ordered_reel_categories_for_user(request.user)
     selected_category = (request.GET.get("category") or "All").strip()
     if selected_category not in category_ranked:
@@ -978,6 +1011,8 @@ def search_view(request):
 
 @login_required
 def reels(request):
+    profile_username = (request.GET.get("user") or "").strip()
+    profile_user = None
     selected_category = (request.GET.get("category") or "All").strip()
     available_categories = _ordered_reel_categories_for_user(request.user)
     if selected_category not in available_categories:
@@ -987,6 +1022,9 @@ def reels(request):
     reels_qs = Post.objects.filter(type="reel").select_related("user").prefetch_related(
         "likes", "comments__user"
     )
+    if profile_username:
+        profile_user = get_object_or_404(User, username=profile_username)
+        reels_qs = reels_qs.filter(user=profile_user)
 
     share_followers = _shareable_followers(request.user)
     # Ensure profiles exist for reel owners + share followers to avoid template errors.
