@@ -329,15 +329,16 @@ body.home-page .top-navbar {
 }
 
 .feed-media-frame.is-post {
-    aspect-ratio: 4 / 5;
+    /* Natural height for post media */
+    aspect-ratio: auto;
 }
 
 /* Ensure post videos fill the full post frame (mobile-like) */
 .feed-media-frame.is-post video,
 .feed-media-frame.is-post .feed-video-media {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
     object-position: center;
     display: block;
     max-height: none;
