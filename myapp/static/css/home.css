@@ -331,12 +331,13 @@ body.home-page .top-navbar {
 .feed-media-frame.is-post {
     /* Natural height for post media */
     aspect-ratio: auto;
+    width: 100%;
 }
 
 /* Ensure post videos fill the full post frame (mobile-like) */
 .feed-media-frame.is-post video,
 .feed-media-frame.is-post .feed-video-media {
-    width: 100%;
+    width: 100% !important;
     height: auto;
     object-fit: contain;
     object-position: center;
