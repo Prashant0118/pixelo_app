@@ -44,6 +44,18 @@ def _cloudinary_url_for(name, resource_type):
         return ""
 
 
+def _looks_like_video_path(path):
+    if not path:
+        return False
+    raw = str(path)
+    if "/video/upload/" in raw:
+        return True
+    # Strip query params for extension checks.
+    clean = raw.split("?", 1)[0]
+    ext = os.path.splitext(clean)[1].lower()
+    return ext in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(upload_to="profile_pics/", default="default.jpg")
@@ -375,7 +387,7 @@ class Post(models.Model):
                         return _cloudinary_video_url(name)
                     return name
                 url = self.media.url
-                if self.type == "reel" or self.is_video:
+                if self.type == "reel" or self.is_video or _looks_like_video_path(url):
                     return _cloudinary_video_url(url)
                 return url
         except Exception:
@@ -393,12 +405,25 @@ class Post(models.Model):
     def is_video(self):
         name = self.media_name
         if not name:
+            # Fall back to URL heuristics when filename lacks extension.
+            try:
+                if self.media and getattr(self.media, "url", ""):
+                    return _looks_like_video_path(self.media.url)
+            except Exception:
+                return False
             return False
         ext = os.path.splitext(name)[1].lower()
         if ext in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}:
             return True
         guessed, _ = mimetypes.guess_type(name)
-        return bool(guessed and guessed.startswith("video/"))
+        if guessed and guessed.startswith("video/"):
+            return True
+        try:
+            if self.media and getattr(self.media, "url", ""):
+                return _looks_like_video_path(self.media.url)
+        except Exception:
+            return False
+        return False
 
     def __str__(self):
         return f"{self.user.username} - {self.type}"
