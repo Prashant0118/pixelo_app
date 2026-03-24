@@ -64,6 +64,7 @@ const typeRadios = document.querySelectorAll("input[name='type']");
 const reelDurationError = document.getElementById("reelDurationError");
 const uploadDurationInfo = document.getElementById("uploadDurationInfo");
 const form = document.querySelector("form");
+let previewObjectUrl = "";
 
 function showReelError(message) {
     if (!reelDurationError) return;
@@ -109,6 +110,26 @@ function setSelectedType(value) {
     }
 }
 
+function clearPreview() {
+    previewBox.innerHTML = "";
+    if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = "";
+    }
+}
+
+function renderPreview(file) {
+    clearPreview();
+    if (!file) return;
+    previewObjectUrl = URL.createObjectURL(file);
+    if (file.type.startsWith("image/")) {
+        previewBox.innerHTML = `<img src="${previewObjectUrl}" class="preview-img">`;
+        clearDurationInfo();
+    } else if (file.type.startsWith("video/")) {
+        previewBox.innerHTML = `<video src="${previewObjectUrl}" controls class="preview-video"></video>`;
+    }
+}
+
 async function validateReelDuration(file) {
     const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
     if (selectedType !== "reel") {
@@ -150,23 +171,12 @@ async function validateReelDuration(file) {
 }
 
 input.addEventListener("change", async function() {
-    previewBox.innerHTML = "";
+    clearPreview();
     const file = this.files[0];
     clearDurationInfo();
 
     if (file) {
-        const reader = new FileReader();
-
-        reader.onload = function(e) {
-            if (file.type.startsWith("image")) {
-                previewBox.innerHTML = `<img src="${e.target.result}" class="preview-img">`;
-                clearDurationInfo();
-            } else if (file.type.startsWith("video")) {
-                previewBox.innerHTML = `<video src="${e.target.result}" controls class="preview-video"></video>`;
-            }
-        };
-
-        reader.readAsDataURL(file);
+        renderPreview(file);
         await validateReelDuration(file);
     }
 });
@@ -183,7 +193,7 @@ typeRadios.forEach((radio) => {
         const ok = await validateReelDuration(file);
         if (!ok) {
             input.value = "";
-            previewBox.innerHTML = "";
+            clearPreview();
             clearDurationInfo();
         }
     });
@@ -197,7 +207,7 @@ if (form) {
         if (!ok) {
             event.preventDefault();
             input.value = "";
-            previewBox.innerHTML = "";
+            clearPreview();
             clearDurationInfo();
         }
     });

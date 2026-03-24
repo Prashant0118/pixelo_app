@@ -244,6 +244,14 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Upload limits (bytes). Raise to allow long videos; override via env as needed.
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(
+    os.getenv("FILE_UPLOAD_MAX_MEMORY_SIZE", str(50 * 1024 * 1024))
+)
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(
+    os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", str(512 * 1024 * 1024))
+)
+
 # Storage backends
 # - staticfiles: WhiteNoise for hashed static assets in production
 # - default: Cloudinary for uploads when configured, else local filesystem

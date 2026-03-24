@@ -112,11 +112,27 @@
         {% for post in posts %}
         <article class="post-tile">
             <a href="{% url 'home' %}?user={{ profile_user.username|urlencode }}#post-{{ post.id }}" class="d-block h-100 w-100">
-                {% if post.media %}
-                <img src="{{ post.media_url }}" alt="post">
+                {% with media_url=post.media_url media_name=post.media_name %}
+                {% if media_url %}
+                    {% if post.is_video %}
+                        <video muted playsinline preload="metadata">
+                            <source src="{{ media_url }}"
+                                    {% if media_name|slice:'-5:' == '.webm' %}type="video/webm"
+                                    {% elif media_name|slice:'-4:' == '.mp4' or media_name|slice:'-4:' == '.m4v' %}type="video/mp4"
+                                    {% elif media_name|slice:'-4:' == '.ogv' %}type="video/ogg"
+                                    {% elif media_name|slice:'-4:' == '.mov' %}type="video/quicktime"
+                                    {% elif media_name|slice:'-4:' == '.mkv' %}type="video/x-matroska"
+                                    {% elif media_name|slice:'-4:' == '.avi' %}type="video/x-msvideo"
+                                    {% elif media_name|slice:'-4:' == '.3gp' or media_name|slice:'-5:' == '.3gpp' %}type="video/3gpp"
+                                    {% endif %}>
+                        </video>
+                    {% else %}
+                        <img src="{{ media_url }}" alt="post">
+                    {% endif %}
                 {% else %}
-                <div class="post-empty">No media</div>
+                    <div class="post-empty">No media</div>
                 {% endif %}
+                {% endwith %}
             </a>
             {% if request.user == profile_user %}
             <div class="tile-menu">
