@@ -1877,8 +1877,10 @@ def upload(request):
         ext = os.path.splitext(name)[1].lower()
         video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
 
+        is_video_upload = _is_video_file(name, content_type) or (ext in video_exts)
+
         # Ensure video files always keep a video extension (helps detection + playback).
-        if content_type.startswith("video/") and ext not in video_exts:
+        if is_video_upload and ext not in video_exts:
             guessed_ext = mimetypes.guess_extension(content_type) if content_type else ""
             if guessed_ext not in video_exts:
                 guessed_ext = ".mp4"
@@ -1888,7 +1890,7 @@ def upload(request):
             ext = os.path.splitext(name)[1].lower()
 
         if post_type == "reel":
-            if not content_type.startswith("video/"):
+            if not is_video_upload:
                 guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
                 if not (guessed and guessed.startswith("video/")):
                     return render(request, "upload.html", {

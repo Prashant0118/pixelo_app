@@ -378,6 +378,15 @@ class Post(models.Model):
             if self.media and getattr(self.media, "name", ""):
                 name = (self.media.name or "")
                 if getattr(settings, "CAN_USE_CLOUDINARY", False):
+                    # Prefer the storage-provided URL first; it preserves Cloudinary resource type.
+                    try:
+                        url = self.media.url
+                    except Exception:
+                        url = ""
+                    if url:
+                        if self.type == "reel" or self.is_video or _looks_like_video_path(url):
+                            return _cloudinary_video_url(url)
+                        return url
                     resource_type = "video" if (self.type == "reel" or self.is_video) else "image"
                     url = _cloudinary_url_for(name, resource_type)
                     if url:

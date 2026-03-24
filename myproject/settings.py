@@ -244,6 +244,10 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Allow serving media files directly from Django in production when needed.
+# Use with care on hosted environments; prefer Cloudinary for durability.
+SERVE_MEDIA = os.getenv("SERVE_MEDIA", "").lower() in ("1", "true", "yes", "on")
+
 # Upload limits (bytes). Raise to allow long videos; override via env as needed.
 FILE_UPLOAD_MAX_MEMORY_SIZE = int(
     os.getenv("FILE_UPLOAD_MAX_MEMORY_SIZE", str(50 * 1024 * 1024))
