@@ -56,6 +56,16 @@ def _looks_like_video_path(path):
     return ext in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
 
 
+def _looks_like_video_name(name):
+    if not name:
+        return False
+    raw = os.path.basename(str(name)).lower()
+    if os.path.splitext(raw)[1]:
+        return False
+    # Heuristic for uploads without extensions (e.g. WhatsApp_Video_*).
+    return "video" in raw
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(upload_to="profile_pics/", default="default.jpg")
@@ -298,6 +308,12 @@ class Message(models.Model):
                     if self.media_type in ("video", "audio"):
                         return _cloudinary_video_url(name)
                     return name
+                try:
+                    storage = self.media.storage
+                    if hasattr(storage, "exists") and not storage.exists(name):
+                        return ""
+                except Exception:
+                    pass
                 url = self.media.url
                 if self.media_type in ("video", "audio"):
                     return _cloudinary_video_url(url)
@@ -378,25 +394,31 @@ class Post(models.Model):
             if self.media and getattr(self.media, "name", ""):
                 name = (self.media.name or "")
                 if getattr(settings, "CAN_USE_CLOUDINARY", False):
-                    # Prefer the storage-provided URL first; it preserves Cloudinary resource type.
+                    resource_type = "video" if (self.type == "reel" or self.is_video or _looks_like_video_name(name)) else "image"
+                    url = _cloudinary_url_for(name, resource_type)
+                    if url:
+                        return url
+                    # Fallback to the storage-provided URL and normalize if needed.
                     try:
                         url = self.media.url
                     except Exception:
                         url = ""
                     if url:
-                        if self.type == "reel" or self.is_video or _looks_like_video_path(url):
+                        if resource_type == "video" or _looks_like_video_path(url):
                             return _cloudinary_video_url(url)
                         return url
-                    resource_type = "video" if (self.type == "reel" or self.is_video) else "image"
-                    url = _cloudinary_url_for(name, resource_type)
-                    if url:
-                        return url
                 if name.startswith("http://") or name.startswith("https://"):
-                    if self.type == "reel" or self.is_video:
+                    if self.type == "reel" or self.is_video or _looks_like_video_name(name):
                         return _cloudinary_video_url(name)
                     return name
+                try:
+                    storage = self.media.storage
+                    if hasattr(storage, "exists") and not storage.exists(name):
+                        return ""
+                except Exception:
+                    pass
                 url = self.media.url
-                if self.type == "reel" or self.is_video or _looks_like_video_path(url):
+                if self.type == "reel" or self.is_video or _looks_like_video_path(url) or _looks_like_video_name(name):
                     return _cloudinary_video_url(url)
                 return url
         except Exception:

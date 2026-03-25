@@ -1597,12 +1597,7 @@ def lock_chat(request, username):
 
 
 def _serialize_chat_message(message, request_user):
-    media_url = ""
-    if message.media:
-        try:
-            media_url = message.media.url
-        except ValueError:
-            media_url = ""
+    media_url = message.media_url or ""
     media_type = message.media_type
     if message.media and not media_type:
         guessed, _ = mimetypes.guess_type(message.media.name or "")
@@ -1700,12 +1695,7 @@ def chat_send_api(request, username):
 
     channel_layer = get_channel_layer()
     if channel_layer:
-        media_url = ""
-        if message.media:
-            try:
-                media_url = message.media.url
-            except ValueError:
-                media_url = ""
+        media_url = message.media_url or ""
         async_to_sync(channel_layer.group_send)(
             _chat_group_name(request.user.id, receiver.id),
             {
