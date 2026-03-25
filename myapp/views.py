@@ -72,6 +72,10 @@ YOUTUBE_SECTION_QUERY = {
     "trending": "trending songs",
 }
 
+
+def _media_debug_enabled():
+    return (os.getenv("MEDIA_DEBUG", "") or "").lower() in ("1", "true", "yes", "on")
+
 INTEREST_CATEGORY_KEYWORDS = {
     "Trending": ["trending", "viral", "popular", "for you", "fyp"],
     "Learning": ["learning", "learn", "study", "education", "tips"],
@@ -855,9 +859,29 @@ def home(request):
     unseen_story_user_ids = [
         item["story"].user_id for item in story_items if item["has_unseen"]
     ]
-    posts = list(posts)
-    for post in posts:
-        post.story_id = first_story_id_by_user.get(post.user_id)
+        posts = list(posts)
+        for post in posts:
+            post.story_id = first_story_id_by_user.get(post.user_id)
+
+    if _media_debug_enabled():
+        for post in posts[:10]:
+            if post.media and not post.media_url:
+                try:
+                    raw_url = post.media.url
+                except Exception:
+                    raw_url = ""
+                print(
+                    "[media-debug][home] missing media_url",
+                    {
+                        "post_id": post.id,
+                        "name": getattr(post.media, "name", ""),
+                        "type": post.type,
+                        "is_video": post.is_video,
+                        "raw_url": raw_url,
+                        "can_use_cloudinary": getattr(settings, "CAN_USE_CLOUDINARY", False),
+                        "cloud_name": getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
+                    },
+                )
 
     context = {
         'posts': posts,
@@ -1062,6 +1086,26 @@ def reels(request):
                 -reel.created_at.timestamp(),
             ),
         )
+
+    if _media_debug_enabled():
+        for reel in ranked_reels[:10]:
+            if reel.media and not reel.media_url:
+                try:
+                    raw_url = reel.media.url
+                except Exception:
+                    raw_url = ""
+                print(
+                    "[media-debug][reels] missing media_url",
+                    {
+                        "post_id": reel.id,
+                        "name": getattr(reel.media, "name", ""),
+                        "type": reel.type,
+                        "is_video": reel.is_video,
+                        "raw_url": raw_url,
+                        "can_use_cloudinary": getattr(settings, "CAN_USE_CLOUDINARY", False),
+                        "cloud_name": getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
+                    },
+                )
 
     return render(request, "reels.html", {
         "reels": ranked_reels,
@@ -1908,6 +1952,25 @@ def upload(request):
                 pass
             print(f"[upload] {err_text}")
             return render(request, "upload.html", {"error": err_text})
+
+        if _media_debug_enabled():
+            try:
+                raw_url = post.media.url
+            except Exception:
+                raw_url = ""
+            print(
+                "[media-debug][upload] created post",
+                {
+                    "post_id": post.id,
+                    "name": getattr(post.media, "name", ""),
+                    "type": post.type,
+                    "is_video": post.is_video,
+                    "raw_url": raw_url,
+                    "media_url": post.media_url,
+                    "can_use_cloudinary": getattr(settings, "CAN_USE_CLOUDINARY", False),
+                    "cloud_name": getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
+                },
+            )
 
         return redirect("home")
 
