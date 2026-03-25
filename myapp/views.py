@@ -859,9 +859,9 @@ def home(request):
     unseen_story_user_ids = [
         item["story"].user_id for item in story_items if item["has_unseen"]
     ]
-        posts = list(posts)
-        for post in posts:
-            post.story_id = first_story_id_by_user.get(post.user_id)
+    posts = list(posts)
+    for post in posts:
+        post.story_id = first_story_id_by_user.get(post.user_id)
 
     if _media_debug_enabled():
         for post in posts[:10]:
