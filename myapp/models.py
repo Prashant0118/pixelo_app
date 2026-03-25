@@ -39,7 +39,11 @@ def _cloudinary_url_for(name, resource_type):
             resource_type=resource_type,
             type="upload",
         )
-        return url or ""
+        if not url:
+            return ""
+        if resource_type == "video":
+            return _cloudinary_video_url(url)
+        return url
     except Exception:
         return ""
 
@@ -167,6 +171,12 @@ class Story(models.Model):
             if not (self.media and getattr(self.media, "name", "")):
                 return ""
             name = self.media.name
+            try:
+                storage = self.media.storage
+                if hasattr(storage, "exists") and not storage.exists(name):
+                    return ""
+            except Exception:
+                pass
             if getattr(settings, "CAN_USE_CLOUDINARY", False):
                 resource_type = "video" if self.media_type == "video" else "image"
                 url = _cloudinary_url_for(name, resource_type)
@@ -299,6 +309,12 @@ class Message(models.Model):
         try:
             if self.media and getattr(self.media, "name", ""):
                 name = (self.media.name or "")
+                try:
+                    storage = self.media.storage
+                    if hasattr(storage, "exists") and not storage.exists(name):
+                        return ""
+                except Exception:
+                    pass
                 if getattr(settings, "CAN_USE_CLOUDINARY", False):
                     resource_type = "video" if self.media_type in ("video", "audio") else "image"
                     url = _cloudinary_url_for(name, resource_type)
@@ -393,6 +409,12 @@ class Post(models.Model):
         try:
             if self.media and getattr(self.media, "name", ""):
                 name = (self.media.name or "")
+                try:
+                    storage = self.media.storage
+                    if hasattr(storage, "exists") and not storage.exists(name):
+                        return ""
+                except Exception:
+                    pass
                 if getattr(settings, "CAN_USE_CLOUDINARY", False):
                     resource_type = "video" if (self.type == "reel" or self.is_video or _looks_like_video_name(name)) else "image"
                     url = _cloudinary_url_for(name, resource_type)
@@ -435,6 +457,8 @@ class Post(models.Model):
     @property
     def is_video(self):
         name = self.media_name
+        if _looks_like_video_name(name):
+            return True
         if not name:
             # Fall back to URL heuristics when filename lacks extension.
             try:
