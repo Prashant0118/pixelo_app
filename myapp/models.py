@@ -171,12 +171,13 @@ class Story(models.Model):
             if not (self.media and getattr(self.media, "name", "")):
                 return ""
             name = self.media.name
-            try:
-                storage = self.media.storage
-                if hasattr(storage, "exists") and not storage.exists(name):
-                    return ""
-            except Exception:
-                pass
+            if not getattr(settings, "CAN_USE_CLOUDINARY", False):
+                try:
+                    storage = self.media.storage
+                    if hasattr(storage, "exists") and not storage.exists(name):
+                        return ""
+                except Exception:
+                    pass
             if getattr(settings, "CAN_USE_CLOUDINARY", False):
                 resource_type = "video" if self.media_type == "video" else "image"
                 url = _cloudinary_url_for(name, resource_type)
@@ -309,12 +310,13 @@ class Message(models.Model):
         try:
             if self.media and getattr(self.media, "name", ""):
                 name = (self.media.name or "")
-                try:
-                    storage = self.media.storage
-                    if hasattr(storage, "exists") and not storage.exists(name):
-                        return ""
-                except Exception:
-                    pass
+                if not getattr(settings, "CAN_USE_CLOUDINARY", False):
+                    try:
+                        storage = self.media.storage
+                        if hasattr(storage, "exists") and not storage.exists(name):
+                            return ""
+                    except Exception:
+                        pass
                 if getattr(settings, "CAN_USE_CLOUDINARY", False):
                     resource_type = "video" if self.media_type in ("video", "audio") else "image"
                     url = _cloudinary_url_for(name, resource_type)
@@ -324,12 +326,13 @@ class Message(models.Model):
                     if self.media_type in ("video", "audio"):
                         return _cloudinary_video_url(name)
                     return name
-                try:
-                    storage = self.media.storage
-                    if hasattr(storage, "exists") and not storage.exists(name):
-                        return ""
-                except Exception:
-                    pass
+                if not getattr(settings, "CAN_USE_CLOUDINARY", False):
+                    try:
+                        storage = self.media.storage
+                        if hasattr(storage, "exists") and not storage.exists(name):
+                            return ""
+                    except Exception:
+                        pass
                 url = self.media.url
                 if self.media_type in ("video", "audio"):
                     return _cloudinary_video_url(url)
