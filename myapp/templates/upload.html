@@ -163,7 +163,7 @@ async function validateReelDuration(file) {
         setSelectedType("post");
         applyPreviewMode();
         clearReelError();
-        showDurationInfo(`Video duration: ${formatDuration(duration)} (too long for reels, will upload as Post)`);
+        showDurationInfo(`Video duration: ${formatDuration(duration)} (too long for reels — will upload as Post and show on Home)`);
         return true;
     }
     clearReelError();
