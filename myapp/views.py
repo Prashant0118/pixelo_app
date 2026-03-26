@@ -449,7 +449,13 @@ def _video_duration_seconds(uploaded_file):
 
         if suffix in {".mp4", ".m4v", ".mov"}:
             return _mp4_duration_seconds(temp_path)
-    return None
+        return None
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 
 def _format_mb(value):
@@ -478,12 +484,6 @@ def _upload_page_context(error=None):
         "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),
         "max_post_upload_bytes": getattr(settings, "MAX_POST_UPLOAD_BYTES", 0),
     }
-    finally:
-        if temp_path and os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except Exception:
-                pass
 
 
 def _fetch_youtube_music_suggestions(query, max_results=10):
