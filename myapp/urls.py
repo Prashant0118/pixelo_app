@@ -1,9 +1,11 @@
 from django.urls import path 
 from . import views
+from .views import ping_view
 
 profile_menu_view = getattr(views, "profile_menu", views.edit_profile)
 
 urlpatterns = [
+    path('ping/', ping_view),
     path('', views.home, name='home'),
     path('register/', views.register, name='register'),
     path('login/', views.user_login, name='login'),

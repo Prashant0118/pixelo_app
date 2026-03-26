@@ -2376,3 +2376,6 @@ def delete_comment(request, comment_id):
             return JsonResponse({"deleted": True})
 
     return JsonResponse({"error": "Not allowed"}, status=403)
+
+def ping_view(request):
+    return HttpResponse("OK")
