@@ -1,0 +1,68 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <div style="max-width: 1100px;">
+    <h1>{{ title }}</h1>
+
+    <form method="get" style="margin: 18px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <label for="id_username"><strong>Username</strong></label>
+      <input id="id_username" name="username" type="text" value="{{ username }}" placeholder="Enter username" style="min-width: 260px; padding: 6px 8px;">
+      <button type="submit" class="button">Search User</button>
+    </form>
+
+    {% if user_obj %}
+      <div style="margin-bottom: 18px; border: 1px solid #ddd; border-radius: 8px; padding: 14px;">
+        <h2 style="margin-top: 0;">Summary</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr><th style="text-align:left; padding: 6px; width: 240px;">Username</th><td style="padding: 6px;">{{ user_obj.username }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Liked Posts</th><td style="padding: 6px;">{{ summary.liked_posts }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Saved Posts</th><td style="padding: 6px;">{{ summary.saved_posts }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Own Posts</th><td style="padding: 6px;">{{ summary.own_posts }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Watch Rows</th><td style="padding: 6px;">{{ summary.watch_rows }}</td></tr>
+          <tr><th style="text-align:left; padding: 6px;">Manual Interests</th><td style="padding: 6px;">{{ summary.manual_interests }}</td></tr>
+        </table>
+      </div>
+
+      <div style="border: 1px solid #ddd; border-radius: 8px; padding: 14px;">
+        <h2 style="margin-top: 0;">Category Scores</h2>
+
+        {% if rows %}
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; padding: 8px;">Rank</th>
+                <th style="text-align:left; padding: 8px;">Category</th>
+                <th style="text-align:left; padding: 8px;">Total Score</th>
+                <th style="text-align:left; padding: 8px;">Likes</th>
+                <th style="text-align:left; padding: 8px;">Saves</th>
+                <th style="text-align:left; padding: 8px;">Own</th>
+                <th style="text-align:left; padding: 8px;">Watch</th>
+                <th style="text-align:left; padding: 8px;">Manual</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                <tr style="border-top: 1px solid #efefef;">
+                  <td style="padding: 8px;">{{ forloop.counter }}</td>
+                  <td style="padding: 8px;">{{ row.category }}</td>
+                  <td style="padding: 8px;"><strong>{{ row.score }}</strong></td>
+                  <td style="padding: 8px;">{{ row.likes }}</td>
+                  <td style="padding: 8px;">{{ row.saves }}</td>
+                  <td style="padding: 8px;">{{ row.own }}</td>
+                  <td style="padding: 8px;">{{ row.watch }}</td>
+                  <td style="padding: 8px;">{{ row.manual }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>No category scores found for this user.</p>
+        {% endif %}
+      </div>
+    {% elif username %}
+      <p>User not found. Please check the username.</p>
+    {% else %}
+      <p>Username daal kar category insights dekhein.</p>
+    {% endif %}
+  </div>
+{% endblock %}

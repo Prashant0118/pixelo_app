@@ -79,6 +79,22 @@ def _media_debug_enabled():
 INTEREST_CATEGORY_KEYWORDS = {
     "Trending": ["trending", "viral", "popular", "for you", "fyp"],
     "Learning": ["learning", "learn", "study", "education", "tips"],
+    "School Studies": [
+        "school", "class 10", "class 12", "cbse", "icse", "board exam",
+        "homework", "assignment", "worksheet", "school notes", "school study"
+    ],
+    "College Studies": [
+        "college", "university", "semester", "sem", "credits", "cgpa", "sgpa",
+        "backlog", "lab", "college notes", "university notes", "thesis"
+    ],
+    "Campus Life": [
+        "campus", "hostel", "mess", "college fest", "society", "club", "event"
+    ],
+    "Placements": [
+        "placement", "placements", "campus placement", "on-campus", "off-campus",
+        "placement drive", "company visit"
+    ],
+    "Internships": ["internship", "intern", "stipend", "trainee"],
     "Coding": ["coding", "code", "programming", "developer", "python", "javascript"],
     "Mathematics": ["math", "mathematics", "algebra", "geometry", "calculus"],
     "Data Science": ["data science", "machine learning", "ai", "analytics", "dataset"],
@@ -201,6 +217,20 @@ def _ordered_categories_for_user(user):
         _increment_category_scores_from_text(caption, scores, weight=2)
     for caption in own_captions:
         _increment_category_scores_from_text(caption, scores, weight=1)
+
+    watch_rows = (
+        ReelWatch.objects.filter(user=user)
+        .select_related("post")
+        .only("watch_seconds", "views", "post__caption")
+    )
+    for row in watch_rows:
+        watch_seconds = float(getattr(row, "watch_seconds", 0) or 0)
+        views = int(getattr(row, "views", 0) or 0)
+        watch_weight = (min(watch_seconds, 120) * 0.2) + (views * 3)
+        if watch_weight <= 0:
+            continue
+        for category in _categories_for_text(row.post.caption or ""):
+            scores[category] += watch_weight
 
     manual_boost = len(manual_interests) * 100
     for index, category in enumerate(manual_interests):
@@ -1132,6 +1162,31 @@ def reel_watch_ping(request, post_id):
     mark_view = mark_view_raw == "1"
 
     row, _ = ReelWatch.objects.get_or_create(user=request.user, post=reel)
+    if watched_seconds > 0:
+        row.watch_seconds += watched_seconds
+    if mark_view:
+        row.views += 1
+    row.save(update_fields=["watch_seconds", "views", "updated_at"])
+    return JsonResponse({"ok": True})
+
+
+@login_required
+def post_watch_ping(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    if request.method != "POST":
+        return JsonResponse({"ok": True})
+    seconds_raw = request.POST.get("seconds", "0")
+    mark_view_raw = request.POST.get("mark_view", "0")
+
+    try:
+        watched_seconds = float(seconds_raw)
+    except (TypeError, ValueError):
+        watched_seconds = 0.0
+
+    watched_seconds = max(0.0, min(300.0, watched_seconds))
+    mark_view = mark_view_raw == "1"
+
+    row, _ = ReelWatch.objects.get_or_create(user=request.user, post=post)
     if watched_seconds > 0:
         row.watch_seconds += watched_seconds
     if mark_view:

@@ -25,6 +25,7 @@ urlpatterns = [
     path('story/<int:story_id>/', views.view_story, name="view_story"),
     path('reels/', views.reels, name="reels"),
     path('reel-watch/<int:post_id>/', views.reel_watch_ping, name='reel_watch_ping'),
+    path('post-watch/<int:post_id>/', views.post_watch_ping, name='post_watch_ping'),
     path('profile/<str:username>/', views.profile, name="profile"),
     path('profile-menu/', profile_menu_view, name='profile_menu'),
 

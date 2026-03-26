@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
@@ -23,10 +24,17 @@ from myapp.models import (
     Post,
     Profile,
     Reel,
+    ReelWatch,
     Story,
     StoryMusic,
     StoryMusicImport,
     StorySeen,
+)
+
+from myapp.views import (
+    INTEREST_CATEGORY_KEYWORDS,
+    _categories_for_text,
+    _profile_manual_interests,
 )
 
 
@@ -98,7 +106,7 @@ class PostAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "open_user_insights")
+    list_display = ("user", "open_user_insights", "open_category_insights")
     search_fields = ("user__username", "user__email")
     readonly_fields = ("reels_preview",)
     fields = ("user", "image", "bio", "reels_preview")
@@ -111,7 +119,12 @@ class ProfileAdmin(admin.ModelAdmin):
                 "user-insights/",
                 self.admin_site.admin_view(self.user_insights_view),
                 name="myapp_profile_user_insights",
-            )
+            ),
+            path(
+                "category-insights/",
+                self.admin_site.admin_view(self.category_insights_view),
+                name="myapp_profile_category_insights",
+            ),
         ]
         return custom_urls + urls
 
@@ -121,6 +134,13 @@ class ProfileAdmin(admin.ModelAdmin):
         return format_html('<a href="{}">Open User Insights</a>', url)
 
     open_user_insights.short_description = "User insights"
+
+    def open_category_insights(self, obj):
+        username = getattr(obj.user, "username", "")
+        url = f"{reverse('admin:myapp_profile_category_insights')}?{urlencode({'username': username})}"
+        return format_html('<a href="{}">Open Category Insights</a>', url)
+
+    open_category_insights.short_description = "Category insights"
 
     def user_insights_view(self, request):
         username = (request.POST.get("username") or request.GET.get("username") or "").strip()
@@ -175,6 +195,114 @@ class ProfileAdmin(admin.ModelAdmin):
             "reels": reels,
         }
         return TemplateResponse(request, "admin/myapp/user_insights.html", context)
+
+    def _category_debug_for_user(self, user_obj):
+        scores = {category: 0.0 for category in INTEREST_CATEGORY_KEYWORDS}
+        breakdown = {
+            category: {"likes": 0.0, "saves": 0.0, "own": 0.0, "watch": 0.0, "manual": 0.0}
+            for category in INTEREST_CATEGORY_KEYWORDS
+        }
+        category_order = {name: index for index, name in enumerate(INTEREST_CATEGORY_KEYWORDS.keys())}
+
+        def add_score(category, key, value):
+            if category not in scores:
+                return
+            scores[category] += value
+            breakdown[category][key] += value
+
+        liked_captions = (
+            Post.objects.filter(likes__user=user_obj)
+            .exclude(caption="")
+            .values_list("caption", flat=True)
+        )
+        saved_captions = (
+            user_obj.saved_posts.exclude(caption="")
+            .values_list("caption", flat=True)
+        )
+        own_captions = (
+            Post.objects.filter(user=user_obj)
+            .exclude(caption="")
+            .values_list("caption", flat=True)
+        )
+
+        for caption in liked_captions:
+            for category in _categories_for_text(caption):
+                add_score(category, "likes", 3)
+        for caption in saved_captions:
+            for category in _categories_for_text(caption):
+                add_score(category, "saves", 2)
+        for caption in own_captions:
+            for category in _categories_for_text(caption):
+                add_score(category, "own", 1)
+
+        watch_rows = (
+            ReelWatch.objects.filter(user=user_obj)
+            .select_related("post")
+            .only("watch_seconds", "views", "post__caption")
+        )
+        for row in watch_rows:
+            watch_seconds = float(getattr(row, "watch_seconds", 0) or 0)
+            views = int(getattr(row, "views", 0) or 0)
+            watch_weight = (min(watch_seconds, 120) * 0.2) + (views * 3)
+            if watch_weight <= 0:
+                continue
+            for category in _categories_for_text(row.post.caption or ""):
+                add_score(category, "watch", watch_weight)
+
+        manual_interests = _profile_manual_interests(user_obj)
+        manual_boost = len(manual_interests) * 100
+        for index, category in enumerate(manual_interests):
+            add_score(category, "manual", manual_boost - index)
+
+        ranked = sorted(
+            scores.keys(),
+            key=lambda category: (-scores[category], category_order.get(category, 0)),
+        )
+        rows = [
+            {
+                "category": category,
+                "score": round(scores[category], 2),
+                "likes": round(breakdown[category]["likes"], 2),
+                "saves": round(breakdown[category]["saves"], 2),
+                "own": round(breakdown[category]["own"], 2),
+                "watch": round(breakdown[category]["watch"], 2),
+                "manual": round(breakdown[category]["manual"], 2),
+            }
+            for category in ranked
+        ]
+
+        summary = {
+            "liked_posts": Post.objects.filter(likes__user=user_obj).count(),
+            "saved_posts": user_obj.saved_posts.count(),
+            "own_posts": Post.objects.filter(user=user_obj).count(),
+            "watch_rows": watch_rows.count(),
+            "manual_interests": ", ".join(manual_interests) if manual_interests else "-",
+        }
+        return rows, summary
+
+    def category_insights_view(self, request):
+        username = (request.GET.get("username") or "").strip()
+        user_obj = None
+        rows = []
+        summary = {}
+
+        if username:
+            user_obj = User.objects.filter(username__iexact=username).first()
+            if not user_obj:
+                messages.error(request, f"User '{username}' not found.")
+            else:
+                rows, summary = self._category_debug_for_user(user_obj)
+
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": "Category Insights",
+            "username": username,
+            "user_obj": user_obj,
+            "rows": rows,
+            "summary": summary,
+        }
+        return TemplateResponse(request, "admin/myapp/category_insights.html", context)
 
     def reels_preview(self, obj):
         if not obj or not obj.pk:

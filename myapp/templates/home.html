@@ -75,6 +75,7 @@
             <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
                 {% if post.type == 'reel' or post.is_video %}
                     <video class="w-100 feed-media feed-video-media {% if post.type == 'reel' %}feed-reel-video{% endif %}"
+                           data-post-id="{{ post.id }}"
                            controls
                            playsinline
                            webkit-playsinline
@@ -477,6 +478,73 @@ const feedVideos = Array.from(document.querySelectorAll(".feed-video-media"));
 if (feedVideos.length) {
     let userHasInteracted = false;
     let awaitingFeedUnmute = false;
+    const WATCH_THRESHOLD = 0.6;
+    const WATCH_FLUSH_SECONDS = 5;
+    const VIEW_MIN_SECONDS = 2;
+    const watchStateMap = new Map();
+
+    const getWatchState = (video) => {
+        if (!watchStateMap.has(video)) {
+            watchStateMap.set(video, {
+                active: false,
+                startedAt: 0,
+                pending: 0,
+                totalWatched: 0,
+                markedView: false,
+                markViewPending: false,
+                visible: false
+            });
+        }
+        return watchStateMap.get(video);
+    };
+
+    const sendWatchPing = (video, seconds, markView) => {
+        const postId = video?.dataset?.postId;
+        if (!postId) return;
+        const formData = new FormData();
+        if (seconds > 0) formData.append("seconds", seconds.toFixed(2));
+        if (markView) formData.append("mark_view", "1");
+        fetch(`/post-watch/${postId}/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": getCSRF() },
+            body: formData
+        }).catch(() => {});
+    };
+
+    const flushWatch = (video, force = false) => {
+        const state = getWatchState(video);
+        const shouldSend = state.pending >= 0.75 || state.markViewPending || force;
+        if (!shouldSend) return;
+        const seconds = Math.min(300, state.pending);
+        const markView = state.markViewPending;
+        state.pending = 0;
+        state.markViewPending = false;
+        sendWatchPing(video, seconds, markView);
+    };
+
+    const stopWatch = (video, flush = false) => {
+        const state = getWatchState(video);
+        if (state.active) {
+            const now = performance.now();
+            const delta = Math.max(0, (now - state.startedAt) / 1000);
+            state.pending += delta;
+            state.totalWatched += delta;
+            state.active = false;
+            state.startedAt = 0;
+            if (!state.markedView && state.totalWatched >= VIEW_MIN_SECONDS) {
+                state.markedView = true;
+                state.markViewPending = true;
+            }
+        }
+        if (flush) flushWatch(video, true);
+    };
+
+    const startWatch = (video) => {
+        const state = getWatchState(video);
+        if (state.active) return;
+        state.active = true;
+        state.startedAt = performance.now();
+    };
 
     const pauseAllFeedVideosExcept = (activeVideo) => {
         feedVideos.forEach((video) => {
@@ -504,14 +572,18 @@ if (feedVideos.length) {
         entries.forEach((entry) => {
             const video = entry.target;
             if (!(video instanceof HTMLVideoElement)) return;
-            if (entry.isIntersecting && entry.intersectionRatio >= 0.7) {
+            const state = getWatchState(video);
+            state.visible = entry.isIntersecting && entry.intersectionRatio >= WATCH_THRESHOLD;
+            if (state.visible) {
                 pauseAllFeedVideosExcept(video);
                 tryPlayFeedWithSound(video);
+                if (!video.paused) startWatch(video);
             } else {
                 video.pause();
+                stopWatch(video, true);
             }
         });
-    }, { threshold: [0.3, 0.7, 1] });
+    }, { threshold: [0.3, 0.6, 0.8, 1] });
 
     feedVideos.forEach((video) => feedVideoObserver.observe(video));
     const firstVideo = feedVideos[0];
@@ -521,7 +593,10 @@ if (feedVideos.length) {
 
     document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
-            feedVideos.forEach((video) => video.pause());
+            feedVideos.forEach((video) => {
+                video.pause();
+                stopWatch(video, true);
+            });
         } else {
             const visible = feedVideos.find((video) => {
                 const rect = video.getBoundingClientRect();
@@ -550,6 +625,37 @@ if (feedVideos.length) {
 
     document.addEventListener("pointerdown", handleUserInteraction, { once: true, passive: true });
     document.addEventListener("keydown", handleUserInteraction, { once: true });
+
+    feedVideos.forEach((video) => {
+        video.addEventListener("playing", () => {
+            const state = getWatchState(video);
+            if (state.visible) startWatch(video);
+        });
+        video.addEventListener("pause", () => stopWatch(video, true));
+        video.addEventListener("ended", () => stopWatch(video, true));
+    });
+
+    setInterval(() => {
+        feedVideos.forEach((video) => {
+            const state = getWatchState(video);
+            if (!state.active) return;
+            const now = performance.now();
+            const delta = Math.max(0, (now - state.startedAt) / 1000);
+            if (delta < WATCH_FLUSH_SECONDS) return;
+            state.pending += delta;
+            state.totalWatched += delta;
+            state.startedAt = now;
+            if (!state.markedView && state.totalWatched >= VIEW_MIN_SECONDS) {
+                state.markedView = true;
+                state.markViewPending = true;
+            }
+            flushWatch(video, false);
+        });
+    }, WATCH_FLUSH_SECONDS * 1000);
+
+    window.addEventListener("pagehide", () => {
+        feedVideos.forEach((video) => stopWatch(video, true));
+    });
 }
 
 </script>
