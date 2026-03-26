@@ -4,6 +4,7 @@ import os
 import struct
 import subprocess
 import tempfile
+import time
 from collections import defaultdict
 from urllib.parse import urlencode, quote
 from urllib.request import urlopen
@@ -448,7 +449,35 @@ def _video_duration_seconds(uploaded_file):
 
         if suffix in {".mp4", ".m4v", ".mov"}:
             return _mp4_duration_seconds(temp_path)
-        return None
+    return None
+
+
+def _format_mb(value):
+    try:
+        return f"{value / (1024 * 1024):.1f} MB"
+    except Exception:
+        return ""
+
+
+def _direct_upload_enabled():
+    return bool(
+        getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+        and getattr(settings, "CLOUDINARY_API_KEY", "")
+        and getattr(settings, "CLOUDINARY_API_SECRET", "")
+    )
+
+
+def _upload_page_context(error=None):
+    return {
+        "error": error,
+        "direct_upload_enabled": _direct_upload_enabled(),
+        "cloudinary_cloud_name": getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
+        "cloudinary_api_key": getattr(settings, "CLOUDINARY_API_KEY", ""),
+        "direct_upload_min_bytes": getattr(settings, "DIRECT_UPLOAD_MIN_BYTES", 0),
+        "max_direct_upload_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
+        "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),
+        "max_post_upload_bytes": getattr(settings, "MAX_POST_UPLOAD_BYTES", 0),
+    }
     finally:
         if temp_path and os.path.exists(temp_path):
             try:
@@ -1957,9 +1986,32 @@ def upload(request):
             post_type = "post"
 
         if not media:
-            return render(request, "upload.html", {
-                "error": "Please select a file to upload.",
-            })
+            return render(
+                request,
+                "upload.html",
+                _upload_page_context("Please select a file to upload."),
+            )
+
+        size = getattr(media, "size", None)
+        if size:
+            if post_type == "reel" and size > settings.MAX_REEL_UPLOAD_BYTES:
+                return render(
+                    request,
+                    "upload.html",
+                    _upload_page_context(
+                        "Reel file is too large. Max size is "
+                        f"{_format_mb(settings.MAX_REEL_UPLOAD_BYTES)}."
+                    ),
+                )
+            if post_type == "post" and size > settings.MAX_POST_UPLOAD_BYTES:
+                return render(
+                    request,
+                    "upload.html",
+                    _upload_page_context(
+                        "Post file is too large. Max size is "
+                        f"{_format_mb(settings.MAX_POST_UPLOAD_BYTES)}."
+                    ),
+                )
 
         content_type = (getattr(media, "content_type", "") or "").lower()
         name = getattr(media, "name", "") or ""
@@ -1982,13 +2034,18 @@ def upload(request):
             if not is_video_upload:
                 guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
                 if not (guessed and guessed.startswith("video/")):
-                    return render(request, "upload.html", {
-                        "error": "Reel upload only supports video files (mp4, webm, mov, m4v, etc.).",
-                    })
-            duration = _video_duration_seconds(media)
-            if duration is not None and duration > 60:
-                # Longer videos should be treated as posts, not reels.
-                post_type = "post"
+                    return render(
+                        request,
+                        "upload.html",
+                        _upload_page_context(
+                            "Reel upload only supports video files (mp4, webm, mov, m4v, etc.)."
+                        ),
+                    )
+            if not size or size <= settings.MAX_REEL_DURATION_CHECK_BYTES:
+                duration = _video_duration_seconds(media)
+                if duration is not None and duration > 60:
+                    # Longer videos should be treated as posts, not reels.
+                    post_type = "post"
 
         try:
             post = Post.objects.create(
@@ -2006,7 +2063,7 @@ def upload(request):
             except Exception:
                 pass
             print(f"[upload] {err_text}")
-            return render(request, "upload.html", {"error": err_text})
+            return render(request, "upload.html", _upload_page_context(err_text))
 
         if _media_debug_enabled():
             try:
@@ -2029,7 +2086,97 @@ def upload(request):
 
         return redirect("home")
 
-    return render(request, "upload.html")
+    return render(request, "upload.html", _upload_page_context())
+
+
+@login_required
+@require_POST
+def cloudinary_signature(request):
+    if not _direct_upload_enabled():
+        return JsonResponse({"error": "Direct upload not configured."}, status=400)
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        payload = {}
+
+    resource_type = (payload.get("resource_type") or "video").lower()
+    if resource_type not in ("video", "image"):
+        resource_type = "video"
+
+    timestamp = int(time.time())
+    folder = f"posts/u{request.user.id}"
+
+    params_to_sign = {
+        "timestamp": timestamp,
+        "folder": folder,
+        "resource_type": resource_type,
+        "use_filename": "true",
+        "unique_filename": "true",
+    }
+
+    try:
+        import cloudinary.utils
+        signature = cloudinary.utils.api_sign_request(
+            params_to_sign,
+            settings.CLOUDINARY_API_SECRET,
+        )
+    except Exception:
+        return JsonResponse({"error": "Cloudinary signing failed."}, status=500)
+
+    return JsonResponse({
+        "cloud_name": settings.CLOUDINARY_CLOUD_NAME,
+        "api_key": settings.CLOUDINARY_API_KEY,
+        "timestamp": timestamp,
+        "signature": signature,
+        "folder": folder,
+        "resource_type": resource_type,
+        "use_filename": "true",
+        "unique_filename": "true",
+        "max_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
+    })
+
+
+@login_required
+@require_POST
+def cloudinary_complete_upload(request):
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    public_id = (payload.get("public_id") or "").strip()
+    resource_type = (payload.get("resource_type") or "").strip().lower()
+    file_format = (payload.get("format") or "").strip().lower()
+    file_bytes = payload.get("bytes")
+    post_type = (payload.get("post_type") or "post").strip().lower()
+    caption = (payload.get("caption") or "").strip()
+
+    if post_type not in ("post", "reel"):
+        post_type = "post"
+    if not public_id or resource_type not in ("image", "video"):
+        return JsonResponse({"error": "Missing upload data."}, status=400)
+    if post_type == "reel" and resource_type != "video":
+        return JsonResponse({"error": "Reel upload must be a video."}, status=400)
+
+    max_bytes = getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0) or 0
+    if max_bytes and isinstance(file_bytes, (int, float)) and file_bytes > max_bytes:
+        return JsonResponse({"error": "Upload is too large."}, status=400)
+
+    if file_format:
+        media_name = f"{public_id}.{file_format}"
+    else:
+        media_name = public_id
+
+    post = Post.objects.create(
+        user=request.user,
+        caption=caption,
+        type=post_type,
+    )
+    post.media.name = media_name
+    post.save(update_fields=["media"])
+
+    return JsonResponse({"ok": True, "redirect": reverse("home")})
 
 
 @login_required
