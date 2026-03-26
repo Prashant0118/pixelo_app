@@ -62,6 +62,16 @@
                 <span>Click to Upload</span>
             </label>
         </div>
+        {% if cloudinary_widget_enabled %}
+        <div class="upload-widget-actions">
+            <button type="button" class="upload-btn" id="cloudinaryUploadBtn">
+                Upload Large Video (Cloudinary)
+            </button>
+            <div class="upload-duration" role="note">
+                For very large videos, use this button for resumable upload.
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Preview -->
         <div class="preview-box" id="previewBox"></div>
@@ -81,6 +91,9 @@
 
 </div>
 
+{% if cloudinary_widget_enabled %}
+<script src="https://widget.cloudinary.com/v2.0/global/all.js"></script>
+{% endif %}
 <!-- Preview Script -->
 <script>
 const input = document.getElementById("mediaInput");
@@ -95,6 +108,10 @@ const uploadProgressText = document.getElementById("uploadProgressText");
 let previewObjectUrl = "";
 
 const DIRECT_UPLOAD_ENABLED = {{ direct_upload_enabled|yesno:"true,false" }};
+const WIDGET_ENABLED = {{ cloudinary_widget_enabled|yesno:"true,false" }};
+const CLOUDINARY_UPLOAD_PRESET = "{{ cloudinary_upload_preset|escapejs }}";
+const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|escapejs }}";
+const USER_ID = {{ request.user.id }};
 const DIRECT_UPLOAD_MIN_BYTES = {{ direct_upload_min_bytes|default:0 }};
 const MAX_DIRECT_UPLOAD_BYTES = {{ max_direct_upload_bytes|default:0 }};
 const MAX_REEL_UPLOAD_BYTES = {{ max_reel_upload_bytes|default:0 }};
@@ -387,6 +404,67 @@ if (form) {
             setFormDisabled(false);
         }
     });
+}
+
+if (WIDGET_ENABLED) {
+    const widgetButton = document.getElementById("cloudinaryUploadBtn");
+    if (widgetButton && window.cloudinary && cloudinary.createUploadWidget) {
+        const widget = cloudinary.createUploadWidget(
+            {
+                cloudName: CLOUDINARY_CLOUD_NAME,
+                uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+                sources: ["local"],
+                multiple: false,
+                resourceType: "video",
+                folder: `posts/u${USER_ID}`,
+                maxFileSize: MAX_DIRECT_UPLOAD_BYTES || undefined,
+            },
+            async (error, result) => {
+                if (error) {
+                    showReelError(error.message || "Upload failed.");
+                    return;
+                }
+                if (result && result.event === "success") {
+                    try {
+                        showUploadProgress(98, "Finalizing...");
+                        const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
+                        const caption = document.querySelector("textarea[name='caption']")?.value || "";
+                        const completeRes = await fetch("{% url 'cloudinary_complete_upload' %}", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": getCookie("csrftoken"),
+                            },
+                            body: JSON.stringify({
+                                public_id: result.info.public_id,
+                                resource_type: result.info.resource_type,
+                                format: result.info.format,
+                                bytes: result.info.bytes,
+                                post_type: selectedType,
+                                caption: caption,
+                            }),
+                        });
+                        if (!completeRes.ok) {
+                            throw new Error("Finalize failed.");
+                        }
+                        const completePayload = await completeRes.json();
+                        showUploadProgress(100, "Done! Redirecting...");
+                        window.location.href = completePayload.redirect || "/";
+                    } catch (err) {
+                        showReelError(err.message || "Finalize failed.");
+                        hideUploadProgress();
+                    }
+                }
+            }
+        );
+
+        widgetButton.addEventListener("click", () => {
+            clearReelError();
+            clearDurationInfo();
+            showUploadProgress(2, "Opening uploader...");
+            widget.open();
+        });
+    }
 }
 </script>
 

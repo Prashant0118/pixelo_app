@@ -474,11 +474,14 @@ def _direct_upload_enabled():
 
 
 def _upload_page_context(error=None):
+    upload_preset = getattr(settings, "CLOUDINARY_UPLOAD_PRESET", "") or ""
     return {
         "error": error,
         "direct_upload_enabled": _direct_upload_enabled(),
         "cloudinary_cloud_name": getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
         "cloudinary_api_key": getattr(settings, "CLOUDINARY_API_KEY", ""),
+        "cloudinary_upload_preset": upload_preset,
+        "cloudinary_widget_enabled": bool(upload_preset),
         "direct_upload_min_bytes": getattr(settings, "DIRECT_UPLOAD_MIN_BYTES", 0),
         "max_direct_upload_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
         "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),

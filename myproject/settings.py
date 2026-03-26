@@ -115,6 +115,7 @@ CLOUDINARY_URL = (os.getenv("CLOUDINARY_URL") or "").strip()
 CLOUDINARY_CLOUD_NAME = (os.getenv("CLOUDINARY_CLOUD_NAME") or "").strip()
 CLOUDINARY_API_KEY = (os.getenv("CLOUDINARY_API_KEY") or "").strip()
 CLOUDINARY_API_SECRET = (os.getenv("CLOUDINARY_API_SECRET") or "").strip()
+CLOUDINARY_UPLOAD_PRESET = (os.getenv("CLOUDINARY_UPLOAD_PRESET") or "").strip()
 
 CLOUDINARY_ENABLED = (
     CLOUDINARY_URL.startswith("cloudinary://")
