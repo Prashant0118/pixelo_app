@@ -261,7 +261,7 @@ MAX_REEL_UPLOAD_BYTES = int(
     os.getenv("MAX_REEL_UPLOAD_BYTES", str(50 * 1024 * 1024))
 )
 MAX_POST_UPLOAD_BYTES = int(
-    os.getenv("MAX_POST_UPLOAD_BYTES", str(200 * 1024 * 1024))
+    os.getenv("MAX_POST_UPLOAD_BYTES", str(3 * 1024 * 1024 * 1024))
 )
 # Only attempt server-side duration checks for reasonably sized files.
 MAX_REEL_DURATION_CHECK_BYTES = int(
@@ -273,7 +273,7 @@ DIRECT_UPLOAD_MIN_BYTES = int(
     os.getenv("DIRECT_UPLOAD_MIN_BYTES", str(15 * 1024 * 1024))
 )
 MAX_DIRECT_UPLOAD_BYTES = int(
-    os.getenv("MAX_DIRECT_UPLOAD_BYTES", str(1024 * 1024 * 1024))
+    os.getenv("MAX_DIRECT_UPLOAD_BYTES", str(3 * 1024 * 1024 * 1024))
 )
 
 # Storage backends
