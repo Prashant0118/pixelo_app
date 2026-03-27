@@ -1985,6 +1985,7 @@ def upload(request):
         media = request.FILES.get("media")
         caption = (request.POST.get("caption") or "").strip()
         post_type = (request.POST.get("type") or "post").strip().lower()
+
         if post_type not in ("post", "reel"):
             post_type = "post"
 
@@ -1995,61 +1996,84 @@ def upload(request):
                 _upload_page_context("Please select a file to upload."),
             )
 
-        size = getattr(media, "size", None)
-        if size:
-            if post_type == "reel" and size > settings.MAX_REEL_UPLOAD_BYTES:
-                return render(
-                    request,
-                    "upload.html",
-                    _upload_page_context(
-                        "Reel file is too large. Max size is "
-                        f"{_format_mb(settings.MAX_REEL_UPLOAD_BYTES)}."
-                    ),
-                )
-            if post_type == "post" and size > settings.MAX_POST_UPLOAD_BYTES:
-                return render(
-                    request,
-                    "upload.html",
-                    _upload_page_context(
-                        "Post file is too large. Max size is "
-                        f"{_format_mb(settings.MAX_POST_UPLOAD_BYTES)}."
-                    ),
-                )
+        size = getattr(media, "size", 0)
 
+        if post_type == "reel" and size > settings.MAX_REEL_UPLOAD_BYTES:
+            return render(
+                request,
+                "upload.html",
+                _upload_page_context(
+                    f"Reel file too large. Max {_format_mb(settings.MAX_REEL_UPLOAD_BYTES)}."
+                ),
+            )
+
+        if post_type == "post" and size > settings.MAX_POST_UPLOAD_BYTES:
+            return render(
+                request,
+                "upload.html",
+                _upload_page_context(
+                    f"Post file too large. Max {_format_mb(settings.MAX_POST_UPLOAD_BYTES)}."
+                ),
+            )
+
+        # 📦 File info
         content_type = (getattr(media, "content_type", "") or "").lower()
         name = getattr(media, "name", "") or ""
         ext = os.path.splitext(name)[1].lower()
+
         video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
 
-        is_video_upload = _is_video_file(name, content_type) or (ext in video_exts)
+        is_video_upload = content_type.startswith("video/") or ext in video_exts
+        is_image_upload = content_type.startswith("image/")
 
-        # Ensure video files always keep a video extension (helps detection + playback).
+        # ✅ Fix extension if missing
         if is_video_upload and ext not in video_exts:
-            guessed_ext = mimetypes.guess_extension(content_type) if content_type else ""
+            guessed_ext = mimetypes.guess_extension(content_type) if content_type else ".mp4"
             if guessed_ext not in video_exts:
                 guessed_ext = ".mp4"
             base = name[:-len(ext)] if ext else name
             media.name = f"{base}{guessed_ext}"
-            name = getattr(media, "name", "") or ""
-            ext = os.path.splitext(name)[1].lower()
 
+        auto_converted_to_post = False   # ⭐ IMPORTANT FIX
+
+        # 🎬 REEL LOGIC
         if post_type == "reel":
+
+            # ❌ Reel must be video
             if not is_video_upload:
-                guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
-                if not (guessed and guessed.startswith("video/")):
+                return render(
+                    request,
+                    "upload.html",
+                    _upload_page_context(
+                        "Reel upload only supports video files."
+                    ),
+                )
+
+            # ⏱ Duration check (always check)
+            duration = _video_duration_seconds(media)
+
+            if duration is not None:
+                print("VIDEO DURATION:", duration)
+
+                if duration > 60:
+                    post_type = "post"
+                    auto_converted_to_post = True   # ⭐ mark conversion
+
+        # 🖼 POST LOGIC
+        if post_type == "post":
+
+            # ❗ Only image allowed if manually selected
+            if not auto_converted_to_post:
+                if not is_image_upload:
                     return render(
                         request,
                         "upload.html",
                         _upload_page_context(
-                            "Reel upload only supports video files (mp4, webm, mov, m4v, etc.)."
+                            "Post only supports image files."
                         ),
                     )
-            if not size or size <= settings.MAX_REEL_DURATION_CHECK_BYTES:
-                duration = _video_duration_seconds(media)
-                if duration is not None and duration > 60:
-                    # Longer videos should be treated as posts, not reels.
-                    post_type = "post"
 
+        # 🚀 SAVE
         try:
             post = Post.objects.create(
                 user=request.user,
@@ -2065,27 +2089,28 @@ def upload(request):
                     err_text = f"{err_text} - {detail}"
             except Exception:
                 pass
-            print(f"[upload] {err_text}")
-            return render(request, "upload.html", _upload_page_context(err_text))
 
+            print("[upload error]", err_text)
+
+            return render(
+                request,
+                "upload.html",
+                _upload_page_context(err_text)
+            )
+
+        # 🧪 Debug
         if _media_debug_enabled():
             try:
                 raw_url = post.media.url
             except Exception:
                 raw_url = ""
-            print(
-                "[media-debug][upload] created post",
-                {
-                    "post_id": post.id,
-                    "name": getattr(post.media, "name", ""),
-                    "type": post.type,
-                    "is_video": post.is_video,
-                    "raw_url": raw_url,
-                    "media_url": post.media_url,
-                    "can_use_cloudinary": getattr(settings, "CAN_USE_CLOUDINARY", False),
-                    "cloud_name": getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
-                },
-            )
+
+            print("[upload success]", {
+                "post_id": post.id,
+                "type": post.type,
+                "is_video": post.is_video,
+                "url": raw_url,
+            })
 
         return redirect("home")
 
