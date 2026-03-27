@@ -1202,29 +1202,50 @@ def reel_watch_ping(request, post_id):
     return JsonResponse({"ok": True})
 
 
-@login_required
 def post_watch_ping(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-    if request.method != "POST":
-        return JsonResponse({"ok": True})
-    seconds_raw = request.POST.get("seconds", "0")
-    mark_view_raw = request.POST.get("mark_view", "0")
-
     try:
-        watched_seconds = float(seconds_raw)
-    except (TypeError, ValueError):
-        watched_seconds = 0.0
+        post = get_object_or_404(Post, id=post_id)
 
-    watched_seconds = max(0.0, min(300.0, watched_seconds))
-    mark_view = mark_view_raw == "1"
+        # Return a clear JSON response when the user isn't authenticated
+        if not request.user or not request.user.is_authenticated:
+            return JsonResponse({"error": "auth_required"}, status=401)
 
-    row, _ = ReelWatch.objects.get_or_create(user=request.user, post=post)
-    if watched_seconds > 0:
-        row.watch_seconds += watched_seconds
-    if mark_view:
-        row.views += 1
-    row.save(update_fields=["watch_seconds", "views", "updated_at"])
-    return JsonResponse({"ok": True})
+        if request.method != "POST":
+            return JsonResponse({"ok": True})
+
+        seconds_raw = request.POST.get("seconds", "0")
+        mark_view_raw = request.POST.get("mark_view", "0")
+
+        try:
+            watched_seconds = float(seconds_raw)
+        except (TypeError, ValueError):
+            watched_seconds = 0.0
+
+        watched_seconds = max(0.0, min(300.0, watched_seconds))
+        mark_view = mark_view_raw == "1"
+
+        row, _ = ReelWatch.objects.get_or_create(user=request.user, post=post)
+        if watched_seconds > 0:
+            row.watch_seconds += watched_seconds
+        if mark_view:
+            row.views += 1
+        row.save(update_fields=["watch_seconds", "views", "updated_at"])
+        return JsonResponse({"ok": True})
+    except Exception as exc:
+        # Log server-side error with traceback for debugging.
+        import traceback
+        tb = traceback.format_exc()
+        try:
+            detail = str(exc)
+        except Exception:
+            detail = exc.__class__.__name__
+        print(f"[post_watch_ping] server error: {detail}\n{tb}")
+        resp = {"error": "server_error"}
+        # Only include debug details in the JSON response when DEBUG is True.
+        if getattr(settings, "DEBUG", False):
+            resp["detail"] = detail
+            resp["traceback"] = tb
+        return JsonResponse(resp, status=500)
 
 
 def register(request):
