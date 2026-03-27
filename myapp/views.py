@@ -1203,18 +1203,44 @@ def reel_watch_ping(request, post_id):
 
 
 def post_watch_ping(request, post_id):
+    # Debug: print basic request info
+    try:
+        print(f"[post_watch_ping] method={request.method} content_type={getattr(request, 'content_type', None)}")
+    except Exception:
+        pass
+
     try:
         post = get_object_or_404(Post, id=post_id)
 
-        # Return a clear JSON response when the user isn't authenticated
+        # Require authentication explicitly
         if not request.user or not request.user.is_authenticated:
             return JsonResponse({"error": "auth_required"}, status=401)
 
+        # Only allow POST for state-changing watch pings
         if request.method != "POST":
-            return JsonResponse({"ok": True})
+            return JsonResponse({"error": "method_not_allowed", "allowed": ["POST"]}, status=405)
 
-        seconds_raw = request.POST.get("seconds", "0")
-        mark_view_raw = request.POST.get("mark_view", "0")
+        # Parse payload: support application/json or form-encoded POST
+        payload = {}
+        try:
+            if request.content_type and request.content_type.startswith("application/json"):
+                raw = (request.body or b"").decode("utf-8")
+                print(f"[post_watch_ping] raw body (truncated): {raw[:1000]}")
+                payload = json.loads(raw) if raw else {}
+            else:
+                # Log form data for debugging
+                try:
+                    print(f"[post_watch_ping] POST keys: {list(request.POST.keys())}")
+                except Exception:
+                    pass
+                payload = request.POST
+        except Exception as exc:
+            print(f"[post_watch_ping] payload parse error: {exc}")
+            return JsonResponse({"error": "bad_request", "detail": "invalid_payload"}, status=400)
+
+        # Extract and validate fields
+        seconds_raw = payload.get("seconds") or payload.get("watched_seconds") or "0"
+        mark_view_raw = payload.get("mark_view") or payload.get("markView") or payload.get("mark_view", "0")
 
         try:
             watched_seconds = float(seconds_raw)
@@ -1222,17 +1248,34 @@ def post_watch_ping(request, post_id):
             watched_seconds = 0.0
 
         watched_seconds = max(0.0, min(300.0, watched_seconds))
-        mark_view = mark_view_raw == "1"
+        mark_view = str(mark_view_raw) == "1" or str(mark_view_raw).lower() in ("true", "t", "1")
 
-        row, _ = ReelWatch.objects.get_or_create(user=request.user, post=post)
-        if watched_seconds > 0:
-            row.watch_seconds += watched_seconds
-        if mark_view:
-            row.views += 1
-        row.save(update_fields=["watch_seconds", "views", "updated_at"])
+        # Use atomic UPDATE to avoid race conditions when many pings arrive.
+        from django.db.models import F
+        updated = ReelWatch.objects.filter(user=request.user, post=post).update(
+            watch_seconds=F("watch_seconds") + watched_seconds,
+            views=F("views") + (1 if mark_view else 0),
+            updated_at=timezone.now(),
+        )
+
+        if not updated:
+            # Create if missing
+            try:
+                ReelWatch.objects.create(
+                    user=request.user,
+                    post=post,
+                    watch_seconds=watched_seconds,
+                    views=(1 if mark_view else 0),
+                    updated_at=timezone.now(),
+                )
+            except Exception as exc:
+                print(f"[post_watch_ping] create error: {exc}")
+                return JsonResponse({"error": "server_error"}, status=500)
+
         return JsonResponse({"ok": True})
+    except Http404:
+        return JsonResponse({"error": "not_found"}, status=404)
     except Exception as exc:
-        # Log server-side error with traceback for debugging.
         import traceback
         tb = traceback.format_exc()
         try:
@@ -1241,11 +1284,21 @@ def post_watch_ping(request, post_id):
             detail = exc.__class__.__name__
         print(f"[post_watch_ping] server error: {detail}\n{tb}")
         resp = {"error": "server_error"}
-        # Only include debug details in the JSON response when DEBUG is True.
         if getattr(settings, "DEBUG", False):
             resp["detail"] = detail
             resp["traceback"] = tb
         return JsonResponse(resp, status=500)
+
+# Optionally allow CSRF exemption for testing. Enable by setting
+# `POST_WATCH_CSRF_EXEMPT = True` in settings (only for local/dev).
+if getattr(settings, "POST_WATCH_CSRF_EXEMPT", False):
+    try:
+        from django.views.decorators.csrf import csrf_exempt
+
+        post_watch_ping = csrf_exempt(post_watch_ping)
+        print("[post_watch_ping] CSRF exempt enabled via settings.POST_WATCH_CSRF_EXEMPT")
+    except Exception:
+        pass
 
 
 def register(request):
