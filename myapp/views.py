@@ -2048,7 +2048,7 @@ def upload(request):
                 duration = _video_duration_seconds(media)
                 if duration is not None and duration > 60:
                     # Longer videos should be treated as posts, not reels.
-                    post_type = "reel"
+                    post_type = "post"
 
         try:
             post = Post.objects.create(
