@@ -2044,7 +2044,14 @@ def upload(request):
                             "Reel upload only supports video files (mp4, webm, mov, m4v, etc.)."
                         ),
                     )
-            if not size or size <= settings.MAX_REEL_DURATION_CHECK_BYTES:
+            # If file is larger than the server-side duration-check threshold
+            # we cannot reliably probe its duration here. Conservatively treat
+            # such uploads as regular posts (not reels) to avoid very long
+            # videos being classified as reels.
+            max_check = getattr(settings, "MAX_REEL_DURATION_CHECK_BYTES", 0) or 0
+            if size and isinstance(size, (int, float)) and size > max_check:
+                post_type = "post"
+            else:
                 duration = _video_duration_seconds(media)
                 if duration is not None and duration > 60:
                     # Longer videos should be treated as posts, not reels.
@@ -2161,6 +2168,16 @@ def cloudinary_complete_upload(request):
         return JsonResponse({"error": "Missing upload data."}, status=400)
     if post_type == "reel" and resource_type != "video":
         return JsonResponse({"error": "Reel upload must be a video."}, status=400)
+
+    # If the client requested a reel but the reported size is larger than
+    # the server-side duration-check threshold, downgrade to a post since we
+    # cannot safely probe duration for very large direct uploads here.
+    try:
+        max_check = getattr(settings, "MAX_REEL_DURATION_CHECK_BYTES", 0) or 0
+        if post_type == "reel" and isinstance(file_bytes, (int, float)) and file_bytes > max_check:
+            post_type = "post"
+    except Exception:
+        pass
 
     max_bytes = getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0) or 0
     if max_bytes and isinstance(file_bytes, (int, float)) and file_bytes > max_bytes:
