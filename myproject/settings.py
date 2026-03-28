@@ -89,7 +89,7 @@ if not CSRF_TRUSTED_ORIGINS:
             continue
         if host == "*":
             continue
-        is_local = host in ("localhost", "127.0.0.1") or host.startswith("192.168.") or host.startswith("10.") or host.startswith("172.")
+        is_local = host in ("localhost", "127.0.0.1","https://pixelo-app.onrender.com") or host.startswith("192.168.") or host.startswith("10.") or host.startswith("172.")
         if is_local or DEBUG:
             derived.append(f"http://{host}")
         derived.append(f"https://{host}")
