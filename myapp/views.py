@@ -2367,7 +2367,6 @@ def _user_avatar_url(user):
     return f"data:image/svg+xml;utf8,{quote(svg)}"
 
 @login_required
-@login_required
 @require_POST
 def comment_ajax(request, post_id):
     post = get_object_or_404(Post, id=post_id)
@@ -2416,26 +2415,26 @@ def comment_ajax(request, post_id):
 def like_ajax(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
-        like = Like.objects.filter(post=post, user=request.user).first()
-        if like:
-            like.delete()
-            liked = False
-        else:
-            Like.objects.create(post=post, user=request.user)
-            liked = True
+    like = Like.objects.filter(post=post, user=request.user).first()
+    if like:
+        like.delete()
+        liked = False
+    else:
+        Like.objects.create(post=post, user=request.user)
+        liked = True
 
-            if request.user != post.user:
-                Notification.objects.create(
-                    sender=request.user,
-                    receiver=post.user,
-                    notification_type="like",
-                    post=post,
-                )
+        if request.user != post.user:
+            Notification.objects.create(
+                sender=request.user,
+                receiver=post.user,
+                notification_type="like",
+                post=post,
+            )
 
-        return JsonResponse({
-            "liked": liked,
-            "total_likes": post.likes.count()
-        })
+    return JsonResponse({
+        "liked": liked,
+        "total_likes": post.likes.count()
+    })
 
 
 @login_required
