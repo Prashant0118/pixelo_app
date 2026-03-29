@@ -14,8 +14,23 @@ import os
 def _cloudinary_video_url(url):
     if not url:
         return ""
-    if "res.cloudinary.com" in url and "/image/upload/" in url:
-        return url.replace("/image/upload/", "/video/upload/", 1)
+    # Always use HTTPS for Cloudinary resources to avoid mixed content warnings
+    if "res.cloudinary.com" in url:
+        url = url.replace("http://res.cloudinary.com", "https://res.cloudinary.com", 1)
+        if "/image/upload/" in url:
+            url = url.replace("/image/upload/", "/video/upload/", 1)
+        return url
+    return url
+
+
+def _ensure_https_url(url):
+    """Ensure all URLs, especially Cloudinary, use HTTPS to avoid mixed content warnings."""
+    if not url:
+        return ""
+    if "res.cloudinary.com" in url:
+        url = url.replace("http://res.cloudinary.com", "https://res.cloudinary.com", 1)
+    elif url.startswith("http://") and "cloudinary.com" in url:
+        url = url.replace("http://", "https://", 1)
     return url
 
 
@@ -195,8 +210,8 @@ class Story(models.Model):
                     return url
             if name.startswith("http://") or name.startswith("https://"):
                 if self.media_type == "video":
-                    return _cloudinary_video_url(name)
-                return name
+                    return _ensure_https_url(_cloudinary_video_url(name))
+                return _ensure_https_url(name)
             url = self.media.url
             if self.media_type == "video":
                 return _cloudinary_video_url(url)
@@ -328,8 +343,8 @@ class Message(models.Model):
                         return url
                 if name.startswith("http://") or name.startswith("https://"):
                     if self.media_type in ("video", "audio"):
-                        return _cloudinary_video_url(name)
-                    return name
+                        return _ensure_https_url(_cloudinary_video_url(name))
+                    return _ensure_https_url(name)
                 if not getattr(settings, "CAN_USE_CLOUDINARY", False):
                     try:
                         storage = self.media.storage
@@ -439,8 +454,8 @@ class Post(models.Model):
                         return url
                 if name.startswith("http://") or name.startswith("https://"):
                     if self.type == "reel" or self.is_video or _looks_like_video_name(name):
-                        return _cloudinary_video_url(name)
-                    return name
+                        return _ensure_https_url(_cloudinary_video_url(name))
+                    return _ensure_https_url(name)
                 url = self.media.url
                 if self.type == "reel" or self.is_video or _looks_like_video_path(url) or _looks_like_video_name(name):
                     return _cloudinary_video_url(url)
