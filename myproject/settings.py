@@ -250,11 +250,15 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 SERVE_MEDIA = os.getenv("SERVE_MEDIA", "").lower() in ("1", "true", "yes", "on")
 
 # Upload limits (bytes). Raise to allow long videos; override via env as needed.
+# FILE_UPLOAD_MAX_MEMORY_SIZE: Peak memory usage per file during upload
+# - 500MB allows handling large video files efficiently on hosted platforms
+# - Files larger than this will be streamed to disk (slower but conserves memory)
 FILE_UPLOAD_MAX_MEMORY_SIZE = int(
-    os.getenv("FILE_UPLOAD_MAX_MEMORY_SIZE", str(50 * 1024 * 1024))
+    os.getenv("FILE_UPLOAD_MAX_MEMORY_SIZE", str(500 * 1024 * 1024))
 )
+# DATA_UPLOAD_MAX_MEMORY_SIZE: Total POST data (all files + fields) limit
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(
-    os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", str(512 * 1024 * 1024))
+    os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", str(2 * 1024 * 1024 * 1024))
 )
 
 # App-level upload guards (bytes). Keep these <= platform limits to avoid 502s/timeouts.
@@ -277,6 +281,13 @@ DIRECT_UPLOAD_MIN_BYTES = int(
 MAX_DIRECT_UPLOAD_BYTES = int(
     os.getenv("MAX_DIRECT_UPLOAD_BYTES", str(3 * 1024 * 1024 * 1024))
 )
+
+# File upload handler: Use memory for files < 500MB, disk streaming for larger files
+# This prevents memory exhaustion on platform with constrained resources like Render.com
+FILE_UPLOAD_HANDLERS = [
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "myapp.upload_handler.LargeVideoUploadHandler",
+]
 
 # Storage backends
 # - staticfiles: WhiteNoise for hashed static assets in production

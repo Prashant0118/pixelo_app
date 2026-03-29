@@ -2007,21 +2007,30 @@ def following_list(request, username):
 @login_required
 def upload(request):
     if request.method == "POST":
-        media = request.FILES.get("media")
-        caption = (request.POST.get("caption") or "").strip()
-        post_type = (request.POST.get("type") or "post").strip().lower()
-        if post_type not in ("post", "reel"):
-            post_type = "post"
+        try:
+            media = request.FILES.get("media")
+            caption = (request.POST.get("caption") or "").strip()
+            post_type = (request.POST.get("type") or "post").strip().lower()
+            if post_type not in ("post", "reel"):
+                post_type = "post"
 
-        if not media:
-            return render(
-                request,
-                "upload.html",
-                _upload_page_context("Please select a file to upload."),
-            )
+            if not media:
+                return render(
+                    request,
+                    "upload.html",
+                    _upload_page_context("Please select a file to upload."),
+                )
 
-        size = getattr(media, "size", None)
-        if size:
+            # Get file size early for validation
+            size = getattr(media, "size", None)
+            if not size:
+                size = 0
+
+            # FOR REELS: Auto-convert to post if file exceeds reel limit
+            # This prevents timeout issues when processing large videos on Render.com
+            if post_type == "reel" and size > settings.MAX_REEL_UPLOAD_BYTES:
+                post_type = "post"
+
             # Check post size limit
             if post_type == "post" and size > settings.MAX_POST_UPLOAD_BYTES:
                 return render(
@@ -2029,64 +2038,79 @@ def upload(request):
                     "upload.html",
                     _upload_page_context(
                         "Post file is too large. Max size is "
-                        f"{_format_mb(settings.MAX_POST_UPLOAD_BYTES)}."
+                        f"{_format_mb(settings.MAX_POST_UPLOAD_BYTES)}. "
+                        "Please reduce video quality or duration."
                     ),
                 )
 
-        content_type = (getattr(media, "content_type", "") or "").lower()
-        name = getattr(media, "name", "") or ""
-        ext = os.path.splitext(name)[1].lower()
-        video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
-
-        is_video_upload = _is_video_file(name, content_type) or (ext in video_exts)
-
-        # Ensure video files always keep a video extension (helps detection + playback).
-        if is_video_upload and ext not in video_exts:
-            guessed_ext = mimetypes.guess_extension(content_type) if content_type else ""
-            if guessed_ext not in video_exts:
-                guessed_ext = ".mp4"
-            base = name[:-len(ext)] if ext else name
-            media.name = f"{base}{guessed_ext}"
+            # Quick file type validation (no heavy processing)
+            content_type = (getattr(media, "content_type", "") or "").lower()
             name = getattr(media, "name", "") or ""
             ext = os.path.splitext(name)[1].lower()
+            video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
 
-        # Auto-convert reels to posts if file is too large for reel storage
-        if post_type == "reel" and size and size > settings.MAX_REEL_UPLOAD_BYTES:
-            post_type = "post"
+            is_video_upload = _is_video_file(name, content_type) or (ext in video_exts)
 
-        if post_type == "reel":
-            if not is_video_upload:
-                guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
-                if not (guessed and guessed.startswith("video/")):
-                    return render(
-                        request,
-                        "upload.html",
-                        _upload_page_context(
-                            "Reel upload only supports video files (mp4, webm, mov, m4v, etc.)."
-                        ),
-                    )
-            # NOTE: Duration check is disabled to prevent 503 timeouts on Render.com
-            # File size check (MAX_REEL_UPLOAD_BYTES) is sufficient for auto-conversion
-            # Users can upload long videos as posts directly
+            # Ensure video files always keep a video extension (helps detection + playback)
+            if is_video_upload and ext not in video_exts:
+                guessed_ext = mimetypes.guess_extension(content_type) if content_type else ""
+                if guessed_ext not in video_exts:
+                    guessed_ext = ".mp4"
+                base = name[:-len(ext)] if ext else name
+                media.name = f"{base}{guessed_ext}"
+                name = getattr(media, "name", "") or ""
+                ext = os.path.splitext(name)[1].lower()
 
-        try:
+            # Validate reel uploads
+            if post_type == "reel":
+                if not is_video_upload:
+                    guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
+                    if not (guessed and guessed.startswith("video/")):
+                        return render(
+                            request,
+                            "upload.html",
+                            _upload_page_context(
+                                "Reel upload only supports video files (mp4, webm, mov, m4v, etc.)."
+                            ),
+                        )
+                # NOTE: Duration check is DISABLED to prevent 502 timeouts on Render.com platform
+                # File size check (MAX_REEL_UPLOAD_BYTES) is sufficient for auto-conversion
+                # Large videos automatically upload as posts instead
+
+            # Create post with safe error handling
+            # Seek to start in case file was read elsewhere
+            try:
+                media.seek(0)
+            except Exception:
+                pass
+
             post = Post.objects.create(
                 user=request.user,
                 media=media,
                 caption=caption,
                 type=post_type
             )
+
+        except IOError as exc:
+            err_text = "Upload interrupted - file read error. Please try again."
+            print(f"[upload] IOError: {exc}")
+            return render(request, "upload.html", _upload_page_context(err_text))
+        except MemoryError as exc:
+            err_text = "Upload too large for current server capacity. Try a smaller file."
+            print(f"[upload] MemoryError: {exc}")
+            return render(request, "upload.html", _upload_page_context(err_text))
         except Exception as exc:
             err_text = f"Upload failed: {exc.__class__.__name__}"
             try:
                 detail = str(exc)
-                if detail:
+                if detail and len(detail) < 200:
                     err_text = f"{err_text} - {detail}"
             except Exception:
                 pass
             print(f"[upload] {err_text}")
             return render(request, "upload.html", _upload_page_context(err_text))
 
+        # Success: Post created
         if _media_debug_enabled():
             try:
                 raw_url = post.media.url
