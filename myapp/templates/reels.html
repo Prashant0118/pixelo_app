@@ -221,6 +221,7 @@ let activeWatchStartedAt = null;
 const viewedReelsInSession = new Set();
 let awaitingUserUnmute = false;
 let userHasInteracted = false;
+const pendingReelWatches = new Map(); // Track pending requests to avoid duplicates
 document.body.classList.add("reels-page");
 if (window.innerWidth <= 992) {
     const topBar = document.querySelector(".top-navbar");
@@ -264,9 +265,17 @@ function getReelIdFromVideo(videoEl) {
 }
 
 function sendReelWatch(postId, seconds, markView) {
+    // Avoid duplicate requests within 500ms window
+    const key = `${postId}`;
+    if (pendingReelWatches.has(key)) {
+        return;
+    }
+    
     const formData = new FormData();
     formData.append("seconds", String(Math.max(0, seconds || 0)));
     formData.append("mark_view", markView ? "1" : "0");
+    
+    pendingReelWatches.set(key, true);
 
     fetch(`/reel-watch/${postId}/`, {
         method: "POST",
@@ -274,7 +283,14 @@ function sendReelWatch(postId, seconds, markView) {
             "X-CSRFToken": getCSRF()
         },
         body: formData
-    }).catch(() => {});
+    })
+    .catch((err) => {
+        console.error(`Reel watch error for reel ${postId}:`, err);
+    })
+    .finally(() => {
+        // Clear pending flag after 500ms to allow new requests
+        setTimeout(() => pendingReelWatches.delete(key), 500);
+    });
 }
 
 function flushActiveWatch(markView) {

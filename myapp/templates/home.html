@@ -257,6 +257,7 @@ function likePost(postId){
     .then(data=>{
         let icon=document.getElementById(`like-icon-${postId}`);
         let count=document.getElementById(`like-count-${postId}`);
+        if (!icon || !count) return;
 
         if(data.liked){
             icon.classList.remove("bi-heart");
@@ -278,7 +279,7 @@ function doubleLike(postId){
 // COMMENT
 function addComment(postId){
     let input=document.getElementById(`comment-input-${postId}`);
-    if(input.value.trim()==="") return;
+    if(!input || input.value.trim()==="") return;
 
     let formData=new FormData();
     formData.append("text",input.value);
@@ -295,8 +296,8 @@ function addComment(postId){
         return res.json();
     })
     .then(data=>{
-        document.getElementById(`comment-section-${postId}`)
-        .insertAdjacentHTML("beforeend",data.html);
+        const section = document.getElementById(`comment-section-${postId}`);
+        if (section) section.insertAdjacentHTML("beforeend",data.html);
         updateCommentPreview(postId);
         input.value="";
     })
@@ -346,6 +347,7 @@ function savePost(postId){
     })
     .then(data=>{
         let icon=document.getElementById(`save-icon-${postId}`);
+        if(!icon) return;
         if(data.saved){
             icon.classList.replace("bi-bookmark","bi-bookmark-fill");
         }else{
@@ -356,12 +358,14 @@ function savePost(postId){
 
 function openShareModal(postId) {
     activeSharePostId = postId;
-    document.getElementById("shareModal").classList.remove("d-none");
+    const modal = document.getElementById("shareModal");
+    if (modal) modal.classList.remove("d-none");
 }
 
 function closeShareModal(event) {
     if (event && event.target.id !== "shareModal") return;
-    document.getElementById("shareModal").classList.add("d-none");
+    const modal = document.getElementById("shareModal");
+    if (modal) modal.classList.add("d-none");
 }
 
 function sendSharedPost(username) {
@@ -483,6 +487,9 @@ if (feedVideos.length) {
     const VIEW_MIN_SECONDS = 2;
     const watchStateMap = new Map();
 
+    const watchStateMap = new Map();
+    const pendingWatchPings = new Map(); // Track pending requests to avoid duplicates
+
     const getWatchState = (video) => {
         if (!watchStateMap.has(video)) {
             watchStateMap.set(video, {
@@ -501,9 +508,19 @@ if (feedVideos.length) {
     const sendWatchPing = (video, seconds, markView) => {
         const postId = video?.dataset?.postId;
         if (!postId) return;
+        
+        // Avoid duplicate requests within 500ms window
+        const key = `${postId}`;
+        if (pendingWatchPings.has(key)) {
+            return;
+        }
+        
         const payload = {};
         if (seconds > 0) payload.seconds = seconds.toFixed(2);
         if (markView) payload.mark_view = "1";
+        
+        pendingWatchPings.set(key, true);
+        
         fetch(`/post-watch/${postId}/`, {
             method: "POST",
             headers: { 
@@ -511,7 +528,15 @@ if (feedVideos.length) {
                 "X-CSRFToken": getCSRF() 
             },
             body: JSON.stringify(payload)
-        }).catch(() => {});
+        })
+        .catch((err) => {
+            // Log actual errors instead of silently failing
+            console.error(`Watch ping error for post ${postId}:`, err);
+        })
+        .finally(() => {
+            // Clear pending flag after 500ms to allow new requests
+            setTimeout(() => pendingWatchPings.delete(key), 500);
+        });
     };
 
     const flushWatch = (video, force = false) => {

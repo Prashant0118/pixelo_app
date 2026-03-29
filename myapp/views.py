@@ -345,9 +345,16 @@ def _ffprobe_duration_seconds(path):
             capture_output=True,
             text=True,
             check=False,
-            timeout=6,
+            timeout=3,
         )
-    except Exception:
+    except subprocess.TimeoutExpired:
+        print(f"[_ffprobe_duration_seconds] timeout expired for {path}")
+        return None
+    except FileNotFoundError:
+        print("[_ffprobe_duration_seconds] ffprobe not found in PATH")
+        return None
+    except Exception as e:
+        print(f"[_ffprobe_duration_seconds] Exception: {e}")
         return None
     if probe.returncode != 0:
         return None
@@ -443,12 +450,21 @@ def _video_duration_seconds(uploaded_file):
         except Exception:
             pass
 
-        duration = _ffprobe_duration_seconds(temp_path)
-        if duration is not None:
-            return duration
+        try:
+            duration = _ffprobe_duration_seconds(temp_path)
+            if duration is not None:
+                return duration
+        except Exception as e:
+            print(f"[_video_duration_seconds] ffprobe failed: {e}")
 
         if suffix in {".mp4", ".m4v", ".mov"}:
-            return _mp4_duration_seconds(temp_path)
+            try:
+                return _mp4_duration_seconds(temp_path)
+            except Exception as e:
+                print(f"[_video_duration_seconds] mp4 parsing failed: {e}")
+        return None
+    except Exception as e:
+        print(f"[_video_duration_seconds] Error: {e}")
         return None
     finally:
         if temp_path and os.path.exists(temp_path):
@@ -2051,10 +2067,15 @@ def upload(request):
             # Attempt duration check for files up to 500MB to catch long videos
             max_duration_check = getattr(settings, "MAX_REEL_DURATION_CHECK_BYTES", 80 * 1024 * 1024)
             if not size or size <= max_duration_check:
-                duration = _video_duration_seconds(media)
-                if duration is not None and duration > 60:
-                    # Longer videos should be treated as posts, not reels.
-                    post_type = "post"
+                try:
+                    duration = _video_duration_seconds(media)
+                    if duration is not None and duration > 60:
+                        # Longer videos should be treated as posts, not reels.
+                        post_type = "post"
+                except Exception as e:
+                    # If duration check fails (e.g., ffprobe not available), just proceed with default post_type
+                    print(f"[upload] Warning: Duration check failed: {e}")
+                    pass
 
         try:
             post = Post.objects.create(
