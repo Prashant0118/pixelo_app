@@ -501,13 +501,16 @@ if (feedVideos.length) {
     const sendWatchPing = (video, seconds, markView) => {
         const postId = video?.dataset?.postId;
         if (!postId) return;
-        const formData = new FormData();
-        if (seconds > 0) formData.append("seconds", seconds.toFixed(2));
-        if (markView) formData.append("mark_view", "1");
+        const payload = {};
+        if (seconds > 0) payload.seconds = seconds.toFixed(2);
+        if (markView) payload.mark_view = "1";
         fetch(`/post-watch/${postId}/`, {
             method: "POST",
-            headers: { "X-CSRFToken": getCSRF() },
-            body: formData
+            headers: { 
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRF() 
+            },
+            body: JSON.stringify(payload)
         }).catch(() => {});
     };
 

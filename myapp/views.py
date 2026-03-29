@@ -1203,12 +1203,19 @@ def reel_watch_ping(request, post_id):
 
 
 @login_required
+@require_POST
 def post_watch_ping(request, post_id):
     post = get_object_or_404(Post, id=post_id)
-    if request.method != "POST":
-        return JsonResponse({"ok": True})
-    seconds_raw = request.POST.get("seconds", "0")
-    mark_view_raw = request.POST.get("mark_view", "0")
+    
+    # Parse JSON body
+    seconds_raw = "0"
+    mark_view_raw = "0"
+    try:
+        body = json.loads(request.body) if request.body else {}
+        seconds_raw = body.get("seconds", "0")
+        mark_view_raw = body.get("mark_view", "0")
+    except (json.JSONDecodeError, ValueError):
+        pass
 
     try:
         watched_seconds = float(seconds_raw)
