@@ -499,6 +499,12 @@ def _upload_page_context(error=None):
         "cloudinary_upload_preset": upload_preset,
         "cloudinary_widget_enabled": bool(upload_preset),
         "allow_unsigned_upload": bool(getattr(settings, "ALLOW_UNSIGNED_UPLOAD", False)),
+        "firebase_api_key": getattr(settings, "FIREBASE_API_KEY", ""),
+        "firebase_auth_domain": getattr(settings, "FIREBASE_AUTH_DOMAIN", ""),
+        "firebase_project_id": getattr(settings, "FIREBASE_PROJECT_ID", ""),
+        "firebase_storage_bucket": getattr(settings, "FIREBASE_STORAGE_BUCKET", ""),
+        "firebase_app_id": getattr(settings, "FIREBASE_APP_ID", ""),
+        "firebase_measurement_id": getattr(settings, "FIREBASE_MEASUREMENT_ID", ""),
         "direct_upload_min_bytes": getattr(settings, "DIRECT_UPLOAD_MIN_BYTES", 0),
         "max_direct_upload_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
         "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),
@@ -2265,6 +2271,49 @@ def cloudinary_complete_upload(request):
         except Exception:
             pass
         print(f"[cloudinary_complete_upload] {err_text}")
+        return JsonResponse({"error": err_text}, status=500)
+
+    return JsonResponse({"ok": True, "redirect": reverse("home")})
+
+
+@login_required
+@require_POST
+def firebase_complete_upload(request):
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    download_url = (payload.get("download_url") or "").strip()
+    post_type = (payload.get("post_type") or "post").strip().lower()
+    caption = (payload.get("caption") or "").strip()
+
+    if post_type not in ("post", "reel"):
+        post_type = "post"
+
+    if not download_url:
+        return JsonResponse({"error": "Missing download URL."}, status=400)
+
+    if not download_url.startswith(("https://firebasestorage.googleapis.com/", "https://storage.googleapis.com/")):
+        return JsonResponse({"error": "Invalid download URL."}, status=400)
+
+    try:
+        post = Post.objects.create(
+            user=request.user,
+            caption=caption,
+            type=post_type,
+        )
+        post.media.name = download_url
+        post.save(update_fields=["media"])
+    except Exception as exc:
+        err_text = f"Upload failed: {exc.__class__.__name__}"
+        try:
+            detail = str(exc)
+            if detail:
+                err_text = f"{err_text} - {detail}"
+        except Exception:
+            pass
+        print(f"[firebase_complete_upload] {err_text}")
         return JsonResponse({"error": err_text}, status=500)
 
     return JsonResponse({"ok": True, "redirect": reverse("home")})

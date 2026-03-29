@@ -125,6 +125,14 @@ HAS_CLOUDINARY_STORAGE = importlib.util.find_spec("cloudinary_storage") is not N
 HAS_CLOUDINARY = importlib.util.find_spec("cloudinary") is not None
 CAN_USE_CLOUDINARY = CLOUDINARY_ENABLED and HAS_CLOUDINARY_STORAGE and HAS_CLOUDINARY
 
+# Firebase Storage (direct upload from browser)
+FIREBASE_API_KEY = (os.getenv("FIREBASE_API_KEY") or "").strip()
+FIREBASE_AUTH_DOMAIN = (os.getenv("FIREBASE_AUTH_DOMAIN") or "").strip()
+FIREBASE_PROJECT_ID = (os.getenv("FIREBASE_PROJECT_ID") or "").strip()
+FIREBASE_STORAGE_BUCKET = (os.getenv("FIREBASE_STORAGE_BUCKET") or "").strip()
+FIREBASE_APP_ID = (os.getenv("FIREBASE_APP_ID") or "").strip()
+FIREBASE_MEASUREMENT_ID = (os.getenv("FIREBASE_MEASUREMENT_ID") or "").strip()
+
 # Add Cloudinary apps only when available and properly configured.
 if CAN_USE_CLOUDINARY:
     INSTALLED_APPS = ['cloudinary_storage', 'cloudinary'] + INSTALLED_APPS

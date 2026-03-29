@@ -22,6 +22,7 @@ urlpatterns = [
     path('upload/', views.upload, name="upload"),
     path('upload/cloudinary-signature/', views.cloudinary_signature, name="cloudinary_signature"),
     path('upload/cloudinary-complete/', views.cloudinary_complete_upload, name="cloudinary_complete_upload"),
+    path('upload/firebase-complete/', views.firebase_complete_upload, name="firebase_complete_upload"),
     path('story/upload/', views.upload_story, name="upload_story"),
     path('story/music-search/', views.story_music_search_api, name="story_music_search_api"),
     path('story/archive/', views.story_archive, name="story_archive"),

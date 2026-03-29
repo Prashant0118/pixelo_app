@@ -81,8 +81,9 @@
 
 </div>
 
-{% if cloudinary_widget_enabled %}
-<script src="https://widget.cloudinary.com/v2.0/global/all.js"></script>
+{% if firebase_api_key and firebase_storage_bucket and firebase_project_id %}
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 {% endif %}
 <!-- Preview Script -->
 <script>
@@ -101,7 +102,6 @@ const DIRECT_UPLOAD_ENABLED = {{ direct_upload_enabled|yesno:"true,false" }};
 const WIDGET_ENABLED = {{ cloudinary_widget_enabled|yesno:"true,false" }};
 const CLOUDINARY_UPLOAD_PRESET = "{{ cloudinary_upload_preset|escapejs }}";
 const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|escapejs }}";
-const CLOUDINARY_API_KEY = "{{ cloudinary_api_key|escapejs }}";
 const ALLOW_UNSIGNED_UPLOAD = {{ allow_unsigned_upload|yesno:"true,false" }};
 const CAN_UNSIGNED_UPLOAD = Boolean(
     ALLOW_UNSIGNED_UPLOAD && WIDGET_ENABLED && CLOUDINARY_UPLOAD_PRESET && CLOUDINARY_CLOUD_NAME
@@ -114,6 +114,19 @@ const MAX_POST_UPLOAD_BYTES = {{ max_post_upload_bytes|default:0 }};
 const LARGE_UPLOAD_BYTES = 100 * 1024 * 1024;
 const CHUNK_SIZE_BYTES = 20 * 1024 * 1024;
 const VIDEO_EXTS = new Set([".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"]);
+const FIREBASE_CONFIG = {
+    apiKey: "{{ firebase_api_key|escapejs }}",
+    authDomain: "{{ firebase_auth_domain|escapejs }}",
+    projectId: "{{ firebase_project_id|escapejs }}",
+    storageBucket: "{{ firebase_storage_bucket|escapejs }}",
+    appId: "{{ firebase_app_id|escapejs }}",
+    measurementId: "{{ firebase_measurement_id|escapejs }}",
+};
+const FIREBASE_ENABLED = Boolean(
+    FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.storageBucket && FIREBASE_CONFIG.projectId
+);
+let firebaseAppInstance = null;
+let firebaseStorageInstance = null;
 
 function showReelError(message) {
     if (!reelDurationError) return;
@@ -164,108 +177,84 @@ function setFormDisabled(disabled) {
     typeRadios.forEach((radio) => { radio.disabled = disabled; });
 }
 
-function getUploadWidget() {
-    if (!WIDGET_ENABLED || !window.cloudinary || !cloudinary.createUploadWidget) {
-        return null;
-    }
-    if (window.__pixeloUploadWidget) {
-        return window.__pixeloUploadWidget;
-    }
-
-    const options = {
-        cloudName: CLOUDINARY_CLOUD_NAME,
-        uploadPreset: CLOUDINARY_UPLOAD_PRESET || undefined,
-        apiKey: CLOUDINARY_API_KEY || undefined,
-        sources: ["local"],
-        multiple: false,
-        resourceType: "video",
-        folder: `posts/u${USER_ID}`,
-        maxFileSize: MAX_DIRECT_UPLOAD_BYTES || undefined,
-    };
-
-    if (DIRECT_UPLOAD_ENABLED) {
-        options.uploadSignature = async (callback, paramsToSign) => {
-            try {
-                const signatureRes = await fetch("{% url 'cloudinary_signature' %}", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": getCookie("csrftoken"),
-                    },
-                    body: JSON.stringify({
-                        resource_type: "video",
-                        params_to_sign: paramsToSign || {},
-                    }),
-                });
-                if (!signatureRes.ok) {
-                    throw new Error("Signature request failed.");
-                }
-                const signature = await signatureRes.json();
-                callback(signature.signature, signature.timestamp);
-            } catch (err) {
-                showReelError("Cloudinary signature failed.");
-            }
-        };
-    }
-
-    window.__pixeloUploadWidget = cloudinary.createUploadWidget(
-        options,
-        async (error, result) => {
-            if (error) {
-                showReelError(error.message || "Upload failed.");
-                hideUploadProgress();
-                setFormDisabled(false);
-                return;
-            }
-            if (result && result.event === "success") {
-                try {
-                    showUploadProgress(98, "Finalizing...");
-                    const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
-                    const caption = document.querySelector("textarea[name='caption']")?.value || "";
-                    const completeRes = await fetch("{% url 'cloudinary_complete_upload' %}", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRFToken": getCookie("csrftoken"),
-                        },
-                        body: JSON.stringify({
-                            public_id: result.info.public_id,
-                            resource_type: result.info.resource_type,
-                            format: result.info.format,
-                            bytes: result.info.bytes,
-                            post_type: selectedType,
-                            caption: caption,
-                        }),
-                    });
-                    if (!completeRes.ok) {
-                        throw new Error("Finalize failed.");
-                    }
-                    const completePayload = await completeRes.json();
-                    showUploadProgress(100, "Done! Redirecting...");
-                    window.location.href = completePayload.redirect || "/";
-                } catch (err) {
-                    showReelError(err.message || "Finalize failed.");
-                    hideUploadProgress();
-                    setFormDisabled(false);
-                }
-            }
-        }
-    );
-
-    return window.__pixeloUploadWidget;
-}
-
-function openUploadWidget() {
-    const widget = getUploadWidget();
-    if (!widget) {
-        showReelError("Cloudinary widget is not available. Please try again.");
+function ensureFirebase() {
+    if (!FIREBASE_ENABLED || !window.firebase) {
         return false;
     }
-    clearReelError();
-    clearDurationInfo();
-    showUploadProgress(2, "Opening uploader...");
-    widget.open();
+    if (!firebaseAppInstance) {
+        firebaseAppInstance = firebase.initializeApp(FIREBASE_CONFIG);
+        firebaseStorageInstance = firebase.storage();
+    }
     return true;
+}
+
+function sanitizeFilename(name) {
+    const base = (name || "upload").replace(/[^a-zA-Z0-9._-]/g, "_");
+    return base.slice(0, 120) || "upload";
+}
+
+function makeUploadId() {
+    if (window.crypto && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return `u${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function uploadErrorMessage(status) {
+    if (status === 0) {
+        return "Upload failed due to CORS or network error. Please check Cloudinary CORS settings.";
+    }
+    if (status === 413) {
+        return "Upload too large for current Cloudinary plan. Please upgrade plan or reduce size.";
+    }
+    return "Cloudinary upload failed.";
+}
+
+async function uploadCloudinaryChunked(uploadUrl, fields, file) {
+    const uploadId = makeUploadId();
+    const chunkSize = CHUNK_SIZE_BYTES;
+    let lastResponse = null;
+
+    for (let start = 0; start < file.size; start += chunkSize) {
+        const end = Math.min(start + chunkSize, file.size);
+        const chunk = file.slice(start, end);
+        const formData = new FormData();
+
+        Object.keys(fields).forEach((key) => {
+            if (fields[key] !== undefined && fields[key] !== null && fields[key] !== "") {
+                formData.append(key, fields[key]);
+            }
+        });
+        formData.append("file", chunk);
+
+        lastResponse = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", uploadUrl);
+            xhr.setRequestHeader("X-Unique-Upload-Id", uploadId);
+            xhr.setRequestHeader("Content-Range", `bytes ${start}-${end - 1}/${file.size}`);
+            xhr.upload.onprogress = (evt) => {
+                if (!evt.lengthComputable) return;
+                const overall = start + evt.loaded;
+                const percent = Math.round((overall / file.size) * 100);
+                showUploadProgress(percent, `Uploading... ${percent}%`);
+            };
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        resolve(JSON.parse(xhr.responseText || "{}"));
+                    } catch (err) {
+                        resolve({});
+                    }
+                } else {
+                    reject(new Error(uploadErrorMessage(xhr.status)));
+                }
+            };
+            xhr.onerror = () => reject(new Error("Upload network error."));
+            xhr.send(formData);
+        });
+    }
+
+    return lastResponse;
 }
 
 function getCookie(name) {
@@ -426,6 +415,73 @@ if (form) {
 
         const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
         const isVideo = isVideoFile(file);
+
+        if (isVideo && FIREBASE_ENABLED) {
+            event.preventDefault();
+            const sizeLimit = selectedType === "reel" ? MAX_REEL_UPLOAD_BYTES : MAX_POST_UPLOAD_BYTES;
+            if (sizeLimit && file && file.size > sizeLimit) {
+                showReelError(`File too large. Max size is ${(sizeLimit / (1024 * 1024)).toFixed(1)} MB.`);
+                return;
+            }
+            if (!ensureFirebase()) {
+                showReelError("Firebase is not configured for uploads.");
+                return;
+            }
+
+            setFormDisabled(true);
+            showUploadProgress(2, "Starting upload...");
+
+            const safeName = sanitizeFilename(file.name || "video");
+            const filePath = `posts/u${USER_ID}/${Date.now()}_${safeName}`;
+            const storageRef = firebaseStorageInstance.ref().child(filePath);
+            const metadata = { contentType: file.type || "application/octet-stream" };
+
+            const uploadTask = storageRef.put(file, metadata);
+            uploadTask.on(
+                "state_changed",
+                (snapshot) => {
+                    if (!snapshot || !snapshot.totalBytes) return;
+                    const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                    showUploadProgress(percent, `Uploading... ${percent}%`);
+                },
+                (error) => {
+                    showReelError(error?.message || "Upload failed.");
+                    hideUploadProgress();
+                    setFormDisabled(false);
+                },
+                async () => {
+                    try {
+                        const downloadUrl = await uploadTask.snapshot.ref.getDownloadURL();
+                        showUploadProgress(98, "Finalizing...");
+                        const caption = document.querySelector("textarea[name='caption']")?.value || "";
+                        const completeRes = await fetch("{% url 'firebase_complete_upload' %}", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": getCookie("csrftoken"),
+                            },
+                            body: JSON.stringify({
+                                download_url: downloadUrl,
+                                post_type: selectedType,
+                                caption: caption,
+                            }),
+                        });
+                        if (!completeRes.ok) {
+                            throw new Error("Finalize failed.");
+                        }
+                        const completePayload = await completeRes.json();
+                        showUploadProgress(100, "Done! Redirecting...");
+                        window.location.href = completePayload.redirect || "/";
+                    } catch (err) {
+                        showReelError(err.message || "Finalize failed.");
+                        hideUploadProgress();
+                        setFormDisabled(false);
+                    }
+                }
+            );
+            return;
+        }
+
         const shouldDirectUpload = Boolean(
             (DIRECT_UPLOAD_ENABLED || CAN_UNSIGNED_UPLOAD) &&
             file &&
@@ -442,7 +498,7 @@ if (form) {
                 file.size >= DIRECT_UPLOAD_MIN_BYTES
             ) {
                 event.preventDefault();
-                showReelError("Large video uploads need Cloudinary direct upload. Please configure Cloudinary and try again.");
+                showReelError("Large video uploads need direct upload (Firebase/Cloudinary). Please configure and try again.");
                 return;
             }
             return;
@@ -464,18 +520,8 @@ if (form) {
 
         try {
             let uploadUrl = "";
-            const formData = new FormData();
-            formData.append("file", file);
-
-        // Always use the Cloudinary widget for videos when direct upload is enabled.
-        if (isVideo && WIDGET_ENABLED) {
-            const opened = openUploadWidget();
-            if (opened) {
-                return;
-            }
-        }
-
-        const shouldUseLargeUpload = file.size >= LARGE_UPLOAD_BYTES;
+            const shouldUseLargeUpload = file.size >= LARGE_UPLOAD_BYTES;
+            const fields = {};
             if (DIRECT_UPLOAD_ENABLED) {
                 const signatureRes = await fetch("{% url 'cloudinary_signature' %}", {
                     method: "POST",
@@ -495,52 +541,58 @@ if (form) {
                     throw new Error("File is too large for direct upload.");
                 }
 
-                formData.append("api_key", signature.api_key);
-                formData.append("timestamp", signature.timestamp);
-                formData.append("signature", signature.signature);
-                formData.append("folder", signature.folder);
-                formData.append("resource_type", signature.resource_type);
-                formData.append("use_filename", signature.use_filename);
-                formData.append("unique_filename", signature.unique_filename);
+                fields.api_key = signature.api_key;
+                fields.timestamp = signature.timestamp;
+                fields.signature = signature.signature;
+                fields.folder = signature.folder;
+                fields.resource_type = signature.resource_type;
+                fields.use_filename = signature.use_filename;
+                fields.unique_filename = signature.unique_filename;
                 const uploadPath = shouldUseLargeUpload ? "upload_large" : "upload";
-                if (shouldUseLargeUpload) {
-                    formData.append("chunk_size", CHUNK_SIZE_BYTES);
-                }
                 uploadUrl = `https://api.cloudinary.com/v1_1/${signature.cloud_name}/${signature.resource_type}/${uploadPath}`;
             } else if (CAN_UNSIGNED_UPLOAD) {
-                formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-                formData.append("folder", `posts/u${USER_ID}`);
+                fields.upload_preset = CLOUDINARY_UPLOAD_PRESET;
+                fields.folder = `posts/u${USER_ID}`;
                 const uploadPath = shouldUseLargeUpload ? "upload_large" : "upload";
-                if (shouldUseLargeUpload) {
-                    formData.append("chunk_size", CHUNK_SIZE_BYTES);
-                }
                 uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/${uploadPath}`;
             } else {
                 throw new Error("Direct upload is not configured.");
             }
 
-            const uploadResult = await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.open("POST", uploadUrl);
-                xhr.upload.onprogress = (evt) => {
-                    if (!evt.lengthComputable) return;
-                    const percent = Math.round((evt.loaded / evt.total) * 100);
-                    showUploadProgress(percent, `Uploading... ${percent}%`);
-                };
-                xhr.onload = () => {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        try {
-                            resolve(JSON.parse(xhr.responseText));
-                        } catch (err) {
-                            reject(new Error("Invalid upload response."));
-                        }
-                    } else {
-                        reject(new Error("Cloudinary upload failed."));
+            let uploadResult;
+            if (shouldUseLargeUpload) {
+                uploadResult = await uploadCloudinaryChunked(uploadUrl, fields, file);
+            } else {
+                const formData = new FormData();
+                Object.keys(fields).forEach((key) => {
+                    if (fields[key] !== undefined && fields[key] !== null && fields[key] !== "") {
+                        formData.append(key, fields[key]);
                     }
-                };
-                xhr.onerror = () => reject(new Error("Upload network error."));
-                xhr.send(formData);
-            });
+                });
+                formData.append("file", file);
+                uploadResult = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", uploadUrl);
+                    xhr.upload.onprogress = (evt) => {
+                        if (!evt.lengthComputable) return;
+                        const percent = Math.round((evt.loaded / evt.total) * 100);
+                        showUploadProgress(percent, `Uploading... ${percent}%`);
+                    };
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            try {
+                                resolve(JSON.parse(xhr.responseText));
+                            } catch (err) {
+                                reject(new Error("Invalid upload response."));
+                            }
+                        } else {
+                            reject(new Error(uploadErrorMessage(xhr.status)));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error("Upload network error."));
+                    xhr.send(formData);
+                });
+            }
 
             showUploadProgress(98, "Finalizing...");
 

@@ -331,9 +331,10 @@ class Message(models.Model):
                 name = (self.media.name or "")
                 if not getattr(settings, "CAN_USE_CLOUDINARY", False) and not _can_build_cloudinary_urls():
                     try:
-                        storage = self.media.storage
-                        if hasattr(storage, "exists") and not storage.exists(name):
-                            return ""
+                        if not (name.startswith("http://") or name.startswith("https://")):
+                            storage = self.media.storage
+                            if hasattr(storage, "exists") and not storage.exists(name):
+                                return ""
                     except Exception:
                         pass
                 if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
