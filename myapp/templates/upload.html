@@ -110,6 +110,8 @@ const DIRECT_UPLOAD_MIN_BYTES = {{ direct_upload_min_bytes|default:0 }};
 const MAX_DIRECT_UPLOAD_BYTES = {{ max_direct_upload_bytes|default:0 }};
 const MAX_REEL_UPLOAD_BYTES = {{ max_reel_upload_bytes|default:0 }};
 const MAX_POST_UPLOAD_BYTES = {{ max_post_upload_bytes|default:0 }};
+const LARGE_UPLOAD_BYTES = 100 * 1024 * 1024;
+const CHUNK_SIZE_BYTES = 20 * 1024 * 1024;
 const VIDEO_EXTS = new Set([".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"]);
 
 function showReelError(message) {
@@ -360,6 +362,7 @@ if (form) {
             const formData = new FormData();
             formData.append("file", file);
 
+            const shouldUseLargeUpload = file.size >= LARGE_UPLOAD_BYTES;
             if (DIRECT_UPLOAD_ENABLED) {
                 const signatureRes = await fetch("{% url 'cloudinary_signature' %}", {
                     method: "POST",
@@ -386,11 +389,19 @@ if (form) {
                 formData.append("resource_type", signature.resource_type);
                 formData.append("use_filename", signature.use_filename);
                 formData.append("unique_filename", signature.unique_filename);
-                uploadUrl = `https://api.cloudinary.com/v1_1/${signature.cloud_name}/${signature.resource_type}/upload`;
+                const uploadPath = shouldUseLargeUpload ? "upload_large" : "upload";
+                if (shouldUseLargeUpload) {
+                    formData.append("chunk_size", CHUNK_SIZE_BYTES);
+                }
+                uploadUrl = `https://api.cloudinary.com/v1_1/${signature.cloud_name}/${signature.resource_type}/${uploadPath}`;
             } else if (CAN_UNSIGNED_UPLOAD) {
                 formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
                 formData.append("folder", `posts/u${USER_ID}`);
-                uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
+                const uploadPath = shouldUseLargeUpload ? "upload_large" : "upload";
+                if (shouldUseLargeUpload) {
+                    formData.append("chunk_size", CHUNK_SIZE_BYTES);
+                }
+                uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/${uploadPath}`;
             } else {
                 throw new Error("Direct upload is not configured.");
             }

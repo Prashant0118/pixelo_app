@@ -21,7 +21,11 @@ class LargeVideoUploadHandler(BaseTemporaryFileUploadHandler):
 
     def upload_complete(self):
         """Called when upload completes."""
-        self.file.seek(0)
+        if getattr(self, "file", None):
+            try:
+                self.file.seek(0)
+            except Exception:
+                pass
         return super().upload_complete()
 
     def receive_data_chunk(self, raw_data, start):
