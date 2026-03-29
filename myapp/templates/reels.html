@@ -483,7 +483,7 @@ function copyPayUpi() {
 
 const reelItems = document.querySelectorAll(".reel-item");
 const reelsFeed = document.getElementById("reelsFeed");
-const videos = Array.from(reelItems, (item) => item.querySelector("video")).filter(Boolean);
+const videos = Array.from(reelItems, (item) => item?.querySelector?.("video")).filter(v => v instanceof HTMLVideoElement && v !== null && v !== undefined);
 
 function refreshReelSoundIcon(postId, isMuted) {
     const icon = document.getElementById(`reel-sound-icon-${postId}`);
@@ -521,9 +521,11 @@ function toggleReelSound(postId) {
     }
     preferredMuted = !video.muted;
     videos.forEach((item) => {
+        if (!item || !(item instanceof HTMLVideoElement)) return;
         item.muted = preferredMuted;
     });
     videos.forEach((item) => {
+        if (!item || !(item instanceof HTMLVideoElement)) return;
         const itemPostId = item.id.replace("reel-video-", "");
         refreshReelSoundIcon(itemPostId, item.muted);
     });
@@ -532,6 +534,7 @@ function toggleReelSound(postId) {
             preferredMuted = true;
             awaitingUserUnmute = true;
             videos.forEach((item) => {
+                if (!item || !(item instanceof HTMLVideoElement)) return;
                 item.muted = true;
                 const itemPostId = item.id.replace("reel-video-", "");
                 refreshReelSoundIcon(itemPostId, true);
@@ -542,6 +545,7 @@ function toggleReelSound(postId) {
 
 function pauseAllExcept(activeVideo) {
     videos.forEach((video) => {
+        if (!video || !(video instanceof HTMLVideoElement)) return;
         if (video !== activeVideo) video.pause();
     });
 }
@@ -622,6 +626,7 @@ document.addEventListener("pointerdown", () => {
     awaitingUserUnmute = false;
     preferredMuted = false;
     videos.forEach((video) => {
+        if (!video || !(video instanceof HTMLVideoElement)) return;
         video.muted = false;
         const postId = video.id.replace("reel-video-", "");
         refreshReelSoundIcon(postId, false);
@@ -637,6 +642,7 @@ document.addEventListener("keydown", () => {
     awaitingUserUnmute = false;
     preferredMuted = false;
     videos.forEach((video) => {
+        if (!video || !(video instanceof HTMLVideoElement)) return;
         video.muted = false;
         const postId = video.id.replace("reel-video-", "");
         refreshReelSoundIcon(postId, false);

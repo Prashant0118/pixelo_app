@@ -474,7 +474,7 @@ if (categoryScrollWrap && categoryRightBtn) {
     });
 }
 
-const feedVideos = Array.from(document.querySelectorAll(".feed-video-media"));
+const feedVideos = Array.from(document.querySelectorAll(".feed-video-media")).filter(v => v instanceof HTMLVideoElement && v !== null && v !== undefined);
 if (feedVideos.length) {
     let userHasInteracted = false;
     let awaitingFeedUnmute = false;
@@ -551,6 +551,7 @@ if (feedVideos.length) {
 
     const pauseAllFeedVideosExcept = (activeVideo) => {
         feedVideos.forEach((video) => {
+            if (!video || !(video instanceof HTMLVideoElement)) return;
             if (video !== activeVideo) video.pause();
         });
     };
@@ -597,11 +598,13 @@ if (feedVideos.length) {
     document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
             feedVideos.forEach((video) => {
+                if (!video || !(video instanceof HTMLVideoElement)) return;
                 video.pause();
                 stopWatch(video, true);
             });
         } else {
             const visible = feedVideos.find((video) => {
+                if (!video || !(video instanceof HTMLVideoElement)) return false;
                 const rect = video.getBoundingClientRect();
                 const viewportH = window.innerHeight || document.documentElement.clientHeight;
                 const visiblePx = Math.max(0, Math.min(rect.bottom, viewportH) - Math.max(rect.top, 0));
@@ -630,6 +633,7 @@ if (feedVideos.length) {
     document.addEventListener("keydown", handleUserInteraction, { once: true });
 
     feedVideos.forEach((video) => {
+        if (!video || !(video instanceof HTMLVideoElement)) return;
         video.addEventListener("playing", () => {
             const state = getWatchState(video);
             if (state.visible) startWatch(video);
@@ -640,6 +644,7 @@ if (feedVideos.length) {
 
     setInterval(() => {
         feedVideos.forEach((video) => {
+            if (!video || !(video instanceof HTMLVideoElement)) return;
             const state = getWatchState(video);
             if (!state.active) return;
             const now = performance.now();
@@ -657,7 +662,10 @@ if (feedVideos.length) {
     }, WATCH_FLUSH_SECONDS * 1000);
 
     window.addEventListener("pagehide", () => {
-        feedVideos.forEach((video) => stopWatch(video, true));
+        feedVideos.forEach((video) => {
+            if (!video || !(video instanceof HTMLVideoElement)) return;
+            stopWatch(video, true);
+        });
     });
 }
 
