@@ -35,16 +35,6 @@
     <div class="alert alert-danger" role="alert">{{ error }}</div>
     {% endif %}
     <div class="alert alert-danger d-none" role="alert" id="reelDurationError"></div>
-    
-    <!-- Upload Guidelines -->
-    <div class="alert alert-info" role="note" style="padding: 12px; margin-bottom: 20px; font-size: 0.95rem;">
-        <strong>📱 Upload Guidelines:</strong>
-        <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9rem;">
-            <li><strong>Post:</strong> Images & videos of any length (up to 3GB). Videos 1min+ display here.</li>
-            <li><strong>Reel:</strong> Videos only, max 1 minute (up to 50MB). Longer videos auto-convert to Posts.</li>
-            <li><strong>4K Videos:</strong> Upload as Post for best quality. Auto-converts if selected as Reel.</li>
-        </ul>
-    </div>
 
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
@@ -72,16 +62,6 @@
                 <span>Click to Upload</span>
             </label>
         </div>
-        {% if cloudinary_widget_enabled %}
-        <div class="upload-widget-actions">
-            <button type="button" class="upload-btn" id="cloudinaryUploadBtn">
-                Upload Large Video (Cloudinary)
-            </button>
-            <div class="upload-duration" role="note">
-                For very large videos, use this button for resumable upload.
-            </div>
-        </div>
-        {% endif %}
 
         <!-- Preview -->
         <div class="preview-box" id="previewBox"></div>

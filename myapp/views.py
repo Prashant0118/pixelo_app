@@ -1072,7 +1072,7 @@ def profile(request, username):
         "reels": reels,
         "manual_interests": _profile_manual_interests(profile_user),
         "highlighted_stories": highlighted_stories,
-        "posts_count": posts.count() + reels.count(),
+        "posts_count": (posts.count() if posts else 0) + (reels.count() if reels else 0),
         "followers_count": followers_count,
         "following_count": following_count,
         "is_following": is_following,
@@ -1090,6 +1090,7 @@ def profile_menu(request):
     return render(request, "profile_menu.html")
 
 
+@login_required
 def search_view(request):
     query = request.GET.get('q', '')
     users = User.objects.filter(username__icontains=query).order_by("username")
@@ -1359,6 +1360,7 @@ def payment_settings(request):
 
 
 @login_required
+@require_POST
 def follow(request, username):
     target_user = get_object_or_404(User, username=username)
 
@@ -1382,6 +1384,7 @@ def follow(request, username):
 
 
 @login_required
+@require_POST
 def unfollow(request, username):
     target_user = get_object_or_404(User, username=username)
 
@@ -2003,7 +2006,6 @@ def following_list(request, username):
 
 @login_required
 def upload(request):
-
     if request.method == "POST":
         media = request.FILES.get("media")
         caption = (request.POST.get("caption") or "").strip()
@@ -2063,19 +2065,9 @@ def upload(request):
                             "Reel upload only supports video files (mp4, webm, mov, m4v, etc.)."
                         ),
                     )
-            # Check video duration for reel validation (but skip if file is too large to process)
-            # Attempt duration check for files up to 500MB to catch long videos
-            max_duration_check = getattr(settings, "MAX_REEL_DURATION_CHECK_BYTES", 80 * 1024 * 1024)
-            if not size or size <= max_duration_check:
-                try:
-                    duration = _video_duration_seconds(media)
-                    if duration is not None and duration > 60:
-                        # Longer videos should be treated as posts, not reels.
-                        post_type = "post"
-                except Exception as e:
-                    # If duration check fails (e.g., ffprobe not available), just proceed with default post_type
-                    print(f"[upload] Warning: Duration check failed: {e}")
-                    pass
+            # NOTE: Duration check is disabled to prevent 503 timeouts on Render.com
+            # File size check (MAX_REEL_UPLOAD_BYTES) is sufficient for auto-conversion
+            # Users can upload long videos as posts directly
 
         try:
             post = Post.objects.create(
@@ -2202,13 +2194,24 @@ def cloudinary_complete_upload(request):
     else:
         media_name = public_id
 
-    post = Post.objects.create(
-        user=request.user,
-        caption=caption,
-        type=post_type,
-    )
-    post.media.name = media_name
-    post.save(update_fields=["media"])
+    try:
+        post = Post.objects.create(
+            user=request.user,
+            caption=caption,
+            type=post_type,
+        )
+        post.media.name = media_name
+        post.save(update_fields=["media"])
+    except Exception as exc:
+        err_text = f"Upload failed: {exc.__class__.__name__}"
+        try:
+            detail = str(exc)
+            if detail:
+                err_text = f"{err_text} - {detail}"
+        except Exception:
+            pass
+        print(f"[cloudinary_complete_upload] {err_text}")
+        return JsonResponse({"error": err_text}, status=500)
 
     return JsonResponse({"ok": True, "redirect": reverse("home")})
 
@@ -2364,6 +2367,8 @@ def _user_avatar_url(user):
     return f"data:image/svg+xml;utf8,{quote(svg)}"
 
 @login_required
+@login_required
+@require_POST
 def comment_ajax(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
@@ -2407,9 +2412,9 @@ def comment_ajax(request, post_id):
 
 
 @login_required
+@require_POST
 def like_ajax(request, post_id):
-    if request.method == "POST":
-        post = get_object_or_404(Post, id=post_id)
+    post = get_object_or_404(Post, id=post_id)
 
         like = Like.objects.filter(post=post, user=request.user).first()
         if like:
@@ -2432,27 +2437,22 @@ def like_ajax(request, post_id):
             "total_likes": post.likes.count()
         })
 
-    return JsonResponse({"error": "Invalid request"}, status=400)
-
 
 @login_required
+@require_POST
 def save_post(request, post_id):
-    if request.method == "POST":
+    post = get_object_or_404(Post, id=post_id)
 
-        post = get_object_or_404(Post, id=post_id)
+    if request.user in post.saved_by.all():
+        post.saved_by.remove(request.user)
+        saved = False
+    else:
+        post.saved_by.add(request.user)
+        saved = True
 
-        if request.user in post.saved_by.all():
-            post.saved_by.remove(request.user)
-            saved = False
-        else:
-            post.saved_by.add(request.user)
-            saved = True
-
-        return JsonResponse({
-            "saved": saved
-        })
-
-    return JsonResponse({"error": "Invalid request"}, status=400)
+    return JsonResponse({
+        "saved": saved
+    })
 
 
 @login_required
@@ -2547,14 +2547,13 @@ def delete_post(request, post_id):
 
 
 @login_required
+@require_POST
 def delete_comment(request, comment_id):
-    if request.method == "POST":
+    comment = get_object_or_404(Comment, id=comment_id)
 
-        comment = get_object_or_404(Comment, id=comment_id)
-
-        if comment.user == request.user:
-            comment.delete()
-            return JsonResponse({"deleted": True})
+    if comment.user == request.user:
+        comment.delete()
+        return JsonResponse({"deleted": True})
 
     return JsonResponse({"error": "Not allowed"}, status=403)
 
