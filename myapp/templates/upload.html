@@ -101,7 +101,10 @@ const DIRECT_UPLOAD_ENABLED = {{ direct_upload_enabled|yesno:"true,false" }};
 const WIDGET_ENABLED = {{ cloudinary_widget_enabled|yesno:"true,false" }};
 const CLOUDINARY_UPLOAD_PRESET = "{{ cloudinary_upload_preset|escapejs }}";
 const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|escapejs }}";
-const CAN_UNSIGNED_UPLOAD = Boolean(WIDGET_ENABLED && CLOUDINARY_UPLOAD_PRESET && CLOUDINARY_CLOUD_NAME);
+const ALLOW_UNSIGNED_UPLOAD = {{ allow_unsigned_upload|yesno:"true,false" }};
+const CAN_UNSIGNED_UPLOAD = Boolean(
+    ALLOW_UNSIGNED_UPLOAD && WIDGET_ENABLED && CLOUDINARY_UPLOAD_PRESET && CLOUDINARY_CLOUD_NAME
+);
 const USER_ID = {{ request.user.id }};
 const DIRECT_UPLOAD_MIN_BYTES = {{ direct_upload_min_bytes|default:0 }};
 const MAX_DIRECT_UPLOAD_BYTES = {{ max_direct_upload_bytes|default:0 }};

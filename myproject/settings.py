@@ -281,6 +281,8 @@ DIRECT_UPLOAD_MIN_BYTES = int(
 MAX_DIRECT_UPLOAD_BYTES = int(
     os.getenv("MAX_DIRECT_UPLOAD_BYTES", str(3 * 1024 * 1024 * 1024))
 )
+# Allow unsigned direct uploads only when explicitly enabled.
+ALLOW_UNSIGNED_UPLOAD = os.getenv("ALLOW_UNSIGNED_UPLOAD", "").lower() in ("1", "true", "yes", "on")
 
 # File upload handler: Use memory for files < 500MB, disk streaming for larger files
 # This prevents memory exhaustion on platform with constrained resources like Render.com

@@ -498,6 +498,7 @@ def _upload_page_context(error=None):
         "cloudinary_api_key": getattr(settings, "CLOUDINARY_API_KEY", ""),
         "cloudinary_upload_preset": upload_preset,
         "cloudinary_widget_enabled": bool(upload_preset),
+        "allow_unsigned_upload": bool(getattr(settings, "ALLOW_UNSIGNED_UPLOAD", False)),
         "direct_upload_min_bytes": getattr(settings, "DIRECT_UPLOAD_MIN_BYTES", 0),
         "max_direct_upload_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
         "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),
