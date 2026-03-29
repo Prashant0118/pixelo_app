@@ -35,6 +35,16 @@
     <div class="alert alert-danger" role="alert">{{ error }}</div>
     {% endif %}
     <div class="alert alert-danger d-none" role="alert" id="reelDurationError"></div>
+    
+    <!-- Upload Guidelines -->
+    <div class="alert alert-info" role="note" style="padding: 12px; margin-bottom: 20px; font-size: 0.95rem;">
+        <strong>📱 Upload Guidelines:</strong>
+        <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9rem;">
+            <li><strong>Post:</strong> Images & videos of any length (up to 3GB). Videos 1min+ display here.</li>
+            <li><strong>Reel:</strong> Videos only, max 1 minute (up to 50MB). Longer videos auto-convert to Posts.</li>
+            <li><strong>4K Videos:</strong> Upload as Post for best quality. Auto-converts if selected as Reel.</li>
+        </ul>
+    </div>
 
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
@@ -227,6 +237,19 @@ async function validateReelDuration(file) {
         showReelError("Reel upload only supports video files.");
         return false;
     }
+    
+    // If file is too large for reel storage, auto-convert to post
+    if (MAX_REEL_UPLOAD_BYTES && file.size > MAX_REEL_UPLOAD_BYTES) {
+        setSelectedType("post");
+        applyPreviewMode();
+        showDurationInfo(
+            `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds reel limit — ` +
+            `automatically uploading as Post to your main feed`
+        );
+        clearReelError();
+        return true;
+    }
+    
     const tempUrl = URL.createObjectURL(file);
     const video = document.createElement("video");
     video.preload = "metadata";
@@ -246,7 +269,10 @@ async function validateReelDuration(file) {
         setSelectedType("post");
         applyPreviewMode();
         clearReelError();
-        showDurationInfo(`Video duration: ${formatDuration(duration)} (too long for reels — will upload as Post and show on Home)`);
+        showDurationInfo(
+            `Video duration: ${formatDuration(duration)} (longer than 1 minute) — ` +
+            `automatically uploading as Post to your main feed`
+        );
         return true;
     }
     clearReelError();

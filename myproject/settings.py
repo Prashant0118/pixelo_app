@@ -264,9 +264,10 @@ MAX_REEL_UPLOAD_BYTES = int(
 MAX_POST_UPLOAD_BYTES = int(
     os.getenv("MAX_POST_UPLOAD_BYTES", str(3 * 1024 * 1024 * 1024))
 )
-# Only attempt server-side duration checks for reasonably sized files.
+# Only attempt server-side duration checks for reasonably sized files (up to 500MB).
+# Extended to help detect long videos that should be converted to posts.
 MAX_REEL_DURATION_CHECK_BYTES = int(
-    os.getenv("MAX_REEL_DURATION_CHECK_BYTES", str(80 * 1024 * 1024))
+    os.getenv("MAX_REEL_DURATION_CHECK_BYTES", str(500 * 1024 * 1024))
 )
 
 # Direct-to-Cloudinary upload controls

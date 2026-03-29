@@ -1997,15 +1997,7 @@ def upload(request):
 
         size = getattr(media, "size", None)
         if size:
-            if post_type == "reel" and size > settings.MAX_REEL_UPLOAD_BYTES:
-                return render(
-                    request,
-                    "upload.html",
-                    _upload_page_context(
-                        "Reel file is too large. Max size is "
-                        f"{_format_mb(settings.MAX_REEL_UPLOAD_BYTES)}."
-                    ),
-                )
+            # Check post size limit
             if post_type == "post" and size > settings.MAX_POST_UPLOAD_BYTES:
                 return render(
                     request,
@@ -2033,6 +2025,10 @@ def upload(request):
             name = getattr(media, "name", "") or ""
             ext = os.path.splitext(name)[1].lower()
 
+        # Auto-convert reels to posts if file is too large for reel storage
+        if post_type == "reel" and size and size > settings.MAX_REEL_UPLOAD_BYTES:
+            post_type = "post"
+
         if post_type == "reel":
             if not is_video_upload:
                 guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
@@ -2044,7 +2040,10 @@ def upload(request):
                             "Reel upload only supports video files (mp4, webm, mov, m4v, etc.)."
                         ),
                     )
-            if not size or size <= settings.MAX_REEL_DURATION_CHECK_BYTES:
+            # Check video duration for reel validation (but skip if file is too large to process)
+            # Attempt duration check for files up to 500MB to catch long videos
+            max_duration_check = getattr(settings, "MAX_REEL_DURATION_CHECK_BYTES", 80 * 1024 * 1024)
+            if not size or size <= max_duration_check:
                 duration = _video_duration_seconds(media)
                 if duration is not None and duration > 60:
                     # Longer videos should be treated as posts, not reels.
@@ -2165,6 +2164,10 @@ def cloudinary_complete_upload(request):
     max_bytes = getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0) or 0
     if max_bytes and isinstance(file_bytes, (int, float)) and file_bytes > max_bytes:
         return JsonResponse({"error": "Upload is too large."}, status=400)
+
+    # Auto-convert reels to posts if file is too large for reel storage
+    if post_type == "reel" and file_bytes and file_bytes > settings.MAX_REEL_UPLOAD_BYTES:
+        post_type = "post"
 
     if file_format:
         media_name = f"{public_id}.{file_format}"
