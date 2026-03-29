@@ -101,11 +101,13 @@ const DIRECT_UPLOAD_ENABLED = {{ direct_upload_enabled|yesno:"true,false" }};
 const WIDGET_ENABLED = {{ cloudinary_widget_enabled|yesno:"true,false" }};
 const CLOUDINARY_UPLOAD_PRESET = "{{ cloudinary_upload_preset|escapejs }}";
 const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|escapejs }}";
+const CAN_UNSIGNED_UPLOAD = Boolean(WIDGET_ENABLED && CLOUDINARY_UPLOAD_PRESET && CLOUDINARY_CLOUD_NAME);
 const USER_ID = {{ request.user.id }};
 const DIRECT_UPLOAD_MIN_BYTES = {{ direct_upload_min_bytes|default:0 }};
 const MAX_DIRECT_UPLOAD_BYTES = {{ max_direct_upload_bytes|default:0 }};
 const MAX_REEL_UPLOAD_BYTES = {{ max_reel_upload_bytes|default:0 }};
 const MAX_POST_UPLOAD_BYTES = {{ max_post_upload_bytes|default:0 }};
+const VIDEO_EXTS = new Set([".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"]);
 
 function showReelError(message) {
     if (!reelDurationError) return;
@@ -171,6 +173,16 @@ function formatDuration(seconds) {
     return `${mins}:${secs}`;
 }
 
+function isVideoFile(file) {
+    if (!file) return false;
+    if (file.type && file.type.startsWith("video/")) return true;
+    const name = (file.name || "").toLowerCase();
+    const dot = name.lastIndexOf(".");
+    if (dot === -1) return false;
+    const ext = name.slice(dot);
+    return VIDEO_EXTS.has(ext);
+}
+
 function applyPreviewMode() {
     const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
     previewBox.classList.toggle("reel-mode", selectedType === "reel");
@@ -223,7 +235,7 @@ async function validateReelDuration(file) {
         setSelectedType("post");
         applyPreviewMode();
         showDurationInfo(
-            `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds reel limit — ` +
+            `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds reel limit -- ` +
             `automatically uploading as Post to your main feed`
         );
         clearReelError();
@@ -250,7 +262,7 @@ async function validateReelDuration(file) {
         applyPreviewMode();
         clearReelError();
         showDurationInfo(
-            `Video duration: ${formatDuration(duration)} (longer than 1 minute) — ` +
+            `Video duration: ${formatDuration(duration)} (longer than 1 minute) -- ` +
             `automatically uploading as Post to your main feed`
         );
         return true;
@@ -303,14 +315,26 @@ if (form) {
         }
 
         const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
-        const isVideo = file && file.type && file.type.startsWith("video/");
+        const isVideo = isVideoFile(file);
         const shouldDirectUpload = Boolean(
-            DIRECT_UPLOAD_ENABLED &&
+            (DIRECT_UPLOAD_ENABLED || CAN_UNSIGNED_UPLOAD) &&
             file &&
             isVideo &&
             (!DIRECT_UPLOAD_MIN_BYTES || file.size >= DIRECT_UPLOAD_MIN_BYTES)
         );
         if (!shouldDirectUpload) {
+            if (
+                !DIRECT_UPLOAD_ENABLED &&
+                !CAN_UNSIGNED_UPLOAD &&
+                isVideo &&
+                file &&
+                DIRECT_UPLOAD_MIN_BYTES &&
+                file.size >= DIRECT_UPLOAD_MIN_BYTES
+            ) {
+                event.preventDefault();
+                showReelError("Large video uploads need Cloudinary direct upload. Please configure Cloudinary and try again.");
+                return;
+            }
             return;
         }
 
@@ -329,37 +353,48 @@ if (form) {
         showUploadProgress(2, "Starting upload...");
 
         try {
-            const signatureRes = await fetch("{% url 'cloudinary_signature' %}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken"),
-                },
-                body: JSON.stringify({
-                    resource_type: "video"
-                }),
-            });
-            if (!signatureRes.ok) {
-                throw new Error("Signature request failed.");
-            }
-            const signature = await signatureRes.json();
-            if (signature.max_bytes && file.size > signature.max_bytes) {
-                throw new Error("File is too large for direct upload.");
-            }
-
+            let uploadUrl = "";
             const formData = new FormData();
             formData.append("file", file);
-            formData.append("api_key", signature.api_key);
-            formData.append("timestamp", signature.timestamp);
-            formData.append("signature", signature.signature);
-            formData.append("folder", signature.folder);
-            formData.append("resource_type", signature.resource_type);
-            formData.append("use_filename", signature.use_filename);
-            formData.append("unique_filename", signature.unique_filename);
+
+            if (DIRECT_UPLOAD_ENABLED) {
+                const signatureRes = await fetch("{% url 'cloudinary_signature' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken"),
+                    },
+                    body: JSON.stringify({
+                        resource_type: "video"
+                    }),
+                });
+                if (!signatureRes.ok) {
+                    throw new Error("Signature request failed.");
+                }
+                const signature = await signatureRes.json();
+                if (signature.max_bytes && file.size > signature.max_bytes) {
+                    throw new Error("File is too large for direct upload.");
+                }
+
+                formData.append("api_key", signature.api_key);
+                formData.append("timestamp", signature.timestamp);
+                formData.append("signature", signature.signature);
+                formData.append("folder", signature.folder);
+                formData.append("resource_type", signature.resource_type);
+                formData.append("use_filename", signature.use_filename);
+                formData.append("unique_filename", signature.unique_filename);
+                uploadUrl = `https://api.cloudinary.com/v1_1/${signature.cloud_name}/${signature.resource_type}/upload`;
+            } else if (CAN_UNSIGNED_UPLOAD) {
+                formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+                formData.append("folder", `posts/u${USER_ID}`);
+                uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
+            } else {
+                throw new Error("Direct upload is not configured.");
+            }
 
             const uploadResult = await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.open("POST", `https://api.cloudinary.com/v1_1/${signature.cloud_name}/${signature.resource_type}/upload`);
+                xhr.open("POST", uploadUrl);
                 xhr.upload.onprogress = (evt) => {
                     if (!evt.lengthComputable) return;
                     const percent = Math.round((evt.loaded / evt.total) * 100);
@@ -475,3 +510,4 @@ if (WIDGET_ENABLED) {
 </script>
 
 {% endblock %}
+
