@@ -2151,16 +2151,45 @@ def cloudinary_signature(request):
     if resource_type not in ("video", "image"):
         resource_type = "video"
 
-    timestamp = int(time.time())
-    folder = f"posts/u{request.user.id}"
-
-    params_to_sign = {
-        "timestamp": timestamp,
-        "folder": folder,
-        "resource_type": resource_type,
-        "use_filename": "true",
-        "unique_filename": "true",
-    }
+    raw_params = payload.get("params_to_sign")
+    if isinstance(raw_params, dict):
+        allowed_keys = {
+            "timestamp",
+            "folder",
+            "resource_type",
+            "use_filename",
+            "unique_filename",
+            "public_id",
+            "tags",
+            "context",
+            "overwrite",
+            "invalidate",
+            "eager",
+            "eager_async",
+            "notification_url",
+            "chunk_size",
+            "upload_preset",
+        }
+        params_to_sign = {key: raw_params[key] for key in raw_params if key in allowed_keys}
+        params_to_sign["resource_type"] = resource_type
+        if "timestamp" not in params_to_sign:
+            params_to_sign["timestamp"] = int(time.time())
+        if "folder" not in params_to_sign:
+            params_to_sign["folder"] = f"posts/u{request.user.id}"
+        if "use_filename" not in params_to_sign:
+            params_to_sign["use_filename"] = "true"
+        if "unique_filename" not in params_to_sign:
+            params_to_sign["unique_filename"] = "true"
+    else:
+        timestamp = int(time.time())
+        folder = f"posts/u{request.user.id}"
+        params_to_sign = {
+            "timestamp": timestamp,
+            "folder": folder,
+            "resource_type": resource_type,
+            "use_filename": "true",
+            "unique_filename": "true",
+        }
 
     try:
         import cloudinary.utils
@@ -2174,9 +2203,9 @@ def cloudinary_signature(request):
     return JsonResponse({
         "cloud_name": settings.CLOUDINARY_CLOUD_NAME,
         "api_key": settings.CLOUDINARY_API_KEY,
-        "timestamp": timestamp,
+        "timestamp": params_to_sign.get("timestamp"),
         "signature": signature,
-        "folder": folder,
+        "folder": params_to_sign.get("folder"),
         "resource_type": resource_type,
         "use_filename": "true",
         "unique_filename": "true",

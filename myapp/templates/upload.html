@@ -101,6 +101,7 @@ const DIRECT_UPLOAD_ENABLED = {{ direct_upload_enabled|yesno:"true,false" }};
 const WIDGET_ENABLED = {{ cloudinary_widget_enabled|yesno:"true,false" }};
 const CLOUDINARY_UPLOAD_PRESET = "{{ cloudinary_upload_preset|escapejs }}";
 const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|escapejs }}";
+const CLOUDINARY_API_KEY = "{{ cloudinary_api_key|escapejs }}";
 const ALLOW_UNSIGNED_UPLOAD = {{ allow_unsigned_upload|yesno:"true,false" }};
 const CAN_UNSIGNED_UPLOAD = Boolean(
     ALLOW_UNSIGNED_UPLOAD && WIDGET_ENABLED && CLOUDINARY_UPLOAD_PRESET && CLOUDINARY_CLOUD_NAME
@@ -161,6 +162,110 @@ function setFormDisabled(disabled) {
     if (submitBtn) submitBtn.disabled = disabled;
     if (input) input.disabled = disabled;
     typeRadios.forEach((radio) => { radio.disabled = disabled; });
+}
+
+function getUploadWidget() {
+    if (!WIDGET_ENABLED || !window.cloudinary || !cloudinary.createUploadWidget) {
+        return null;
+    }
+    if (window.__pixeloUploadWidget) {
+        return window.__pixeloUploadWidget;
+    }
+
+    const options = {
+        cloudName: CLOUDINARY_CLOUD_NAME,
+        uploadPreset: CLOUDINARY_UPLOAD_PRESET || undefined,
+        apiKey: CLOUDINARY_API_KEY || undefined,
+        sources: ["local"],
+        multiple: false,
+        resourceType: "video",
+        folder: `posts/u${USER_ID}`,
+        maxFileSize: MAX_DIRECT_UPLOAD_BYTES || undefined,
+    };
+
+    if (DIRECT_UPLOAD_ENABLED) {
+        options.uploadSignature = async (callback, paramsToSign) => {
+            try {
+                const signatureRes = await fetch("{% url 'cloudinary_signature' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken"),
+                    },
+                    body: JSON.stringify({
+                        resource_type: "video",
+                        params_to_sign: paramsToSign || {},
+                    }),
+                });
+                if (!signatureRes.ok) {
+                    throw new Error("Signature request failed.");
+                }
+                const signature = await signatureRes.json();
+                callback(signature.signature, signature.timestamp);
+            } catch (err) {
+                showReelError("Cloudinary signature failed.");
+            }
+        };
+    }
+
+    window.__pixeloUploadWidget = cloudinary.createUploadWidget(
+        options,
+        async (error, result) => {
+            if (error) {
+                showReelError(error.message || "Upload failed.");
+                hideUploadProgress();
+                setFormDisabled(false);
+                return;
+            }
+            if (result && result.event === "success") {
+                try {
+                    showUploadProgress(98, "Finalizing...");
+                    const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
+                    const caption = document.querySelector("textarea[name='caption']")?.value || "";
+                    const completeRes = await fetch("{% url 'cloudinary_complete_upload' %}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": getCookie("csrftoken"),
+                        },
+                        body: JSON.stringify({
+                            public_id: result.info.public_id,
+                            resource_type: result.info.resource_type,
+                            format: result.info.format,
+                            bytes: result.info.bytes,
+                            post_type: selectedType,
+                            caption: caption,
+                        }),
+                    });
+                    if (!completeRes.ok) {
+                        throw new Error("Finalize failed.");
+                    }
+                    const completePayload = await completeRes.json();
+                    showUploadProgress(100, "Done! Redirecting...");
+                    window.location.href = completePayload.redirect || "/";
+                } catch (err) {
+                    showReelError(err.message || "Finalize failed.");
+                    hideUploadProgress();
+                    setFormDisabled(false);
+                }
+            }
+        }
+    );
+
+    return window.__pixeloUploadWidget;
+}
+
+function openUploadWidget() {
+    const widget = getUploadWidget();
+    if (!widget) {
+        showReelError("Cloudinary widget is not available. Please try again.");
+        return false;
+    }
+    clearReelError();
+    clearDurationInfo();
+    showUploadProgress(2, "Opening uploader...");
+    widget.open();
+    return true;
 }
 
 function getCookie(name) {
@@ -362,7 +467,15 @@ if (form) {
             const formData = new FormData();
             formData.append("file", file);
 
-            const shouldUseLargeUpload = file.size >= LARGE_UPLOAD_BYTES;
+        // Always use the Cloudinary widget for videos when direct upload is enabled.
+        if (isVideo && WIDGET_ENABLED) {
+            const opened = openUploadWidget();
+            if (opened) {
+                return;
+            }
+        }
+
+        const shouldUseLargeUpload = file.size >= LARGE_UPLOAD_BYTES;
             if (DIRECT_UPLOAD_ENABLED) {
                 const signatureRes = await fetch("{% url 'cloudinary_signature' %}", {
                     method: "POST",
@@ -461,66 +574,7 @@ if (form) {
     });
 }
 
-if (WIDGET_ENABLED) {
-    const widgetButton = document.getElementById("cloudinaryUploadBtn");
-    if (widgetButton && window.cloudinary && cloudinary.createUploadWidget) {
-        const widget = cloudinary.createUploadWidget(
-            {
-                cloudName: CLOUDINARY_CLOUD_NAME,
-                uploadPreset: CLOUDINARY_UPLOAD_PRESET,
-                sources: ["local"],
-                multiple: false,
-                resourceType: "video",
-                folder: `posts/u${USER_ID}`,
-                maxFileSize: MAX_DIRECT_UPLOAD_BYTES || undefined,
-            },
-            async (error, result) => {
-                if (error) {
-                    showReelError(error.message || "Upload failed.");
-                    return;
-                }
-                if (result && result.event === "success") {
-                    try {
-                        showUploadProgress(98, "Finalizing...");
-                        const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
-                        const caption = document.querySelector("textarea[name='caption']")?.value || "";
-                        const completeRes = await fetch("{% url 'cloudinary_complete_upload' %}", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "X-CSRFToken": getCookie("csrftoken"),
-                            },
-                            body: JSON.stringify({
-                                public_id: result.info.public_id,
-                                resource_type: result.info.resource_type,
-                                format: result.info.format,
-                                bytes: result.info.bytes,
-                                post_type: selectedType,
-                                caption: caption,
-                            }),
-                        });
-                        if (!completeRes.ok) {
-                            throw new Error("Finalize failed.");
-                        }
-                        const completePayload = await completeRes.json();
-                        showUploadProgress(100, "Done! Redirecting...");
-                        window.location.href = completePayload.redirect || "/";
-                    } catch (err) {
-                        showReelError(err.message || "Finalize failed.");
-                        hideUploadProgress();
-                    }
-                }
-            }
-        );
-
-        widgetButton.addEventListener("click", () => {
-            clearReelError();
-            clearDurationInfo();
-            showUploadProgress(2, "Opening uploader...");
-            widget.open();
-        });
-    }
-}
+// Widget is opened automatically for large uploads or can be triggered manually if needed.
 </script>
 
 {% endblock %}
