@@ -537,53 +537,16 @@ if (form) {
             let uploadUrl = "";
             const shouldUseLargeUpload = file.size >= LARGE_UPLOAD_BYTES;
             const fields = {};
-            const preferUnsigned = CAN_UNSIGNED_UPLOAD;
-            if (DIRECT_UPLOAD_ENABLED && !preferUnsigned) {
-                const signatureRes = await fetch("{% url 'cloudinary_signature' %}", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": getCookie("csrftoken"),
-                    },
-                    body: JSON.stringify({
-                        resource_type: "video",
-                        params_to_sign: {
-                            chunk_size: CHUNK_SIZE_BYTES,
-                        },
-                    }),
-                });
-                const signature = await (async () => {
-                    let payload = {};
-                    try { payload = await signatureRes.json(); } catch (e) { payload = {}; }
-                    if (!signatureRes.ok) {
-                        const msg = payload && payload.error ? payload.error : (payload.detail || "Signature request failed.");
-                        throw new Error(msg);
-                    }
-                    return payload;
-                })();
-                if (signature.max_bytes && file.size > signature.max_bytes) {
-                    throw new Error("File is too large for direct upload.");
-                }
 
-                fields.api_key = signature.api_key;
-                fields.timestamp = signature.timestamp;
-                fields.signature = signature.signature;
-                fields.folder = signature.folder;
-                fields.resource_type = signature.resource_type;
-                fields.use_filename = signature.use_filename;
-                fields.unique_filename = signature.unique_filename;
-                fields.chunk_size = CHUNK_SIZE_BYTES;
-                const uploadPath = "upload";
-                uploadUrl = `https://api.cloudinary.com/v1_1/${signature.cloud_name}/${signature.resource_type}/${uploadPath}`;
-            } else if (CAN_UNSIGNED_UPLOAD) {
-                fields.upload_preset = CLOUDINARY_UPLOAD_PRESET;
-                fields.folder = `posts/u${USER_ID}`;
-                fields.chunk_size = CHUNK_SIZE_BYTES;
-                const uploadPath = "upload";
-                uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/${uploadPath}`;
-            } else {
-                throw new Error("Direct upload is not configured.");
+            if (!CAN_UNSIGNED_UPLOAD) {
+                throw new Error("Unsigned upload is not configured.");
             }
+
+            fields.upload_preset = CLOUDINARY_UPLOAD_PRESET;
+            fields.folder = `posts/u${USER_ID}`;
+            fields.chunk_size = CHUNK_SIZE_BYTES;
+            const uploadPath = "upload";
+            uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/${uploadPath}`;
 
             let uploadResult;
             if (shouldUseLargeUpload) {
