@@ -246,10 +246,25 @@ async function uploadCloudinaryChunked(uploadUrl, fields, file) {
                         resolve({});
                     }
                 } else {
-                    reject(new Error(uploadErrorMessage(xhr.status)));
+                    const respText = xhr.responseText || "";
+                    let msg = uploadErrorMessage(xhr.status);
+                    try {
+                        const parsed = JSON.parse(respText || "{}");
+                        if (parsed && parsed.error) {
+                            msg += ` - ${parsed.error}`;
+                        } else if (respText) {
+                            msg += ` - ${respText}`;
+                        }
+                    } catch (e) {
+                        if (respText) msg += ` - ${respText}`;
+                    }
+                    reject(new Error(msg));
                 }
             };
-            xhr.onerror = () => reject(new Error("Upload network error."));
+            xhr.onerror = () => {
+                const respText = xhr.responseText || "";
+                reject(new Error(`Upload network error.${respText ? ' ' + respText : ''}`));
+            };
             xhr.send(formData);
         });
     }
@@ -536,10 +551,15 @@ if (form) {
                         },
                     }),
                 });
-                if (!signatureRes.ok) {
-                    throw new Error("Signature request failed.");
-                }
-                const signature = await signatureRes.json();
+                const signature = await (async () => {
+                    let payload = {};
+                    try { payload = await signatureRes.json(); } catch (e) { payload = {}; }
+                    if (!signatureRes.ok) {
+                        const msg = payload && payload.error ? payload.error : (payload.detail || "Signature request failed.");
+                        throw new Error(msg);
+                    }
+                    return payload;
+                })();
                 if (signature.max_bytes && file.size > signature.max_bytes) {
                     throw new Error("File is too large for direct upload.");
                 }
@@ -591,10 +611,25 @@ if (form) {
                                 reject(new Error("Invalid upload response."));
                             }
                         } else {
-                            reject(new Error(uploadErrorMessage(xhr.status)));
+                            const respText = xhr.responseText || "";
+                            let msg = uploadErrorMessage(xhr.status);
+                            try {
+                                const parsed = JSON.parse(respText || "{}");
+                                if (parsed && parsed.error) {
+                                    msg += ` - ${parsed.error}`;
+                                } else if (respText) {
+                                    msg += ` - ${respText}`;
+                                }
+                            } catch (e) {
+                                if (respText) msg += ` - ${respText}`;
+                            }
+                            reject(new Error(msg));
                         }
                     };
-                    xhr.onerror = () => reject(new Error("Upload network error."));
+                    xhr.onerror = () => {
+                        const respText = xhr.responseText || "";
+                        reject(new Error(`Upload network error.${respText ? ' ' + respText : ''}`));
+                    };
                     xhr.send(formData);
                 });
             }

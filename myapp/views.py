@@ -2148,6 +2148,17 @@ def cloudinary_signature(request):
     if not _direct_upload_enabled():
         return JsonResponse({"error": "Direct upload not configured."}, status=400)
 
+    # Ensure Cloudinary credentials are present and valid-looking so the client
+    # gets a clear error instead of a confusing 401 from the Cloudinary API.
+    cloud_name = getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+    api_key = getattr(settings, "CLOUDINARY_API_KEY", "")
+    api_secret = getattr(settings, "CLOUDINARY_API_SECRET", "")
+    if not (cloud_name and api_key and api_secret):
+        return JsonResponse({
+            "error": "Cloudinary credentials not configured on server.",
+            "detail": "Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.",
+        }, status=500)
+
     try:
         payload = json.loads((request.body or b"{}").decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -2216,6 +2227,7 @@ def cloudinary_signature(request):
         "use_filename": "true",
         "unique_filename": "true",
         "max_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
+        **({"debug": {"params": params_to_sign, "signature": signature, "api_key": api_key, "cloud_name": cloud_name}} if getattr(settings, "DEBUG", False) else {}),
     })
 
 
@@ -2272,6 +2284,30 @@ def cloudinary_complete_upload(request):
             pass
         print(f"[cloudinary_complete_upload] {err_text}")
         return JsonResponse({"error": err_text}, status=500)
+
+    # If Cloudinary is configured, attempt to fetch resource metadata to determine
+    # actual duration and ensure videos > 60s are classified as posts.
+    try:
+        import cloudinary
+        import cloudinary.api
+        if resource_type == "video":
+            try:
+                info = cloudinary.api.resource(public_id, resource_type=resource_type)
+                duration = info.get("duration") or info.get("video", {}).get("duration")
+                if duration:
+                    try:
+                        duration = float(duration)
+                    except Exception:
+                        duration = None
+                    if duration and duration > 60 and post.type == "reel":
+                        post.type = "post"
+                        post.save(update_fields=["type"])
+            except cloudinary.exceptions.Error as e:
+                # Non-fatal: log and continue. Client will still see uploaded media.
+                print(f"[cloudinary_complete_upload] metadata fetch failed: {e}")
+    except Exception:
+        # Cloudinary client not available or other issue — ignore metadata step.
+        pass
 
     return JsonResponse({"ok": True, "redirect": reverse("home")})
 
