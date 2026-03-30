@@ -530,7 +530,10 @@ if (form) {
                         "X-CSRFToken": getCookie("csrftoken"),
                     },
                     body: JSON.stringify({
-                        resource_type: "video"
+                        resource_type: "video",
+                        params_to_sign: {
+                            chunk_size: CHUNK_SIZE_BYTES,
+                        },
                     }),
                 });
                 if (!signatureRes.ok) {
@@ -548,12 +551,14 @@ if (form) {
                 fields.resource_type = signature.resource_type;
                 fields.use_filename = signature.use_filename;
                 fields.unique_filename = signature.unique_filename;
-                const uploadPath = shouldUseLargeUpload ? "upload_large" : "upload";
+                fields.chunk_size = CHUNK_SIZE_BYTES;
+                const uploadPath = "upload";
                 uploadUrl = `https://api.cloudinary.com/v1_1/${signature.cloud_name}/${signature.resource_type}/${uploadPath}`;
             } else if (CAN_UNSIGNED_UPLOAD) {
                 fields.upload_preset = CLOUDINARY_UPLOAD_PRESET;
                 fields.folder = `posts/u${USER_ID}`;
-                const uploadPath = shouldUseLargeUpload ? "upload_large" : "upload";
+                fields.chunk_size = CHUNK_SIZE_BYTES;
+                const uploadPath = "upload";
                 uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/${uploadPath}`;
             } else {
                 throw new Error("Direct upload is not configured.");
