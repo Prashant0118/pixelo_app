@@ -537,7 +537,8 @@ if (form) {
             let uploadUrl = "";
             const shouldUseLargeUpload = file.size >= LARGE_UPLOAD_BYTES;
             const fields = {};
-            if (DIRECT_UPLOAD_ENABLED) {
+            const preferUnsigned = CAN_UNSIGNED_UPLOAD;
+            if (DIRECT_UPLOAD_ENABLED && !preferUnsigned) {
                 const signatureRes = await fetch("{% url 'cloudinary_signature' %}", {
                     method: "POST",
                     headers: {
@@ -670,4 +671,3 @@ if (form) {
 </script>
 
 {% endblock %}
-
