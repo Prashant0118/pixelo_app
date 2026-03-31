@@ -31,5 +31,8 @@ urlpatterns = [
 ]
 
 if settings.DEBUG or getattr(settings, "SERVE_MEDIA", False):
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Serve media with range support for video playback.
+    urlpatterns += [
+        path('media/<path:path>', myapp_views.media_serve),
+    ]
 

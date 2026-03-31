@@ -5,6 +5,7 @@ import struct
 import subprocess
 import tempfile
 import time
+import re
 from collections import defaultdict
 from urllib.parse import urlencode, quote
 from urllib.request import urlopen
@@ -17,7 +18,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET, require_POST
-from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
+from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, StreamingHttpResponse, FileResponse, Http404
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Q, Case, When, Value, IntegerField, Count
@@ -488,6 +489,54 @@ def _safe_filename(name):
 
 def _chunk_dir(upload_id):
     return os.path.join(getattr(settings, "MEDIA_ROOT", ""), "tmp_uploads", upload_id)
+
+
+def media_serve(request, path):
+    media_root = os.path.abspath(getattr(settings, "MEDIA_ROOT", ""))
+    if not media_root:
+        raise Http404
+    # Prevent path traversal
+    full_path = os.path.abspath(os.path.normpath(os.path.join(media_root, path)))
+    if not full_path.startswith(media_root + os.sep):
+        raise Http404
+    if not os.path.exists(full_path):
+        raise Http404
+
+    file_size = os.path.getsize(full_path)
+    content_type = mimetypes.guess_type(full_path)[0] or "application/octet-stream"
+    range_header = request.META.get("HTTP_RANGE", "")
+
+    if range_header:
+        match = re.match(r"bytes=(\d+)-(\d*)", range_header)
+        if match:
+            start = int(match.group(1))
+            end = int(match.group(2)) if match.group(2) else file_size - 1
+            end = min(end, file_size - 1)
+            if start >= file_size:
+                return HttpResponse(status=416)
+            length = end - start + 1
+
+            def file_iterator():
+                with open(full_path, "rb") as f:
+                    f.seek(start)
+                    remaining = length
+                    while remaining > 0:
+                        chunk = f.read(min(1024 * 1024, remaining))
+                        if not chunk:
+                            break
+                        remaining -= len(chunk)
+                        yield chunk
+
+            resp = StreamingHttpResponse(file_iterator(), status=206, content_type=content_type)
+            resp["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+            resp["Accept-Ranges"] = "bytes"
+            resp["Content-Length"] = str(length)
+            return resp
+
+    resp = FileResponse(open(full_path, "rb"), content_type=content_type)
+    resp["Accept-Ranges"] = "bytes"
+    resp["Content-Length"] = str(file_size)
+    return resp
 
 
 def _direct_upload_enabled():
