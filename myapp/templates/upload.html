@@ -44,6 +44,7 @@
   const radios = document.querySelectorAll('input[name="type"]');
   const msg = document.getElementById('message');
   const uploadBtn = document.getElementById('uploadBtn');
+  const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
 
   function setAccept() {
     const t = document.querySelector('input[name="type"]:checked').value;
@@ -114,9 +115,78 @@
     }
   }
 
+  async function uploadInChunks(file, postType, caption) {
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const filename = file.name || 'upload';
+
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const blob = file.slice(start, end);
+
+      const formData = new FormData();
+      formData.append('upload_id', uploadId);
+      formData.append('chunk_index', String(i));
+      formData.append('total_chunks', String(totalChunks));
+      formData.append('filename', filename);
+      formData.append('chunk', blob);
+
+      const res = await fetch('/upload/chunk/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        body: formData
+      });
+      if (!res.ok) {
+        throw new Error('chunk_failed');
+      }
+
+      const percent = Math.round(((i + 1) / totalChunks) * 100);
+      msg.textContent = `Uploading... ${percent}%`;
+      msg.style.display = 'block';
+    }
+
+    const doneForm = new FormData();
+    doneForm.append('upload_id', uploadId);
+    doneForm.append('total_chunks', String(totalChunks));
+    doneForm.append('filename', filename);
+    doneForm.append('type', postType);
+    doneForm.append('caption', caption);
+
+    const completeRes = await fetch('/upload/chunk/complete/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      body: doneForm
+    });
+    const data = await completeRes.json();
+    if (data && data.redirect) {
+      window.location.href = data.redirect;
+      return;
+    }
+    throw new Error('complete_failed');
+  }
+
   form.addEventListener('submit', async (e) => {
     const file = media.files && media.files[0];
     if (!file) return;
+
+    const postType = document.querySelector('input[name="type"]:checked').value;
+    const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
+
+    // Chunked upload for large videos to avoid 502s.
+    if (file.type && file.type.startsWith('video/') && file.size > CHUNK_SIZE) {
+      e.preventDefault();
+      setBusy(true, 'Uploading... 0%');
+      try {
+        await uploadInChunks(file, postType, caption);
+        return;
+      } catch (err) {
+        msg.textContent = 'Chunked upload failed. Please try again.';
+        msg.style.display = 'block';
+        setBusy(false);
+        return;
+      }
+    }
 
     if (!canUseFirebase()) return;
     if (directUploadMinBytes && file.size < directUploadMinBytes) return;
@@ -148,9 +218,6 @@
 
       await uploadTask;
       const downloadUrl = await storage.ref(path).getDownloadURL();
-
-      const postType = document.querySelector('input[name="type"]:checked').value;
-      const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
 
       const res = await fetch('/upload/firebase-complete/', {
         method: 'POST',

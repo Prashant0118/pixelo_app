@@ -25,7 +25,6 @@ from django.core.files.base import File, ContentFile
 from django.core.files.storage import default_storage
 from django.conf import settings
 from django.urls import reverse
-
 from myapp.models import Post, Profile, Follow, Notification, Message, Like, Comment, Story, StorySeen, ChatLock, ReelWatch, StoryMusic
 from myapp.forms import UserUpdateForm, ProfileUpdateForm, UpiIdUpdateForm
 
@@ -479,6 +478,16 @@ def _format_mb(value):
         return f"{value / (1024 * 1024):.1f} MB"
     except Exception:
         return ""
+
+
+def _safe_filename(name):
+    base = os.path.basename(name or "upload")
+    safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in base)
+    return safe or "upload"
+
+
+def _chunk_dir(upload_id):
+    return os.path.join(getattr(settings, "MEDIA_ROOT", ""), "tmp_uploads", upload_id)
 
 
 def _direct_upload_enabled():
@@ -2127,6 +2136,128 @@ def upload(request):
         return redirect("home")
 
     return render(request, "upload.html", _upload_page_context())
+
+
+@login_required
+@require_POST
+def upload_chunk(request):
+    upload_id = (request.POST.get("upload_id") or "").strip()
+    chunk_index = request.POST.get("chunk_index")
+    total_chunks = request.POST.get("total_chunks")
+    filename = request.POST.get("filename") or "upload"
+    chunk = request.FILES.get("chunk")
+
+    if not upload_id or chunk is None:
+        return JsonResponse({"error": "Missing upload data."}, status=400)
+
+    try:
+        idx = int(chunk_index)
+        total = int(total_chunks)
+        if idx < 0 or total <= 0 or idx >= total:
+            raise ValueError
+    except Exception:
+        return JsonResponse({"error": "Invalid chunk index."}, status=400)
+
+    safe_name = _safe_filename(filename)
+    target_dir = _chunk_dir(upload_id)
+    os.makedirs(target_dir, exist_ok=True)
+
+    chunk_path = os.path.join(target_dir, f"chunk_{idx:06d}")
+    try:
+        with open(chunk_path, "wb") as handle:
+            for piece in chunk.chunks():
+                handle.write(piece)
+    except Exception:
+        return JsonResponse({"error": "Failed to store chunk."}, status=500)
+
+    # Store a tiny manifest for safety
+    try:
+        manifest_path = os.path.join(target_dir, "meta.json")
+        if not os.path.exists(manifest_path):
+            with open(manifest_path, "w", encoding="utf-8") as meta:
+                meta.write(json.dumps({"filename": safe_name, "total": total}))
+    except Exception:
+        pass
+
+    return JsonResponse({"ok": True})
+
+
+@login_required
+@require_POST
+def upload_chunk_complete(request):
+    upload_id = (request.POST.get("upload_id") or "").strip()
+    total_chunks = request.POST.get("total_chunks")
+    filename = request.POST.get("filename") or "upload"
+    post_type = (request.POST.get("type") or "post").strip().lower()
+    caption = (request.POST.get("caption") or "").strip()
+
+    if post_type not in ("post", "reel"):
+        post_type = "post"
+
+    if not upload_id:
+        return JsonResponse({"error": "Missing upload id."}, status=400)
+
+    try:
+        total = int(total_chunks)
+        if total <= 0:
+            raise ValueError
+    except Exception:
+        return JsonResponse({"error": "Invalid total chunks."}, status=400)
+
+    target_dir = _chunk_dir(upload_id)
+    if not os.path.isdir(target_dir):
+        return JsonResponse({"error": "Upload not found."}, status=400)
+
+    safe_name = _safe_filename(filename)
+    assembled_name = f"{int(time.time())}_{upload_id}_{safe_name}"
+    assembled_rel = os.path.join("posts", assembled_name)
+    assembled_abs = os.path.join(getattr(settings, "MEDIA_ROOT", ""), assembled_rel)
+
+    os.makedirs(os.path.dirname(assembled_abs), exist_ok=True)
+
+    try:
+        with open(assembled_abs, "wb") as out:
+            for idx in range(total):
+                chunk_path = os.path.join(target_dir, f"chunk_{idx:06d}")
+                if not os.path.exists(chunk_path):
+                    return JsonResponse({"error": f"Missing chunk {idx}."}, status=400)
+                with open(chunk_path, "rb") as src:
+                    while True:
+                        buf = src.read(1024 * 1024)
+                        if not buf:
+                            break
+                        out.write(buf)
+    except Exception:
+        return JsonResponse({"error": "Failed to assemble upload."}, status=500)
+
+    # Enforce size guard for posts
+    try:
+        max_bytes = int(getattr(settings, "MAX_POST_UPLOAD_BYTES", 0) or 0)
+        if max_bytes and os.path.getsize(assembled_abs) > max_bytes:
+            os.remove(assembled_abs)
+            return JsonResponse({"error": "File too large."}, status=400)
+    except Exception:
+        pass
+
+    try:
+        with open(assembled_abs, "rb") as f:
+            django_file = File(f, name=assembled_rel)
+            post = Post.objects.create(user=request.user, media=django_file, caption=caption, type=post_type)
+    except Exception as exc:
+        return JsonResponse({"error": f"Upload failed: {exc.__class__.__name__}"}, status=500)
+    finally:
+        # Cleanup temp chunks
+        try:
+            for fname in os.listdir(target_dir):
+                try:
+                    os.remove(os.path.join(target_dir, fname))
+                except Exception:
+                    pass
+            os.rmdir(target_dir)
+        except Exception:
+            pass
+
+    return JsonResponse({"ok": True, "redirect": reverse("home")})
 
 
 @login_required
