@@ -54,7 +54,8 @@
   const progressBar = document.getElementById('progressBar');
   const progressText = document.getElementById('progressText');
   const CHUNK_SIZE = {{ upload_chunk_size|default:1048576 }}; // bytes
-  const PARALLEL_UPLOADS = 3;
+  const PARALLEL_UPLOADS = 2;
+  const MAX_RETRIES = 3;
 
   function setAccept() {
     const t = document.querySelector('input[name="type"]:checked').value;
@@ -153,13 +154,19 @@
       formData.append('filename', filename);
       formData.append('chunk', blob);
 
-      const res = await fetch('/upload/chunk/', {
-        method: 'POST',
-        headers: { 'X-CSRFToken': getCookie('csrftoken') },
-        body: formData
-      });
-      if (!res.ok) {
-        throw new Error('chunk_failed');
+      let attempt = 0;
+      while (true) {
+        attempt += 1;
+        const res = await fetch('/upload/chunk/', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCookie('csrftoken') },
+          body: formData
+        });
+        if (res.ok) break;
+        if (attempt >= MAX_RETRIES) {
+          throw new Error('chunk_failed');
+        }
+        await new Promise(r => setTimeout(r, 500 * attempt));
       }
 
       uploadedBytes += blob.size;
