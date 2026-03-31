@@ -35,7 +35,7 @@ def _normalize_dest_name(name):
 
 
 class Command(BaseCommand):
-    help = "Migrate old local reel media files to Cloudinary."
+    help = "Migrate old local reel media files to configured storage (no Cloudinary)."
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Scan only, do not upload.")

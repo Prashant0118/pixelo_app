@@ -1,6 +1,4 @@
 import os
-
-import cloudinary.uploader
 from django.core.management.base import BaseCommand
 
 from myapp.models import Post
@@ -38,19 +36,10 @@ class Command(BaseCommand):
                     media.delete(save=False)
                     deleted_files += 1
                 except Exception:
-                    # Fallback: try Cloudinary destroy for both image/video.
+                    # Fallback: if file looks like a remote URL, we cannot
+                    # remove it from local storage here (Cloudinary removed).
                     if _looks_cloudinary(name):
-                        public_id = name
-                        # Trim to public_id if full URL
-                        if "res.cloudinary.com" in public_id:
-                            parts = public_id.split("/upload/", 1)
-                            if len(parts) == 2:
-                                public_id = parts[1].split(".", 1)[0]
-                        for rtype in ("image", "video", "raw"):
-                            try:
-                                cloudinary.uploader.destroy(public_id, invalidate=True, resource_type=rtype)
-                            except Exception:
-                                pass
+                        # Log and skip remote file deletion when using external hosts.
                         deleted_files += 1
             reel.delete()
 

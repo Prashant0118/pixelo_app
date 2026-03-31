@@ -490,15 +490,16 @@ def _direct_upload_enabled():
 
 
 def _upload_page_context(error=None):
-    upload_preset = getattr(settings, "CLOUDINARY_UPLOAD_PRESET", "") or ""
+    # Cloudinary removed: provide safe defaults for template variables.
+    upload_preset = ""
     return {
         "error": error,
-        "direct_upload_enabled": _direct_upload_enabled(),
-        "cloudinary_cloud_name": getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
-        "cloudinary_api_key": getattr(settings, "CLOUDINARY_API_KEY", ""),
+        "direct_upload_enabled": False,
+        "cloudinary_cloud_name": "",
+        "cloudinary_api_key": "",
         "cloudinary_upload_preset": upload_preset,
-        "cloudinary_widget_enabled": bool(upload_preset),
-        "allow_unsigned_upload": bool(getattr(settings, "ALLOW_UNSIGNED_UPLOAD", False)),
+        "cloudinary_widget_enabled": False,
+        "allow_unsigned_upload": False,
         "firebase_api_key": getattr(settings, "FIREBASE_API_KEY", ""),
         "firebase_auth_domain": getattr(settings, "FIREBASE_AUTH_DOMAIN", ""),
         "firebase_project_id": getattr(settings, "FIREBASE_PROJECT_ID", ""),
@@ -2098,6 +2099,23 @@ def upload(request):
                 type=post_type
             )
 
+            # Server-side duration check: if this was uploaded as a reel but
+            # the video is longer than 60s (and file size is small enough to
+            # safely probe), convert the post type to `post` so long videos
+            # don't remain as reels. Run inside the main try block so outer
+            # exception handlers catch failures.
+            if post and post.type == "reel" and is_video_upload:
+                max_check = getattr(settings, "MAX_REEL_DURATION_CHECK_BYTES", 0) or 0
+                if not size or size <= max_check:
+                    try:
+                        duration = _video_duration_seconds(media)
+                        if duration and duration > 60 and post.type == "reel":
+                            post.type = "post"
+                            post.save(update_fields=["type"])
+                    except Exception as e:
+                        # Non-fatal: log and continue
+                        print(f"[upload] duration check failed: {e}")
+
         except IOError as exc:
             err_text = "Upload interrupted - file read error. Please try again."
             print(f"[upload] IOError: {exc}")
@@ -2145,171 +2163,13 @@ def upload(request):
 @login_required
 @require_POST
 def cloudinary_signature(request):
-    if not _direct_upload_enabled():
-        return JsonResponse({"error": "Direct upload not configured."}, status=400)
-
-    # Ensure Cloudinary credentials are present and valid-looking so the client
-    # gets a clear error instead of a confusing 401 from the Cloudinary API.
-    cloud_name = getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
-    api_key = getattr(settings, "CLOUDINARY_API_KEY", "")
-    api_secret = getattr(settings, "CLOUDINARY_API_SECRET", "")
-    if not (cloud_name and api_key and api_secret):
-        return JsonResponse({
-            "error": "Cloudinary credentials not configured on server.",
-            "detail": "Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.",
-        }, status=500)
-
-    try:
-        payload = json.loads((request.body or b"{}").decode("utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        payload = {}
-
-    resource_type = (payload.get("resource_type") or "video").lower()
-    if resource_type not in ("video", "image"):
-        resource_type = "video"
-
-    raw_params = payload.get("params_to_sign")
-    if isinstance(raw_params, dict):
-        allowed_keys = {
-            "timestamp",
-            "folder",
-            "resource_type",
-            "use_filename",
-            "unique_filename",
-            "public_id",
-            "tags",
-            "context",
-            "overwrite",
-            "invalidate",
-            "eager",
-            "eager_async",
-            "notification_url",
-            "chunk_size",
-            "upload_preset",
-        }
-        params_to_sign = {key: raw_params[key] for key in raw_params if key in allowed_keys}
-        params_to_sign["resource_type"] = resource_type
-        if "timestamp" not in params_to_sign:
-            params_to_sign["timestamp"] = int(time.time())
-        if "folder" not in params_to_sign:
-            params_to_sign["folder"] = f"posts/u{request.user.id}"
-        if "use_filename" not in params_to_sign:
-            params_to_sign["use_filename"] = "true"
-        if "unique_filename" not in params_to_sign:
-            params_to_sign["unique_filename"] = "true"
-    else:
-        timestamp = int(time.time())
-        folder = f"posts/u{request.user.id}"
-        params_to_sign = {
-            "timestamp": timestamp,
-            "folder": folder,
-            "resource_type": resource_type,
-            "use_filename": "true",
-            "unique_filename": "true",
-        }
-
-    try:
-        import cloudinary.utils
-        signature = cloudinary.utils.api_sign_request(
-            params_to_sign,
-            settings.CLOUDINARY_API_SECRET,
-        )
-    except Exception:
-        return JsonResponse({"error": "Cloudinary signing failed."}, status=500)
-
-    return JsonResponse({
-        "cloud_name": settings.CLOUDINARY_CLOUD_NAME,
-        "api_key": settings.CLOUDINARY_API_KEY,
-        "timestamp": params_to_sign.get("timestamp"),
-        "signature": signature,
-        "folder": params_to_sign.get("folder"),
-        "resource_type": resource_type,
-        "use_filename": "true",
-        "unique_filename": "true",
-        "max_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
-        **({"debug": {"params": params_to_sign, "signature": signature, "api_key": api_key, "cloud_name": cloud_name}} if getattr(settings, "DEBUG", False) else {}),
-    })
+    return JsonResponse({"error": "Cloudinary support removed."}, status=410)
 
 
 @login_required
 @require_POST
 def cloudinary_complete_upload(request):
-    try:
-        payload = json.loads((request.body or b"{}").decode("utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
-
-    public_id = (payload.get("public_id") or "").strip()
-    resource_type = (payload.get("resource_type") or "").strip().lower()
-    file_format = (payload.get("format") or "").strip().lower()
-    file_bytes = payload.get("bytes")
-    post_type = (payload.get("post_type") or "post").strip().lower()
-    caption = (payload.get("caption") or "").strip()
-
-    if post_type not in ("post", "reel"):
-        post_type = "post"
-    if not public_id or resource_type not in ("image", "video"):
-        return JsonResponse({"error": "Missing upload data."}, status=400)
-    if post_type == "reel" and resource_type != "video":
-        return JsonResponse({"error": "Reel upload must be a video."}, status=400)
-
-    max_bytes = getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0) or 0
-    if max_bytes and isinstance(file_bytes, (int, float)) and file_bytes > max_bytes:
-        return JsonResponse({"error": "Upload is too large."}, status=400)
-
-    # Auto-convert reels to posts if file is too large for reel storage
-    if post_type == "reel" and file_bytes and file_bytes > settings.MAX_REEL_UPLOAD_BYTES:
-        post_type = "post"
-
-    if file_format:
-        media_name = f"{public_id}.{file_format}"
-    else:
-        media_name = public_id
-
-    try:
-        post = Post.objects.create(
-            user=request.user,
-            caption=caption,
-            type=post_type,
-        )
-        post.media.name = media_name
-        post.save(update_fields=["media"])
-    except Exception as exc:
-        err_text = f"Upload failed: {exc.__class__.__name__}"
-        try:
-            detail = str(exc)
-            if detail:
-                err_text = f"{err_text} - {detail}"
-        except Exception:
-            pass
-        print(f"[cloudinary_complete_upload] {err_text}")
-        return JsonResponse({"error": err_text}, status=500)
-
-    # If Cloudinary is configured, attempt to fetch resource metadata to determine
-    # actual duration and ensure videos > 60s are classified as posts.
-    try:
-        import cloudinary
-        import cloudinary.api
-        if resource_type == "video":
-            try:
-                info = cloudinary.api.resource(public_id, resource_type=resource_type)
-                duration = info.get("duration") or info.get("video", {}).get("duration")
-                if duration:
-                    try:
-                        duration = float(duration)
-                    except Exception:
-                        duration = None
-                    if duration and duration > 60 and post.type == "reel":
-                        post.type = "post"
-                        post.save(update_fields=["type"])
-            except cloudinary.exceptions.Error as e:
-                # Non-fatal: log and continue. Client will still see uploaded media.
-                print(f"[cloudinary_complete_upload] metadata fetch failed: {e}")
-    except Exception:
-        # Cloudinary client not available or other issue — ignore metadata step.
-        pass
-
-    return JsonResponse({"ok": True, "redirect": reverse("home")})
+    return JsonResponse({"error": "Cloudinary support removed."}, status=410)
 
 
 @login_required

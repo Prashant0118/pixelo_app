@@ -44,33 +44,12 @@ def _cloudinary_public_id_from_name(name):
 
 
 def _cloudinary_url_for(name, resource_type):
-    public_id = _cloudinary_public_id_from_name(name)
-    if not public_id:
-        return ""
-    try:
-        import cloudinary.utils
-        url, _ = cloudinary.utils.cloudinary_url(
-            public_id,
-            resource_type=resource_type,
-            type="upload",
-        )
-        if not url:
-            return ""
-        if resource_type == "video":
-            return _cloudinary_video_url(url)
-        return url
-    except Exception:
-        cloud_name = getattr(settings, "CLOUDINARY_CLOUD_NAME", "") or ""
-        if not cloud_name:
-            return ""
-        url = f"https://res.cloudinary.com/{cloud_name}/{resource_type}/upload/{public_id}"
-        if resource_type == "video":
-            return _cloudinary_video_url(url)
-        return url
+    # Cloudinary removed: no remote Cloudinary URLs will be generated.
+    return ""
 
 
 def _can_build_cloudinary_urls():
-    return bool(getattr(settings, "CLOUDINARY_CLOUD_NAME", "") or "")
+    return False
 
 
 def _looks_like_video_path(path):

@@ -504,18 +504,10 @@ if (form) {
             (!DIRECT_UPLOAD_MIN_BYTES || file.size >= DIRECT_UPLOAD_MIN_BYTES)
         );
         if (!shouldDirectUpload) {
-            if (
-                !DIRECT_UPLOAD_ENABLED &&
-                !CAN_UNSIGNED_UPLOAD &&
-                isVideo &&
-                file &&
-                DIRECT_UPLOAD_MIN_BYTES &&
-                file.size >= DIRECT_UPLOAD_MIN_BYTES
-            ) {
-                event.preventDefault();
-                showReelError("Large video uploads need direct upload (Firebase/Cloudinary). Please configure and try again.");
-                return;
-            }
+            // No direct-to-cloud upload configured; allow server-side upload.
+            // The Django upload handler will stream large files to disk
+            // (see myapp.upload_handler.LargeVideoUploadHandler) so both
+            // short and long videos can be uploaded via the server.
             return;
         }
 

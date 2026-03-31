@@ -1,57 +1,20 @@
 import os
-
-import cloudinary.uploader
-from cloudinary_storage.storage import MediaCloudinaryStorage, RESOURCE_TYPES
+from django.core.files.storage import FileSystemStorage
 
 
-VIDEO_EXTENSIONS = {
-    ".mp4",
-    ".webm",
-    ".mov",
-    ".m4v",
-    ".avi",
-    ".mkv",
-    ".3gp",
-    ".3gpp",
-    ".ogv",
-}
-
-AUDIO_EXTENSIONS = {
-    ".mp3",
-    ".wav",
-    ".m4a",
-    ".aac",
-    ".flac",
-    ".oga",
-    ".ogg",
-    ".opus",
-    ".webm",
-}
-
-
-class MediaCloudinaryAutoStorage(MediaCloudinaryStorage):
+class MediaCloudinaryAutoStorage(FileSystemStorage):
     """
-    Cloudinary storage that picks image vs video resource type based on extension.
-    This avoids "Invalid image file" for videos and produces correct delivery URLs.
+    Backwards-compatible storage placeholder.
+    Cloudinary was removed; this class now behaves like FileSystemStorage
+    to keep code importing `MediaCloudinaryAutoStorage` working.
     """
+
     def _get_resource_type(self, name):
         ext = os.path.splitext(name or "")[1].lower()
-        if ext in VIDEO_EXTENSIONS or ext in AUDIO_EXTENSIONS:
-            return RESOURCE_TYPES["VIDEO"]
-        return RESOURCE_TYPES["IMAGE"]
+        if ext in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".3gp", ".3gpp", ".ogv"}:
+            return "video"
+        return "image"
 
     def _upload(self, name, content):
-        """
-        Force video resource type when content-type indicates video/audio,
-        even if filename extension is missing or non-standard (e.g. WhatsApp names).
-        """
-        resource_type = self._get_resource_type(name)
-        content_type = (getattr(content, "content_type", "") or "").lower()
-        if content_type.startswith("video/") or content_type.startswith("audio/"):
-            resource_type = RESOURCE_TYPES["VIDEO"]
-
-        options = {'use_filename': True, 'resource_type': resource_type, 'tags': self.TAG}
-        folder = os.path.dirname(name)
-        if folder:
-            options['folder'] = folder
-        return cloudinary.uploader.upload(content, **options)
+        # Save using default FileSystemStorage behavior.
+        return self.save(name, content)

@@ -117,13 +117,8 @@ CLOUDINARY_API_KEY = (os.getenv("CLOUDINARY_API_KEY") or "").strip()
 CLOUDINARY_API_SECRET = (os.getenv("CLOUDINARY_API_SECRET") or "").strip()
 CLOUDINARY_UPLOAD_PRESET = (os.getenv("CLOUDINARY_UPLOAD_PRESET") or "").strip()
 
-CLOUDINARY_ENABLED = (
-    CLOUDINARY_URL.startswith("cloudinary://")
-    or (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
-)
-HAS_CLOUDINARY_STORAGE = importlib.util.find_spec("cloudinary_storage") is not None
-HAS_CLOUDINARY = importlib.util.find_spec("cloudinary") is not None
-CAN_USE_CLOUDINARY = CLOUDINARY_ENABLED and HAS_CLOUDINARY_STORAGE and HAS_CLOUDINARY
+# Cloudinary support removed: force disabled even if env vars set.
+CAN_USE_CLOUDINARY = False
 
 # Firebase Storage (direct upload from browser)
 FIREBASE_API_KEY = (os.getenv("FIREBASE_API_KEY") or "").strip()
