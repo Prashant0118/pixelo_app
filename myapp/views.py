@@ -2260,8 +2260,9 @@ def upload_chunk_complete(request):
 
     safe_name = _safe_filename(filename)
     assembled_name = f"{int(time.time())}_{upload_id}_{safe_name}"
-    assembled_rel = os.path.join("posts", assembled_name)
-    assembled_abs = os.path.join(getattr(settings, "MEDIA_ROOT", ""), assembled_rel)
+    # Store on disk under MEDIA_ROOT/posts, but pass only the basename to FileField
+    assembled_rel = assembled_name
+    assembled_abs = os.path.join(getattr(settings, "MEDIA_ROOT", ""), "posts", assembled_name)
 
     os.makedirs(os.path.dirname(assembled_abs), exist_ok=True)
 
