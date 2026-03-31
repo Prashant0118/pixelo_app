@@ -568,6 +568,7 @@ def _upload_page_context(error=None):
         "max_direct_upload_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
         "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),
         "max_post_upload_bytes": getattr(settings, "MAX_POST_UPLOAD_BYTES", 0),
+        "upload_chunk_size": getattr(settings, "UPLOAD_CHUNK_SIZE", 1024 * 1024),
     }
 
 

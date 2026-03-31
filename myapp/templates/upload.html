@@ -22,6 +22,12 @@
     </div>
 
     <div id="message" style="color:#9b111e;margin-bottom:12px;display:none;"></div>
+    <div id="progressWrap" style="display:none;margin-bottom:12px;">
+      <div style="height:8px;background:#1c2b42;border:1px solid #3b4f6f;">
+        <div id="progressBar" style="height:100%;width:0%;background:#2f8dff;"></div>
+      </div>
+      <div id="progressText" style="color:#c3cde0;font-size:12px;margin-top:6px;">0%</div>
+    </div>
 
     <div style="margin-bottom:12px;">
       <textarea name="caption" placeholder="Caption (optional)" rows="3" style="width:100%;"></textarea>
@@ -44,7 +50,11 @@
   const radios = document.querySelectorAll('input[name="type"]');
   const msg = document.getElementById('message');
   const uploadBtn = document.getElementById('uploadBtn');
-  const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const CHUNK_SIZE = {{ upload_chunk_size|default:1048576 }}; // bytes
+  const PARALLEL_UPLOADS = 3;
 
   function setAccept() {
     const t = document.querySelector('input[name="type"]:checked').value;
@@ -110,8 +120,10 @@
         msg.textContent = text;
         msg.style.display = 'block';
       }
+      progressWrap.style.display = 'block';
     } else {
       uploadBtn.disabled = false;
+      progressWrap.style.display = 'none';
     }
   }
 
@@ -119,8 +131,17 @@
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     const filename = file.name || 'upload';
+    let uploadedBytes = 0;
 
-    for (let i = 0; i < totalChunks; i++) {
+    const updateProgress = () => {
+      const percent = Math.round((uploadedBytes / file.size) * 100);
+      progressBar.style.width = `${percent}%`;
+      progressText.textContent = `${percent}%`;
+      msg.textContent = `Uploading... ${percent}%`;
+      msg.style.display = 'block';
+    };
+
+    const uploadChunk = async (i) => {
       const start = i * CHUNK_SIZE;
       const end = Math.min(start + CHUNK_SIZE, file.size);
       const blob = file.slice(start, end);
@@ -141,10 +162,20 @@
         throw new Error('chunk_failed');
       }
 
-      const percent = Math.round(((i + 1) / totalChunks) * 100);
-      msg.textContent = `Uploading... ${percent}%`;
-      msg.style.display = 'block';
-    }
+      uploadedBytes += blob.size;
+      updateProgress();
+    };
+
+    updateProgress();
+    const queue = Array.from({ length: totalChunks }, (_, i) => i);
+    const workers = new Array(Math.min(PARALLEL_UPLOADS, totalChunks)).fill(0).map(async () => {
+      while (queue.length) {
+        const i = queue.shift();
+        if (i === undefined) break;
+        await uploadChunk(i);
+      }
+    });
+    await Promise.all(workers);
 
     const doneForm = new FormData();
     doneForm.append('upload_id', uploadId);
