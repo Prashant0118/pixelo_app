@@ -1283,10 +1283,21 @@ def register(request):
 
 def user_login(request):
     if request.method == 'POST':
-        username = request.POST.get('username', '')
+        identifier = (request.POST.get('username', '') or '').strip()
         password = request.POST.get('password', '')
 
-        user = authenticate(request, username=username, password=password)
+        user = None
+        if identifier:
+            # First try username login
+            user = authenticate(request, username=identifier, password=password)
+            # If not found, try email login
+            if user is None and "@" in identifier:
+                try:
+                    matched = User.objects.filter(email__iexact=identifier).only("username").first()
+                except Exception:
+                    matched = None
+                if matched:
+                    user = authenticate(request, username=matched.username, password=password)
 
         if user is not None:
             login(request, user)
