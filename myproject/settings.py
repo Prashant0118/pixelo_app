@@ -153,6 +153,9 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    # Custom middleware to add Content-Security-Policy frame-ancestors
+    # when configured via ALLOW_FRAMING_FROM environment variable.
+    'myapp.middleware.AllowFrameAncestorsMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -277,6 +280,36 @@ MAX_POST_UPLOAD_BYTES = int(
 MAX_REEL_DURATION_CHECK_BYTES = int(
     os.getenv("MAX_REEL_DURATION_CHECK_BYTES", str(500 * 1024 * 1024))
 )
+
+# Optional: allow the app to be embedded in an iframe from specific origins.
+# Set env `ALLOW_FRAMING_FROM` to a space- or comma-separated list of origins
+# (e.g. "https://example.com https://partner.example") or use 'self'.
+raw_allow_framing = os.getenv("ALLOW_FRAMING_FROM", "").strip()
+ALLOW_FRAMING_FROM = []
+if raw_allow_framing:
+    tokens = raw_allow_framing.replace(",", " ").split()
+    ALLOW_FRAMING_FROM = [t.strip() for t in tokens if t.strip()]
+
+# If ALLOW_FRAMING_FROM is set, ensure those origins are trusted for CSRF
+# so uploads from embedded frames or partner pages can post back safely.
+if ALLOW_FRAMING_FROM:
+    try:
+        extras = []
+        for a in ALLOW_FRAMING_FROM:
+            if not a:
+                continue
+            if a in ("'self'", "self"):
+                # 'self' is not a valid CSRF_TRUSTED_ORIGINS entry
+                continue
+            if "://" in a:
+                extras.append(a)
+            else:
+                extras.append(f"https://{a}")
+        # Merge while preserving existing order and uniqueness
+        CSRF_TRUSTED_ORIGINS = list(dict.fromkeys((CSRF_TRUSTED_ORIGINS or []) + extras))
+    except Exception:
+        # Fail soft: do not raise on settings parsing
+        pass
 
 # Direct-to-Cloudinary upload controls
 DIRECT_UPLOAD_MIN_BYTES = int(
