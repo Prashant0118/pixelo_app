@@ -48,7 +48,9 @@
                                                 <img src="{{ media_url }}" alt="post preview">
                                             {% endif %}
                                         {% else %}
-                                            <div class="notif-preview-empty">Media unavailable</div>
+                                            <div class="notif-preview-empty">
+                                                <img src="{% static 'images/default.png' %}" alt="placeholder" class="notif-media-placeholder">
+                                            </div>
                                         {% endif %}
                                         {% endwith %}
                                     </a>

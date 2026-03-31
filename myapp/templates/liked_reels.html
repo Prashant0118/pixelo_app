@@ -58,7 +58,9 @@
                     <img src="{{ media_url }}" alt="liked media">
                     {% endif %}
                 {% else %}
-                    <div class="text-muted small p-2">Media unavailable</div>
+                    <div class="post-empty">
+                        <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
+                    </div>
                 {% endif %}
                 {% endwith %}
                 <div class="item-meta">
@@ -82,7 +84,9 @@
                 {% if media_url %}
                 <img src="{{ media_url }}" alt="liked post">
                 {% else %}
-                <div class="text-muted small p-2">Media unavailable</div>
+                <div class="post-empty">
+                    <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
+                </div>
                 {% endif %}
                 {% endwith %}
                 <div class="item-meta">
@@ -108,7 +112,9 @@
                     <source src="{{ media_url }}">
                 </video>
                 {% else %}
-                <div class="text-muted small p-2">Media unavailable</div>
+                <div class="post-empty">
+                    <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
+                </div>
                 {% endif %}
                 {% endwith %}
                 <div class="item-meta">

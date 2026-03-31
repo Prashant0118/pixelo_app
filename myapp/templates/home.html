@@ -97,7 +97,9 @@
             </div>
         {% else %}
             <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
-                <div class="text-muted small p-3">Media unavailable</div>
+                <div class="post-empty">
+                    <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
+                </div>
             </div>
         {% endif %}
         {% endwith %}

@@ -1,628 +1,80 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/upload.css' %}">
-<style>
-    .upload-progress {
-        width: 100%;
-        height: 8px;
-        background: #e5e7eb;
-        border-radius: 999px;
-        overflow: hidden;
-        margin-top: 12px;
-    }
-    .upload-progress-bar {
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, #22c55e, #16a34a);
-        transition: width 0.2s ease;
-    }
-    .upload-progress-text {
-        margin-top: 8px;
-        font-size: 0.9rem;
-        color: #374151;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
 
-<div class="upload-container">
+<div class="upload-container" style="max-width:640px;margin:24px auto;">
+  <h3>Create Post / Reel</h3>
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
 
-    <h4>Create New Post</h4>
-    {% if error %}
-    <div class="alert alert-danger" role="alert">{{ error }}</div>
-    {% endif %}
-    <div class="alert alert-danger d-none" role="alert" id="reelDurationError"></div>
+  <form method="POST" enctype="multipart/form-data" id="simpleUploadForm">
+    {% csrf_token %}
 
-    <form method="POST" enctype="multipart/form-data">
-        {% csrf_token %}
+    <div style="margin-bottom:12px;">
+      <label style="margin-right:12px;"><input type="radio" name="type" value="post" checked> Post (image)</label>
+      <label><input type="radio" name="type" value="reel"> Reel (video)</label>
+    </div>
 
-        <!-- Upload Type -->
-        <div class="upload-type">
-            <label>
-                <input type="radio" name="type" value="post" checked>
-                Post
-            </label>
+    <div style="margin-bottom:12px;">
+      <input type="file" name="media" id="mediaInput" accept="image/*" required>
+    </div>
 
-            <label>
-                <input type="radio" name="type" value="reel">
-                Reel
-            </label>
-        </div>
+    <div id="message" style="color:#9b111e;margin-bottom:12px;display:none;"></div>
 
-        
+    <div style="margin-bottom:12px;">
+      <textarea name="caption" placeholder="Caption (optional)" rows="3" style="width:100%;"></textarea>
+    </div>
 
-        <!-- File Upload -->
-        <div class="file-upload">
-            <input type="file" name="media" id="mediaInput" accept="image/*,video/*" required>
-            <label for="mediaInput" class="file-label">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-                <span>Click to Upload</span>
-            </label>
-        </div>
-
-        <!-- Preview -->
-        <div class="preview-box" id="previewBox"></div>
-        <div class="upload-duration d-none" role="status" id="uploadDurationInfo"></div>
-        <div class="upload-progress d-none" id="uploadProgress">
-            <div class="upload-progress-bar" id="uploadProgressBar"></div>
-        </div>
-        <div class="upload-progress-text d-none" id="uploadProgressText"></div>
-
-        <!-- Caption -->
-        <textarea name="caption" placeholder="Write a caption... (Use hashtags)" rows="3"></textarea>
-
-        <!-- Submit -->
-        <button type="submit" class="upload-btn">Upload</button>
-
-    </form>
+    <button type="submit" class="btn btn-primary">Upload</button>
+  </form>
 
 </div>
 
-{% if firebase_api_key and firebase_storage_bucket and firebase_project_id %}
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-{% endif %}
-<!-- Preview Script -->
 <script>
-const input = document.getElementById("mediaInput");
-const previewBox = document.getElementById("previewBox");
-const typeRadios = document.querySelectorAll("input[name='type']");
-const reelDurationError = document.getElementById("reelDurationError");
-const uploadDurationInfo = document.getElementById("uploadDurationInfo");
-const form = document.querySelector("form");
-const uploadProgress = document.getElementById("uploadProgress");
-const uploadProgressBar = document.getElementById("uploadProgressBar");
-const uploadProgressText = document.getElementById("uploadProgressText");
-let previewObjectUrl = "";
+(() => {
+  const form = document.getElementById('simpleUploadForm');
+  const media = document.getElementById('mediaInput');
+  const radios = document.querySelectorAll('input[name="type"]');
+  const msg = document.getElementById('message');
 
-const DIRECT_UPLOAD_ENABLED = {{ direct_upload_enabled|yesno:"true,false" }};
-const WIDGET_ENABLED = {{ cloudinary_widget_enabled|yesno:"true,false" }};
-const CLOUDINARY_UPLOAD_PRESET = "{{ cloudinary_upload_preset|escapejs }}";
-const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|escapejs }}";
-const ALLOW_UNSIGNED_UPLOAD = {{ allow_unsigned_upload|yesno:"true,false" }};
-const CAN_UNSIGNED_UPLOAD = Boolean(
-    ALLOW_UNSIGNED_UPLOAD && WIDGET_ENABLED && CLOUDINARY_UPLOAD_PRESET && CLOUDINARY_CLOUD_NAME
-);
-const USER_ID = {{ request.user.id }};
-const DIRECT_UPLOAD_MIN_BYTES = {{ direct_upload_min_bytes|default:0 }};
-const MAX_DIRECT_UPLOAD_BYTES = {{ max_direct_upload_bytes|default:0 }};
-const MAX_REEL_UPLOAD_BYTES = {{ max_reel_upload_bytes|default:0 }};
-const MAX_POST_UPLOAD_BYTES = {{ max_post_upload_bytes|default:0 }};
-const LARGE_UPLOAD_BYTES = 100 * 1024 * 1024;
-const CHUNK_SIZE_BYTES = 20 * 1024 * 1024;
-const VIDEO_EXTS = new Set([".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"]);
-const FIREBASE_CONFIG = {
-    apiKey: "{{ firebase_api_key|escapejs }}",
-    authDomain: "{{ firebase_auth_domain|escapejs }}",
-    projectId: "{{ firebase_project_id|escapejs }}",
-    storageBucket: "{{ firebase_storage_bucket|escapejs }}",
-    appId: "{{ firebase_app_id|escapejs }}",
-    measurementId: "{{ firebase_measurement_id|escapejs }}",
-};
-const FIREBASE_ENABLED = Boolean(
-    FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.storageBucket && FIREBASE_CONFIG.projectId
-);
-let firebaseAppInstance = null;
-let firebaseStorageInstance = null;
+  function setAccept() {
+    const t = document.querySelector('input[name="type"]:checked').value;
+    media.accept = t === 'post' ? 'image/*' : 'video/*';
+    msg.style.display = 'none';
+  }
 
-function showReelError(message) {
-    if (!reelDurationError) return;
-    reelDurationError.textContent = message;
-    reelDurationError.classList.remove("d-none");
-}
+  radios.forEach(r => r.addEventListener('change', setAccept));
+  setAccept();
 
-function clearReelError() {
-    if (!reelDurationError) return;
-    reelDurationError.textContent = "";
-    reelDurationError.classList.add("d-none");
-}
-
-function showDurationInfo(message) {
-    if (!uploadDurationInfo) return;
-    uploadDurationInfo.textContent = message;
-    uploadDurationInfo.classList.remove("d-none");
-}
-
-function clearDurationInfo() {
-    if (!uploadDurationInfo) return;
-    uploadDurationInfo.textContent = "";
-    uploadDurationInfo.classList.add("d-none");
-}
-
-function showUploadProgress(percent, message) {
-    if (!uploadProgress || !uploadProgressBar || !uploadProgressText) return;
-    uploadProgress.classList.remove("d-none");
-    uploadProgressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
-    if (message) {
-        uploadProgressText.textContent = message;
-        uploadProgressText.classList.remove("d-none");
-    }
-}
-
-function hideUploadProgress() {
-    if (!uploadProgress || !uploadProgressBar || !uploadProgressText) return;
-    uploadProgress.classList.add("d-none");
-    uploadProgressBar.style.width = "0%";
-    uploadProgressText.textContent = "";
-    uploadProgressText.classList.add("d-none");
-}
-
-function setFormDisabled(disabled) {
-    const submitBtn = document.querySelector(".upload-btn");
-    if (submitBtn) submitBtn.disabled = disabled;
-    if (input) input.disabled = disabled;
-    typeRadios.forEach((radio) => { radio.disabled = disabled; });
-}
-
-function ensureFirebase() {
-    if (!FIREBASE_ENABLED || !window.firebase) {
-        return false;
-    }
-    if (!firebaseAppInstance) {
-        firebaseAppInstance = firebase.initializeApp(FIREBASE_CONFIG);
-        firebaseStorageInstance = firebase.storage();
-    }
-    return true;
-}
-
-function sanitizeFilename(name) {
-    const base = (name || "upload").replace(/[^a-zA-Z0-9._-]/g, "_");
-    return base.slice(0, 120) || "upload";
-}
-
-function makeUploadId() {
-    if (window.crypto && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-    return `u${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function uploadErrorMessage(status) {
-    if (status === 0) {
-        return "Upload failed due to CORS or network error. Please check Cloudinary CORS settings.";
-    }
-    if (status === 413) {
-        return "Upload too large for current Cloudinary plan. Please upgrade plan or reduce size.";
-    }
-    return "Cloudinary upload failed.";
-}
-
-async function uploadCloudinaryChunked(uploadUrl, fields, file) {
-    const uploadId = makeUploadId();
-    const chunkSize = CHUNK_SIZE_BYTES;
-    let lastResponse = null;
-
-    for (let start = 0; start < file.size; start += chunkSize) {
-        const end = Math.min(start + chunkSize, file.size);
-        const chunk = file.slice(start, end);
-        const formData = new FormData();
-
-        Object.keys(fields).forEach((key) => {
-            if (fields[key] !== undefined && fields[key] !== null && fields[key] !== "") {
-                formData.append(key, fields[key]);
-            }
-        });
-        formData.append("file", chunk);
-
-        lastResponse = await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open("POST", uploadUrl);
-            xhr.setRequestHeader("X-Unique-Upload-Id", uploadId);
-            xhr.setRequestHeader("Content-Range", `bytes ${start}-${end - 1}/${file.size}`);
-            xhr.upload.onprogress = (evt) => {
-                if (!evt.lengthComputable) return;
-                const overall = start + evt.loaded;
-                const percent = Math.round((overall / file.size) * 100);
-                showUploadProgress(percent, `Uploading... ${percent}%`);
-            };
-            xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                        resolve(JSON.parse(xhr.responseText || "{}"));
-                    } catch (err) {
-                        resolve({});
-                    }
-                } else {
-                    const respText = xhr.responseText || "";
-                    let msg = uploadErrorMessage(xhr.status);
-                    try {
-                        const parsed = JSON.parse(respText || "{}");
-                        if (parsed && parsed.error) {
-                            msg += ` - ${parsed.error}`;
-                        } else if (respText) {
-                            msg += ` - ${respText}`;
-                        }
-                    } catch (e) {
-                        if (respText) msg += ` - ${respText}`;
-                    }
-                    reject(new Error(msg));
-                }
-            };
-            xhr.onerror = () => {
-                const respText = xhr.responseText || "";
-                reject(new Error(`Upload network error.${respText ? ' ' + respText : ''}`));
-            };
-            xhr.send(formData);
-        });
-    }
-
-    return lastResponse;
-}
-
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(";").shift();
-    return "";
-}
-
-function formatDuration(seconds) {
-    if (!Number.isFinite(seconds) || seconds <= 0) return "0:00";
-    const total = Math.floor(seconds);
-    const mins = Math.floor(total / 60);
-    const secs = String(total % 60).padStart(2, "0");
-    return `${mins}:${secs}`;
-}
-
-function isVideoFile(file) {
-    if (!file) return false;
-    if (file.type && file.type.startsWith("video/")) return true;
-    const name = (file.name || "").toLowerCase();
-    const dot = name.lastIndexOf(".");
-    if (dot === -1) return false;
-    const ext = name.slice(dot);
-    return VIDEO_EXTS.has(ext);
-}
-
-function applyPreviewMode() {
-    const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
-    previewBox.classList.toggle("reel-mode", selectedType === "reel");
-}
-
-function setSelectedType(value) {
-    const radio = document.querySelector(`input[name='type'][value='${value}']`);
-    if (radio && !radio.checked) {
-        radio.checked = true;
-    }
-}
-
-function clearPreview() {
-    previewBox.innerHTML = "";
-    if (previewObjectUrl) {
-        URL.revokeObjectURL(previewObjectUrl);
-        previewObjectUrl = "";
-    }
-}
-
-function renderPreview(file) {
-    clearPreview();
-    if (!file) return;
-    previewObjectUrl = URL.createObjectURL(file);
-    if (file.type.startsWith("image/")) {
-        previewBox.innerHTML = `<img src="${previewObjectUrl}" class="preview-img">`;
-        clearDurationInfo();
-    } else if (file.type.startsWith("video/")) {
-        previewBox.innerHTML = `<video src="${previewObjectUrl}" controls class="preview-video"></video>`;
-    }
-}
-
-async function validateReelDuration(file) {
-    const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
-    if (selectedType !== "reel") {
-        clearReelError();
-        return true;
-    }
-    if (!file) {
-        clearReelError();
-        return true;
-    }
-    if (!file.type.startsWith("video/")) {
-        showReelError("Reel upload only supports video files.");
-        return false;
-    }
-    
-    // If file is too large for reel storage, auto-convert to post
-    if (MAX_REEL_UPLOAD_BYTES && file.size > MAX_REEL_UPLOAD_BYTES) {
-        setSelectedType("post");
-        applyPreviewMode();
-        showDurationInfo(
-            `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds reel limit -- ` +
-            `automatically uploading as Post to your main feed`
-        );
-        clearReelError();
-        return true;
-    }
-    
-    const tempUrl = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.src = tempUrl;
-    const duration = await new Promise((resolve) => {
-        video.onloadedmetadata = () => resolve(video.duration || 0);
-        video.onerror = () => resolve(0);
-    });
-    URL.revokeObjectURL(tempUrl);
-    if (duration > 0) {
-        showDurationInfo(`Video duration: ${formatDuration(duration)}${selectedType === "reel" ? " (max 1:00)" : ""}`);
-    } else {
-        clearDurationInfo();
-    }
-    if (duration > 60.1) {
-        // Auto-switch to post for longer videos.
-        setSelectedType("post");
-        applyPreviewMode();
-        clearReelError();
-        showDurationInfo(
-            `Video duration: ${formatDuration(duration)} (longer than 1 minute) -- ` +
-            `automatically uploading as Post to your main feed`
-        );
-        return true;
-    }
-    clearReelError();
-    return true;
-}
-
-input.addEventListener("change", async function() {
-    clearPreview();
-    const file = this.files[0];
-    clearDurationInfo();
-
-    if (file) {
-        renderPreview(file);
-        await validateReelDuration(file);
-    }
-});
-
-typeRadios.forEach((radio) => {
-    radio.addEventListener("change", async () => {
-        applyPreviewMode();
-        const file = input.files && input.files[0];
-        if (!file) {
-            clearReelError();
-            clearDurationInfo();
-            return;
+  media.addEventListener('change', async () => {
+    msg.style.display = 'none';
+    const f = media.files && media.files[0];
+    if (!f) return;
+    if (f.type && f.type.startsWith('video/')) {
+      // quick duration check in browser
+      const url = URL.createObjectURL(f);
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.src = url;
+      v.onloadedmetadata = () => {
+        URL.revokeObjectURL(url);
+        const secs = v.duration || 0;
+        if (secs > 60) {
+          // auto-switch to post and inform user
+          const postRadio = document.querySelector('input[name="type"][value="post"]');
+          if (postRadio) postRadio.checked = true;
+          setAccept();
+          msg.textContent = 'Video is longer than 1:00 — it will be uploaded as a Post (main feed).';
+          msg.style.display = 'block';
         }
-        const ok = await validateReelDuration(file);
-        if (!ok) {
-            input.value = "";
-            clearPreview();
-            clearDurationInfo();
-        }
-    });
-});
-applyPreviewMode();
+      };
+      v.onerror = () => { URL.revokeObjectURL(url); };
+    }
+  });
 
-if (form) {
-    form.addEventListener("submit", async (event) => {
-        const file = input.files && input.files[0];
-        const ok = await validateReelDuration(file);
-        if (!ok) {
-            event.preventDefault();
-            input.value = "";
-            clearPreview();
-            clearDurationInfo();
-            hideUploadProgress();
-            return;
-        }
-
-        const selectedType = document.querySelector("input[name='type']:checked")?.value || "post";
-        const isVideo = isVideoFile(file);
-
-        if (isVideo && FIREBASE_ENABLED) {
-            event.preventDefault();
-            const sizeLimit = selectedType === "reel" ? MAX_REEL_UPLOAD_BYTES : MAX_POST_UPLOAD_BYTES;
-            if (sizeLimit && file && file.size > sizeLimit) {
-                showReelError(`File too large. Max size is ${(sizeLimit / (1024 * 1024)).toFixed(1)} MB.`);
-                return;
-            }
-            if (!ensureFirebase()) {
-                showReelError("Firebase is not configured for uploads.");
-                return;
-            }
-
-            setFormDisabled(true);
-            showUploadProgress(2, "Starting upload...");
-
-            const safeName = sanitizeFilename(file.name || "video");
-            const filePath = `posts/u${USER_ID}/${Date.now()}_${safeName}`;
-            const storageRef = firebaseStorageInstance.ref().child(filePath);
-            const metadata = { contentType: file.type || "application/octet-stream" };
-
-            const uploadTask = storageRef.put(file, metadata);
-            uploadTask.on(
-                "state_changed",
-                (snapshot) => {
-                    if (!snapshot || !snapshot.totalBytes) return;
-                    const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                    showUploadProgress(percent, `Uploading... ${percent}%`);
-                },
-                (error) => {
-                    showReelError(error?.message || "Upload failed.");
-                    hideUploadProgress();
-                    setFormDisabled(false);
-                },
-                async () => {
-                    try {
-                        const downloadUrl = await uploadTask.snapshot.ref.getDownloadURL();
-                        showUploadProgress(98, "Finalizing...");
-                        const caption = document.querySelector("textarea[name='caption']")?.value || "";
-                        const completeRes = await fetch("{% url 'firebase_complete_upload' %}", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "X-CSRFToken": getCookie("csrftoken"),
-                            },
-                            body: JSON.stringify({
-                                download_url: downloadUrl,
-                                post_type: selectedType,
-                                caption: caption,
-                            }),
-                        });
-                        if (!completeRes.ok) {
-                            throw new Error("Finalize failed.");
-                        }
-                        const completePayload = await completeRes.json();
-                        showUploadProgress(100, "Done! Redirecting...");
-                        window.location.href = completePayload.redirect || "/";
-                    } catch (err) {
-                        showReelError(err.message || "Finalize failed.");
-                        hideUploadProgress();
-                        setFormDisabled(false);
-                    }
-                }
-            );
-            return;
-        }
-
-        const shouldDirectUpload = Boolean(
-            (DIRECT_UPLOAD_ENABLED || CAN_UNSIGNED_UPLOAD) &&
-            file &&
-            isVideo &&
-            (!DIRECT_UPLOAD_MIN_BYTES || file.size >= DIRECT_UPLOAD_MIN_BYTES)
-        );
-        if (!shouldDirectUpload) {
-            // No direct-to-cloud upload configured; allow server-side upload.
-            // The Django upload handler will stream large files to disk
-            // (see myapp.upload_handler.LargeVideoUploadHandler) so both
-            // short and long videos can be uploaded via the server.
-            return;
-        }
-
-        event.preventDefault();
-        const sizeLimit = selectedType === "reel" ? MAX_REEL_UPLOAD_BYTES : MAX_POST_UPLOAD_BYTES;
-        if (sizeLimit && file.size > sizeLimit) {
-            showReelError(`File too large. Max size is ${(sizeLimit / (1024 * 1024)).toFixed(1)} MB.`);
-            return;
-        }
-        if (MAX_DIRECT_UPLOAD_BYTES && file.size > MAX_DIRECT_UPLOAD_BYTES) {
-            showReelError(`File too large for direct upload. Max is ${(MAX_DIRECT_UPLOAD_BYTES / (1024 * 1024)).toFixed(1)} MB.`);
-            return;
-        }
-
-        setFormDisabled(true);
-        showUploadProgress(2, "Starting upload...");
-
-        try {
-            let uploadUrl = "";
-            const shouldUseLargeUpload = file.size >= LARGE_UPLOAD_BYTES;
-            const fields = {};
-
-            if (!CAN_UNSIGNED_UPLOAD) {
-                throw new Error("Unsigned upload is not configured.");
-            }
-
-            fields.upload_preset = CLOUDINARY_UPLOAD_PRESET;
-            fields.folder = `posts/u${USER_ID}`;
-            fields.chunk_size = CHUNK_SIZE_BYTES;
-            const uploadPath = "upload";
-            uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/${uploadPath}`;
-
-            let uploadResult;
-            if (shouldUseLargeUpload) {
-                uploadResult = await uploadCloudinaryChunked(uploadUrl, fields, file);
-            } else {
-                const formData = new FormData();
-                Object.keys(fields).forEach((key) => {
-                    if (fields[key] !== undefined && fields[key] !== null && fields[key] !== "") {
-                        formData.append(key, fields[key]);
-                    }
-                });
-                formData.append("file", file);
-                uploadResult = await new Promise((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open("POST", uploadUrl);
-                    xhr.upload.onprogress = (evt) => {
-                        if (!evt.lengthComputable) return;
-                        const percent = Math.round((evt.loaded / evt.total) * 100);
-                        showUploadProgress(percent, `Uploading... ${percent}%`);
-                    };
-                    xhr.onload = () => {
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            try {
-                                resolve(JSON.parse(xhr.responseText));
-                            } catch (err) {
-                                reject(new Error("Invalid upload response."));
-                            }
-                        } else {
-                            const respText = xhr.responseText || "";
-                            let msg = uploadErrorMessage(xhr.status);
-                            try {
-                                const parsed = JSON.parse(respText || "{}");
-                                if (parsed && parsed.error) {
-                                    msg += ` - ${parsed.error}`;
-                                } else if (respText) {
-                                    msg += ` - ${respText}`;
-                                }
-                            } catch (e) {
-                                if (respText) msg += ` - ${respText}`;
-                            }
-                            reject(new Error(msg));
-                        }
-                    };
-                    xhr.onerror = () => {
-                        const respText = xhr.responseText || "";
-                        reject(new Error(`Upload network error.${respText ? ' ' + respText : ''}`));
-                    };
-                    xhr.send(formData);
-                });
-            }
-
-            showUploadProgress(98, "Finalizing...");
-
-            const caption = document.querySelector("textarea[name='caption']")?.value || "";
-            const completeRes = await fetch("{% url 'cloudinary_complete_upload' %}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken"),
-                },
-                body: JSON.stringify({
-                    public_id: uploadResult.public_id,
-                    resource_type: uploadResult.resource_type,
-                    format: uploadResult.format,
-                    bytes: uploadResult.bytes,
-                    post_type: selectedType,
-                    caption: caption,
-                }),
-            });
-            if (!completeRes.ok) {
-                throw new Error("Finalize failed.");
-            }
-            const completePayload = await completeRes.json();
-            showUploadProgress(100, "Done! Redirecting...");
-            window.location.href = completePayload.redirect || "/";
-        } catch (err) {
-            showReelError(err.message || "Direct upload failed.");
-            hideUploadProgress();
-            setFormDisabled(false);
-        }
-    });
-}
-
-// Widget is opened automatically for large uploads or can be triggered manually if needed.
+})();
 </script>
 
 {% endblock %}

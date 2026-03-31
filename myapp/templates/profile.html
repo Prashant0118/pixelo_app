@@ -190,7 +190,9 @@
             </div>
             {% endif %}
             {% else %}
-            <div class="post-empty">Media unavailable</div>
+            <div class="post-empty">
+                <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
+            </div>
             {% endif %}
         </article>
         {% empty %}
