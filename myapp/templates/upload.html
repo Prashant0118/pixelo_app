@@ -27,10 +27,15 @@
       <textarea name="caption" placeholder="Caption (optional)" rows="3" style="width:100%;"></textarea>
     </div>
 
-    <button type="submit" class="btn btn-primary">Upload</button>
+    <button type="submit" class="btn btn-primary" id="uploadBtn">Upload</button>
   </form>
 
 </div>
+
+{% if firebase_api_key and firebase_storage_bucket and firebase_project_id %}
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+{% endif %}
 
 <script>
 (() => {
@@ -38,6 +43,7 @@
   const media = document.getElementById('mediaInput');
   const radios = document.querySelectorAll('input[name="type"]');
   const msg = document.getElementById('message');
+  const uploadBtn = document.getElementById('uploadBtn');
 
   function setAccept() {
     const t = document.querySelector('input[name="type"]:checked').value;
@@ -71,6 +77,105 @@
         }
       };
       v.onerror = () => { URL.revokeObjectURL(url); };
+    }
+  });
+
+  const firebaseConfig = {
+    apiKey: "{{ firebase_api_key|default:'' }}",
+    authDomain: "{{ firebase_auth_domain|default:'' }}",
+    projectId: "{{ firebase_project_id|default:'' }}",
+    storageBucket: "{{ firebase_storage_bucket|default:'' }}",
+    appId: "{{ firebase_app_id|default:'' }}",
+    measurementId: "{{ firebase_measurement_id|default:'' }}",
+  };
+  const directUploadMinBytes = {{ direct_upload_min_bytes|default:0 }};
+  const maxDirectUploadBytes = {{ max_direct_upload_bytes|default:0 }};
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+  }
+
+  function canUseFirebase() {
+    return firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.storageBucket && window.firebase;
+  }
+
+  function setBusy(state, text) {
+    if (state) {
+      uploadBtn.disabled = true;
+      if (text) {
+        msg.textContent = text;
+        msg.style.display = 'block';
+      }
+    } else {
+      uploadBtn.disabled = false;
+    }
+  }
+
+  form.addEventListener('submit', async (e) => {
+    const file = media.files && media.files[0];
+    if (!file) return;
+
+    if (!canUseFirebase()) return;
+    if (directUploadMinBytes && file.size < directUploadMinBytes) return;
+    if (maxDirectUploadBytes && file.size > maxDirectUploadBytes) {
+      e.preventDefault();
+      msg.textContent = 'File is too large for direct upload.';
+      msg.style.display = 'block';
+      return;
+    }
+
+    e.preventDefault();
+    setBusy(true, 'Uploading... 0%');
+
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      const storage = firebase.storage();
+      const ts = Date.now();
+      const safeName = (file.name || 'upload').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `uploads/${ts}_${safeName}`;
+      const uploadTask = storage.ref(path).put(file);
+
+      uploadTask.on('state_changed', (snapshot) => {
+        const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+        msg.textContent = `Uploading... ${progress}%`;
+        msg.style.display = 'block';
+      });
+
+      await uploadTask;
+      const downloadUrl = await storage.ref(path).getDownloadURL();
+
+      const postType = document.querySelector('input[name="type"]:checked').value;
+      const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
+
+      const res = await fetch('/upload/firebase-complete/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify({
+          download_url: downloadUrl,
+          post_type: postType,
+          caption: caption,
+        }),
+      });
+      const data = await res.json();
+      if (data && data.redirect) {
+        window.location.href = data.redirect;
+        return;
+      }
+      msg.textContent = (data && data.error) ? data.error : 'Upload completed, but response was unexpected.';
+      msg.style.display = 'block';
+      setBusy(false);
+    } catch (err) {
+      msg.textContent = 'Upload failed. Please try again.';
+      msg.style.display = 'block';
+      setBusy(false);
     }
   });
 
