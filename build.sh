@@ -2,5 +2,6 @@
 set -o errexit
 
 pip install -r requirements.txt
-python manage.py collectstatic --noinput --upload-unhashed-files
+# Run collectstatic without unsupported flags to avoid manage.py errors on Render
+python manage.py collectstatic --noinput
 python manage.py migrate --noinput
