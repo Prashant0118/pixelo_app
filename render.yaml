@@ -3,8 +3,8 @@ services:
     name: pixelo-app
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
-    startCommand: daphne -b 0.0.0.0 -p $PORT myproject.asgi:application
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
     envVars:
       - key: DEBUG
         value: "False"
