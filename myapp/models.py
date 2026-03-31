@@ -113,12 +113,22 @@ class Profile(models.Model):
                     if name and name != self.image.name:
                         try:
                             storage = self.image.storage
-                            if hasattr(storage, "exists") and storage.exists(name):
-                                return _storage_url(self.image, name)
+                            if hasattr(storage, "exists"):
+                                if storage.exists(name):
+                                    return _storage_url(self.image, name)
+                                # Missing file: fall back to generated avatar
+                                raise FileNotFoundError
                         except Exception:
                             pass
+                    storage = self.image.storage
+                    if hasattr(storage, "exists"):
+                        if storage.exists(self.image.name):
+                            return self.image.url
+                        raise FileNotFoundError
                     return self.image.url
                 except ValueError:
+                    pass
+                except FileNotFoundError:
                     pass
 
         display_name = self.user.get_full_name().strip() or self.user.username or "User"
