@@ -67,43 +67,37 @@
     </div>
 
     <!-- Media -->
-    <div ondblclick="doubleLike({{ post.id }})">
-        {% with media_url=post.media_url media_name=post.media_name %}
-        {% if media_url %}
-            <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
-                {% if post.type == 'reel' or post.is_video %}
-                    <video class="w-100 feed-media feed-video-media {% if post.type == 'reel' %}feed-reel-video{% endif %}"
-                           data-post-id="{{ post.id }}"
-                           controls
-                           playsinline
-                           webkit-playsinline
-                           preload="metadata"
-                           src="{{ media_url }}"
-                           {% if post.type == "reel" %}muted{% endif %}
-                           {% if post.type == "reel" %}autoplay loop{% endif %}>
-                        <source src="{{ media_url }}"
-                                {% if media_name|slice:'-5:' == '.webm' %}type="video/webm"
-                                {% elif media_name|slice:'-4:' == '.mp4' or media_name|slice:'-4:' == '.m4v' %}type="video/mp4"
-                                {% elif media_name|slice:'-4:' == '.ogv' %}type="video/ogg"
-                                {% elif media_name|slice:'-4:' == '.mov' %}type="video/quicktime"
-                                {% elif media_name|slice:'-4:' == '.mkv' %}type="video/x-matroska"
-                                {% elif media_name|slice:'-4:' == '.avi' %}type="video/x-msvideo"
-                                {% elif media_name|slice:'-4:' == '.3gp' or media_name|slice:'-5:' == '.3gpp' %}type="video/3gpp"
-                                {% endif %}>
-                    </video>
-                {% else %}
-                    <img src="{{ media_url }}" class="img-fluid w-100 feed-media">
-                {% endif %}
+<div ondblclick="doubleLike({{ post.id }})">
+    
+    {% if post.media %}
+        <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
+            
+            {% if post.type == 'reel' or post.is_video %}
+                <video class="w-100 feed-media feed-video-media {% if post.type == 'reel' %}feed-reel-video{% endif %}"
+                       data-post-id="{{ post.id }}"
+                       controls
+                       playsinline
+                       preload="metadata"
+                       src="{{ post.media.url }}"
+                       {% if post.type == "reel" %}muted autoplay loop{% endif %}>
+                    
+                    <source src="{{ post.media.url }}" type="video/mp4">
+                </video>
+
+            {% else %}
+                <img src="{{ post.media.url }}" class="img-fluid w-100 feed-media">
+            {% endif %}
+
+        </div>
+    {% else %}
+        <div class="feed-media-frame">
+            <div class="post-empty">
+                <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
             </div>
-        {% else %}
-            <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
-                <div class="post-empty">
-                    <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
-                </div>
-            </div>
-        {% endif %}
-        {% endwith %}
-    </div>
+        </div>
+    {% endif %}
+
+</div>
 
     <!-- Actions -->
     <div class="p-2 post-actions-wrap">
