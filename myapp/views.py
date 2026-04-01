@@ -507,6 +507,11 @@ def media_serve(request, path):
     if not full_path.startswith(media_root + os.sep):
         raise Http404
     if not os.path.exists(full_path):
+        if _media_debug_enabled():
+            print(
+                "[media-debug][media_serve] missing file",
+                {"path": path, "full_path": full_path},
+            )
         raise Http404
 
     file_size = os.path.getsize(full_path)
@@ -2221,6 +2226,17 @@ def upload_chunk(request):
     chunk = request.FILES.get("chunk")
 
     if not upload_id or chunk is None:
+        if _media_debug_enabled():
+            print(
+                "[media-debug][upload_chunk] missing data",
+                {
+                    "upload_id": upload_id,
+                    "has_chunk": bool(chunk),
+                    "chunk_index": chunk_index,
+                    "total_chunks": total_chunks,
+                    "filename": filename,
+                },
+            )
         return JsonResponse({"error": "Missing upload data."}, status=400)
 
     try:
@@ -2229,6 +2245,16 @@ def upload_chunk(request):
         if idx < 0 or total <= 0 or idx >= total:
             raise ValueError
     except Exception:
+        if _media_debug_enabled():
+            print(
+                "[media-debug][upload_chunk] invalid index",
+                {
+                    "upload_id": upload_id,
+                    "chunk_index": chunk_index,
+                    "total_chunks": total_chunks,
+                    "filename": filename,
+                },
+            )
         return JsonResponse({"error": "Invalid chunk index."}, status=400)
 
     safe_name = _safe_filename(filename)
@@ -2241,6 +2267,17 @@ def upload_chunk(request):
             for piece in chunk.chunks():
                 handle.write(piece)
     except Exception:
+        if _media_debug_enabled():
+            print(
+                "[media-debug][upload_chunk] write failed",
+                {
+                    "upload_id": upload_id,
+                    "chunk_index": idx,
+                    "total_chunks": total,
+                    "filename": filename,
+                    "target_dir": target_dir,
+                },
+            )
         return JsonResponse({"error": "Failed to store chunk."}, status=500)
 
     # Store a tiny manifest for safety
@@ -2251,6 +2288,18 @@ def upload_chunk(request):
                 meta.write(json.dumps({"filename": safe_name, "total": total}))
     except Exception:
         pass
+
+    if _media_debug_enabled():
+        print(
+            "[media-debug][upload_chunk] stored",
+            {
+                "upload_id": upload_id,
+                "chunk_index": idx,
+                "total_chunks": total,
+                "filename": filename,
+                "size": getattr(chunk, "size", None),
+            },
+        )
 
     return JsonResponse({"ok": True})
 
@@ -2268,6 +2317,8 @@ def upload_chunk_complete(request):
         post_type = "post"
 
     if not upload_id:
+        if _media_debug_enabled():
+            print("[media-debug][upload_chunk_complete] missing upload_id")
         return JsonResponse({"error": "Missing upload id."}, status=400)
 
     try:
@@ -2275,10 +2326,20 @@ def upload_chunk_complete(request):
         if total <= 0:
             raise ValueError
     except Exception:
+        if _media_debug_enabled():
+            print(
+                "[media-debug][upload_chunk_complete] invalid total",
+                {"upload_id": upload_id, "total_chunks": total_chunks},
+            )
         return JsonResponse({"error": "Invalid total chunks."}, status=400)
 
     target_dir = _chunk_dir(upload_id)
     if not os.path.isdir(target_dir):
+        if _media_debug_enabled():
+            print(
+                "[media-debug][upload_chunk_complete] upload not found",
+                {"upload_id": upload_id, "target_dir": target_dir},
+            )
         return JsonResponse({"error": "Upload not found."}, status=400)
 
     safe_name = _safe_filename(filename)
@@ -2293,6 +2354,11 @@ def upload_chunk_complete(request):
             for idx in range(total):
                 chunk_path = os.path.join(target_dir, f"chunk_{idx:06d}")
                 if not os.path.exists(chunk_path):
+                    if _media_debug_enabled():
+                        print(
+                            "[media-debug][upload_chunk_complete] missing chunk",
+                            {"upload_id": upload_id, "missing": idx, "target_dir": target_dir},
+                        )
                     return JsonResponse({"error": f"Missing chunk {idx}."}, status=400)
                 with open(chunk_path, "rb") as src:
                     while True:
@@ -2301,6 +2367,11 @@ def upload_chunk_complete(request):
                             break
                         out.write(buf)
     except Exception:
+        if _media_debug_enabled():
+            print(
+                "[media-debug][upload_chunk_complete] assemble failed",
+                {"upload_id": upload_id, "target_dir": target_dir},
+            )
         return JsonResponse({"error": "Failed to assemble upload."}, status=500)
 
     # Enforce size guard for posts
@@ -2311,6 +2382,11 @@ def upload_chunk_complete(request):
                 os.remove(assembled_abs)
             except Exception:
                 pass
+            if _media_debug_enabled():
+                print(
+                    "[media-debug][upload_chunk_complete] too large",
+                    {"upload_id": upload_id, "max_bytes": max_bytes},
+                )
             return JsonResponse({"error": "File too large."}, status=400)
     except Exception:
         pass
@@ -2320,6 +2396,11 @@ def upload_chunk_complete(request):
             django_file = File(f, name=assembled_name)
             post = Post.objects.create(user=request.user, media=django_file, caption=caption, type=post_type)
     except Exception as exc:
+        if _media_debug_enabled():
+            print(
+                "[media-debug][upload_chunk_complete] create failed",
+                {"upload_id": upload_id, "error": f"{exc.__class__.__name__}: {exc}"},
+            )
         return JsonResponse({"error": f"Upload failed: {exc.__class__.__name__}"}, status=500)
     finally:
         try:
@@ -2336,6 +2417,12 @@ def upload_chunk_complete(request):
             os.rmdir(target_dir)
         except Exception:
             pass
+
+    if _media_debug_enabled():
+        print(
+            "[media-debug][upload_chunk_complete] done",
+            {"upload_id": upload_id, "post_id": getattr(post, "id", None)},
+        )
 
     return JsonResponse({"ok": True, "redirect": reverse("home")})
 

@@ -136,6 +136,37 @@
 
 </div>
 
+<script>
+(() => {
+  const fallback = "{% static 'images/default.png' %}";
+
+  document.querySelectorAll("img").forEach((img) => {
+    if (!img.getAttribute("loading")) {
+      img.setAttribute("loading", "lazy");
+    }
+    if (!img.getAttribute("decoding")) {
+      img.setAttribute("decoding", "async");
+    }
+    img.addEventListener("error", () => {
+      if (img.dataset.fallbackApplied) return;
+      img.dataset.fallbackApplied = "1";
+      img.src = img.dataset.fallback || fallback;
+    });
+  });
+
+  document.querySelectorAll("video").forEach((vid) => {
+    if (!vid.getAttribute("preload")) {
+      vid.setAttribute("preload", "metadata");
+    }
+    vid.addEventListener("error", () => {
+      if (vid.dataset.fallbackApplied) return;
+      vid.dataset.fallbackApplied = "1";
+      vid.setAttribute("poster", vid.dataset.fallback || fallback);
+    });
+  });
+})();
+</script>
+
 </body>
 </html>
 

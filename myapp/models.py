@@ -11,6 +11,22 @@ import mimetypes
 import os
 
 
+def _media_debug_enabled():
+    try:
+        return (os.getenv("MEDIA_DEBUG", "") or "").lower() in ("1", "true", "yes", "on")
+    except Exception:
+        return False
+
+
+def _log_missing_media(context, name):
+    if not _media_debug_enabled():
+        return
+    try:
+        print(f"[media-debug][missing] {context}: {name}")
+    except Exception:
+        pass
+
+
 def _cloudinary_video_url(url):
     if not url:
         return ""
@@ -89,7 +105,16 @@ def _normalize_media_name(name):
 
 def _storage_url(field, name):
     try:
-        return field.storage.url(name)
+        url = field.storage.url(name)
+        if not url:
+            return ""
+        # Some storage backends can return a plain filename; normalize to MEDIA_URL.
+        if not (url.startswith("http://") or url.startswith("https://") or url.startswith("/")):
+            base = getattr(settings, "MEDIA_URL", "/media/")
+            if not base.endswith("/"):
+                base = f"{base}/"
+            return f"{base}{url}"
+        return url
     except Exception:
         return ""
 
@@ -140,6 +165,7 @@ class Profile(models.Model):
                             if hasattr(storage, "exists"):
                                 if storage.exists(name):
                                     return _storage_url(self.image, name)
+                                _log_missing_media("profile.image", name)
                                 # Missing file: fall back to generated avatar
                                 raise FileNotFoundError
                         except Exception:
@@ -148,6 +174,7 @@ class Profile(models.Model):
                     if hasattr(storage, "exists"):
                         if storage.exists(self.image.name):
                             return self.image.url
+                        _log_missing_media("profile.image", self.image.name)
                         raise FileNotFoundError
                     return self.image.url
                 except ValueError:
@@ -226,6 +253,7 @@ class Story(models.Model):
                         storage = self.image.storage
                         if hasattr(storage, "exists") and storage.exists(name):
                             return _storage_url(self.image, name)
+                        _log_missing_media("story.image", name)
                     except Exception:
                         pass
                 return self.image.url
@@ -239,6 +267,7 @@ class Story(models.Model):
                         storage = self.media.storage
                         if hasattr(storage, "exists") and storage.exists(name):
                             return _storage_url(self.media, name)
+                        _log_missing_media("story.media", name)
                     except Exception:
                         pass
                 return self.media.url
@@ -255,6 +284,7 @@ class Story(models.Model):
                 try:
                     storage = self.media.storage
                     if hasattr(storage, "exists") and not storage.exists(name):
+                        _log_missing_media("story.media", name)
                         return ""
                 except Exception:
                     pass
@@ -389,6 +419,7 @@ class Message(models.Model):
                         if not (name.startswith("http://") or name.startswith("https://")):
                             storage = self.media.storage
                             if hasattr(storage, "exists") and not storage.exists(name):
+                                _log_missing_media("message.media", name)
                                 return ""
                     except Exception:
                         pass
@@ -405,6 +436,7 @@ class Message(models.Model):
                     try:
                         storage = self.media.storage
                         if hasattr(storage, "exists") and not storage.exists(name):
+                            _log_missing_media("message.media", name)
                             return ""
                     except Exception:
                         pass
@@ -491,6 +523,7 @@ class Post(models.Model):
                     try:
                         storage = self.media.storage
                         if hasattr(storage, "exists") and not storage.exists(name):
+                            _log_missing_media("post.media", name)
                             return ""
                     except Exception:
                         pass
