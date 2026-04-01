@@ -11,18 +11,11 @@ import os
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
 
-from django.conf import settings
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
-from whitenoise.asgi import WhiteNoise
 
 django_asgi_app = get_asgi_application()
-django_asgi_app = WhiteNoise(
-    django_asgi_app,
-    root=settings.STATIC_ROOT,
-    prefix=settings.STATIC_URL,
-)
 
 from myproject.routing import websocket_urlpatterns
 
