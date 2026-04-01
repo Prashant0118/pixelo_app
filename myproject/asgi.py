@@ -14,8 +14,12 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
+from django.conf import settings
+from django.contrib.staticfiles.handlers import ASGIStaticFilesHandler
 
 django_asgi_app = get_asgi_application()
+# Serve static files in ASGI environments (e.g., Daphne on Render)
+django_asgi_app = ASGIStaticFilesHandler(django_asgi_app)
 
 from myproject.routing import websocket_urlpatterns
 
