@@ -126,12 +126,15 @@ CAN_USE_CLOUDINARY = bool(
 )
 
 # Cloudinary storage configuration
-CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": CLOUDINARY_CLOUD_NAME,
-    "API_KEY": CLOUDINARY_API_KEY,
-    "API_SECRET": CLOUDINARY_API_SECRET,
-    "SECURE": True,
-}
+# Only define CLOUDINARY_STORAGE when explicit credentials are present.
+# If CLOUDINARY_URL is set, cloudinary_storage can read from it directly.
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+    CLOUDINARY_STORAGE = {
+        "CLOUD_NAME": CLOUDINARY_CLOUD_NAME,
+        "API_KEY": CLOUDINARY_API_KEY,
+        "API_SECRET": CLOUDINARY_API_SECRET,
+        "SECURE": True,
+    }
 
 # Firebase Storage (direct upload from browser)
 FIREBASE_API_KEY = (os.getenv("FIREBASE_API_KEY") or "").strip()
@@ -265,7 +268,12 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default storage backend (overridden by STORAGES when configured).
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+# Keep it aligned with CAN_USE_CLOUDINARY to avoid misconfigured uploads.
+DEFAULT_FILE_STORAGE = (
+    "cloudinary_storage.storage.MediaCloudinaryStorage"
+    if CAN_USE_CLOUDINARY
+    else "django.core.files.storage.FileSystemStorage"
+)
 
 # Allow serving media files directly from Django in production when needed.
 # Use with care on hosted environments; prefer Cloudinary for durability.

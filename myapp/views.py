@@ -2139,6 +2139,21 @@ def upload(request):
             except Exception:
                 pass
 
+            if _media_debug_enabled():
+                print(
+                    "[media-debug][upload] incoming",
+                    {
+                        "user": request.user.id,
+                        "post_type": post_type,
+                        "name": name,
+                        "content_type": content_type,
+                        "size": size,
+                        "can_use_cloudinary": getattr(settings, "CAN_USE_CLOUDINARY", False),
+                        "default_storage": getattr(settings, "DEFAULT_FILE_STORAGE", ""),
+                        "cloud_name": getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
+                    },
+                )
+
             post = Post.objects.create(user=request.user, media=media, caption=caption, type=post_type)
 
             # Server-side duration check: always try to detect video duration for reels
