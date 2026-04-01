@@ -488,10 +488,13 @@ def _safe_filename(name):
 
 
 def _chunk_dir(upload_id):
-    return os.path.join(getattr(settings, "MEDIA_ROOT", ""), "tmp_uploads", upload_id)
+    base_dir = tempfile.gettempdir()
+    return os.path.join(base_dir, "tmp_uploads", upload_id)
 
 
 def media_serve(request, path):
+    if getattr(settings, "CAN_USE_CLOUDINARY", False) or not getattr(settings, "SERVE_MEDIA", False):
+        raise Http404
     media_root = os.path.abspath(getattr(settings, "MEDIA_ROOT", ""))
     if not media_root:
         raise Http404
@@ -541,23 +544,24 @@ def media_serve(request, path):
 
 def _direct_upload_enabled():
     return bool(
-        getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+        getattr(settings, "CAN_USE_CLOUDINARY", False)
+        and getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
         and getattr(settings, "CLOUDINARY_API_KEY", "")
         and getattr(settings, "CLOUDINARY_API_SECRET", "")
     )
 
 
 def _upload_page_context(error=None):
-    # Cloudinary removed: provide safe defaults for template variables.
-    upload_preset = ""
+    upload_preset = getattr(settings, "CLOUDINARY_UPLOAD_PRESET", "")
+    direct_upload_enabled = _direct_upload_enabled()
     return {
         "error": error,
-        "direct_upload_enabled": False,
-        "cloudinary_cloud_name": "",
-        "cloudinary_api_key": "",
+        "direct_upload_enabled": direct_upload_enabled,
+        "cloudinary_cloud_name": getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
+        "cloudinary_api_key": getattr(settings, "CLOUDINARY_API_KEY", ""),
         "cloudinary_upload_preset": upload_preset,
-        "cloudinary_widget_enabled": False,
-        "allow_unsigned_upload": False,
+        "cloudinary_widget_enabled": bool(upload_preset and direct_upload_enabled),
+        "allow_unsigned_upload": getattr(settings, "ALLOW_UNSIGNED_UPLOAD", False),
         "firebase_api_key": getattr(settings, "FIREBASE_API_KEY", ""),
         "firebase_auth_domain": getattr(settings, "FIREBASE_AUTH_DOMAIN", ""),
         "firebase_project_id": getattr(settings, "FIREBASE_PROJECT_ID", ""),
@@ -2260,11 +2264,10 @@ def upload_chunk_complete(request):
 
     safe_name = _safe_filename(filename)
     assembled_name = f"{int(time.time())}_{upload_id}_{safe_name}"
-    # Store on disk under MEDIA_ROOT/posts, but pass only the basename to FileField
-    assembled_rel = assembled_name
-    assembled_abs = os.path.join(getattr(settings, "MEDIA_ROOT", ""), "posts", assembled_name)
 
-    os.makedirs(os.path.dirname(assembled_abs), exist_ok=True)
+    temp_handle = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(assembled_name)[1])
+    assembled_abs = temp_handle.name
+    temp_handle.close()
 
     try:
         with open(assembled_abs, "wb") as out:
@@ -2285,18 +2288,25 @@ def upload_chunk_complete(request):
     try:
         max_bytes = int(getattr(settings, "MAX_POST_UPLOAD_BYTES", 0) or 0)
         if max_bytes and os.path.getsize(assembled_abs) > max_bytes:
-            os.remove(assembled_abs)
+            try:
+                os.remove(assembled_abs)
+            except Exception:
+                pass
             return JsonResponse({"error": "File too large."}, status=400)
     except Exception:
         pass
 
     try:
         with open(assembled_abs, "rb") as f:
-            django_file = File(f, name=assembled_rel)
+            django_file = File(f, name=assembled_name)
             post = Post.objects.create(user=request.user, media=django_file, caption=caption, type=post_type)
     except Exception as exc:
         return JsonResponse({"error": f"Upload failed: {exc.__class__.__name__}"}, status=500)
     finally:
+        try:
+            os.remove(assembled_abs)
+        except Exception:
+            pass
         # Cleanup temp chunks
         try:
             for fname in os.listdir(target_dir):
@@ -2314,13 +2324,80 @@ def upload_chunk_complete(request):
 @login_required
 @require_POST
 def cloudinary_signature(request):
-    return JsonResponse({"error": "Cloudinary support removed."}, status=410)
+    if not getattr(settings, "CAN_USE_CLOUDINARY", False):
+        return JsonResponse({"error": "Cloudinary is not configured."}, status=400)
+    try:
+        import cloudinary
+        from cloudinary.utils import api_sign_request
+    except Exception:
+        return JsonResponse({"error": "Cloudinary SDK not available."}, status=500)
+
+    params = {}
+    if request.content_type == "application/json":
+        try:
+            params = json.loads((request.body or b"{}").decode("utf-8"))
+        except Exception:
+            params = {}
+    if not params:
+        params = request.POST.dict()
+
+    # Remove fields that shouldn't be signed
+    params.pop("file", None)
+    params.pop("api_key", None)
+    params.pop("signature", None)
+
+    timestamp = params.get("timestamp") or int(time.time())
+    params["timestamp"] = timestamp
+    signature = api_sign_request(params, cloudinary.config().api_secret)
+
+    return JsonResponse({
+        "signature": signature,
+        "timestamp": timestamp,
+        "cloud_name": getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
+        "api_key": getattr(settings, "CLOUDINARY_API_KEY", ""),
+    })
 
 
 @login_required
 @require_POST
 def cloudinary_complete_upload(request):
-    return JsonResponse({"error": "Cloudinary support removed."}, status=410)
+    if not getattr(settings, "CAN_USE_CLOUDINARY", False):
+        return JsonResponse({"error": "Cloudinary is not configured."}, status=400)
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        payload = request.POST.dict()
+
+    secure_url = (payload.get("secure_url") or payload.get("url") or "").strip()
+    post_type = (payload.get("post_type") or payload.get("type") or "post").strip().lower()
+    caption = (payload.get("caption") or "").strip()
+
+    if post_type not in ("post", "reel"):
+        post_type = "post"
+
+    if not secure_url:
+        return JsonResponse({"error": "Missing Cloudinary URL."}, status=400)
+
+    try:
+        post = Post.objects.create(
+            user=request.user,
+            caption=caption,
+            type=post_type,
+        )
+        post.media.name = secure_url
+        post.save(update_fields=["media"])
+    except Exception as exc:
+        err_text = f"Upload failed: {exc.__class__.__name__}"
+        try:
+            detail = str(exc)
+            if detail:
+                err_text = f"{err_text} - {detail}"
+        except Exception:
+            pass
+        print(f"[cloudinary_complete_upload] {err_text}")
+        return JsonResponse({"error": err_text}, status=500)
+
+    return JsonResponse({"ok": True, "redirect": reverse("home")})
 
 
 @login_required

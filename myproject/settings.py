@@ -102,6 +102,8 @@ if not CSRF_TRUSTED_ORIGINS:
 INSTALLED_APPS = [
     'myapp.apps.MyappConfig',
     'channels',
+    'cloudinary',
+    'cloudinary_storage',
 
     'django.contrib.admin',
     'django.contrib.auth',
@@ -118,8 +120,18 @@ CLOUDINARY_API_KEY = (os.getenv("CLOUDINARY_API_KEY") or "").strip()
 CLOUDINARY_API_SECRET = (os.getenv("CLOUDINARY_API_SECRET") or "").strip()
 CLOUDINARY_UPLOAD_PRESET = (os.getenv("CLOUDINARY_UPLOAD_PRESET") or "").strip()
 
-# Cloudinary support removed: force disabled even if env vars set.
-CAN_USE_CLOUDINARY = False
+# Cloudinary is enabled when credentials are available.
+CAN_USE_CLOUDINARY = bool(
+    CLOUDINARY_URL or (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
+)
+
+# Cloudinary storage configuration
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": CLOUDINARY_CLOUD_NAME,
+    "API_KEY": CLOUDINARY_API_KEY,
+    "API_SECRET": CLOUDINARY_API_SECRET,
+    "SECURE": True,
+}
 
 # Firebase Storage (direct upload from browser)
 FIREBASE_API_KEY = (os.getenv("FIREBASE_API_KEY") or "").strip()
@@ -129,22 +141,22 @@ FIREBASE_STORAGE_BUCKET = (os.getenv("FIREBASE_STORAGE_BUCKET") or "").strip()
 FIREBASE_APP_ID = (os.getenv("FIREBASE_APP_ID") or "").strip()
 FIREBASE_MEASUREMENT_ID = (os.getenv("FIREBASE_MEASUREMENT_ID") or "").strip()
 
-# Add Cloudinary apps only when available and properly configured.
+# Configure explicit Cloudinary credentials when available.
 if CAN_USE_CLOUDINARY:
-    INSTALLED_APPS = ['cloudinary_storage', 'cloudinary'] + INSTALLED_APPS
-
-    # Configure explicit credentials when CLOUDINARY_URL is not provided.
-    if not CLOUDINARY_URL and CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
-        try:
-            import cloudinary
+    try:
+        import cloudinary
+        if CLOUDINARY_URL:
+            cloudinary.config(cloudinary_url=CLOUDINARY_URL, secure=True)
+        else:
             cloudinary.config(
                 cloud_name=CLOUDINARY_CLOUD_NAME,
                 api_key=CLOUDINARY_API_KEY,
                 api_secret=CLOUDINARY_API_SECRET,
+                secure=True,
             )
-        except Exception:
-            # Fail soft: the storage backend will surface configuration errors.
-            pass
+    except Exception:
+        # Fail soft: the storage backend will surface configuration errors.
+        pass
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -252,9 +264,14 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Default storage backend (overridden by STORAGES when configured).
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+
 # Allow serving media files directly from Django in production when needed.
 # Use with care on hosted environments; prefer Cloudinary for durability.
 SERVE_MEDIA = os.getenv("SERVE_MEDIA", "").lower() in ("1", "true", "yes", "on")
+if CAN_USE_CLOUDINARY:
+    SERVE_MEDIA = False
 
 # Upload limits (bytes). Raise to allow long videos; override via env as needed.
 # FILE_UPLOAD_MAX_MEMORY_SIZE: Peak memory usage per file during upload

@@ -44,12 +44,36 @@ def _cloudinary_public_id_from_name(name):
 
 
 def _cloudinary_url_for(name, resource_type):
-    # Cloudinary removed: no remote Cloudinary URLs will be generated.
-    return ""
+    if not name:
+        return ""
+    try:
+        import cloudinary
+        from cloudinary.utils import cloudinary_url
+    except Exception:
+        return ""
+    public_id = _cloudinary_public_id_from_name(name)
+    if not public_id:
+        return ""
+    try:
+        url, _options = cloudinary_url(
+            public_id,
+            resource_type=resource_type or "image",
+            secure=True,
+        )
+        return url or ""
+    except Exception:
+        return ""
 
 
 def _can_build_cloudinary_urls():
-    return False
+    return bool(
+        getattr(settings, "CAN_USE_CLOUDINARY", False)
+        or (
+            getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+            and getattr(settings, "CLOUDINARY_API_KEY", "")
+            and getattr(settings, "CLOUDINARY_API_SECRET", "")
+        )
+    )
 
 
 def _normalize_media_name(name):
