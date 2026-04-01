@@ -493,7 +493,11 @@ def _chunk_dir(upload_id):
 
 
 def media_serve(request, path):
-    if getattr(settings, "CAN_USE_CLOUDINARY", False) or not getattr(settings, "SERVE_MEDIA", False):
+    # Allow local media serving in DEBUG or when explicitly enabled via SERVE_MEDIA,
+    # but never when Cloudinary is active.
+    if getattr(settings, "CAN_USE_CLOUDINARY", False):
+        raise Http404
+    if not (getattr(settings, "DEBUG", False) or getattr(settings, "SERVE_MEDIA", False)):
         raise Http404
     media_root = os.path.abspath(getattr(settings, "MEDIA_ROOT", ""))
     if not media_root:

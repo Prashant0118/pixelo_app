@@ -270,6 +270,8 @@ DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 # Allow serving media files directly from Django in production when needed.
 # Use with care on hosted environments; prefer Cloudinary for durability.
 SERVE_MEDIA = os.getenv("SERVE_MEDIA", "").lower() in ("1", "true", "yes", "on")
+# Always allow local media serving in DEBUG (dev), unless Cloudinary is active.
+SERVE_MEDIA = SERVE_MEDIA or DEBUG
 if CAN_USE_CLOUDINARY:
     SERVE_MEDIA = False
 
