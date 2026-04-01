@@ -2,6 +2,6 @@
 set -o errexit
 
 pip install -r requirements.txt
-# Run collectstatic without unsupported flags to avoid manage.py errors on Render
-python manage.py collectstatic --noinput
+# Avoid WhiteNoise post-processing to prevent missing-file build failures
+python manage.py collectstatic --noinput --no-post-process
 python manage.py migrate --noinput
