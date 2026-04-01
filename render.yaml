@@ -3,7 +3,7 @@ services:
     name: pixelo-app
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: bash build.sh
     startCommand: bash start.sh
     envVars:
       - key: DEBUG
