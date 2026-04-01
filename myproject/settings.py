@@ -258,7 +258,7 @@ STATIC_URL = '/static/'
 # Do not add myapp/static to STATICFILES_DIRS because it is already
 # discovered via INSTALLED_APPS, which causes duplicate collection.
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+STATICFILES_STORAGE = "whitenoise.storage.StaticFilesStorage"
 WHITENOISE_SKIP_COMPRESS = True
 
 MEDIA_URL = '/media/'
@@ -361,7 +361,7 @@ if CAN_USE_CLOUDINARY:
             "BACKEND": "myapp.storage.MediaCloudinaryAutoStorage",
         },
         "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+            "BACKEND": "whitenoise.storage.StaticFilesStorage",
         },
     }
 else:
@@ -375,7 +375,7 @@ else:
             },
         },
         "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+            "BACKEND": "whitenoise.storage.StaticFilesStorage",
         },
     }
 
