@@ -2,7 +2,7 @@
 set -o errexit
 
 python manage.py migrate --noinput
-python manage.py collectstatic --noinput
+python manage.py collectstatic --noinput --no-post-process
 
 
 
