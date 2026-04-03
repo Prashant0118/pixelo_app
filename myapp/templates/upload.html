@@ -4,309 +4,16 @@
 {% block content %}
 
 <style>
-.upload-page-wrapper {
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 0 16px;
-}
-
-.upload-header {
-  margin-bottom: 40px;
-  text-align: center;
-}
-
-.upload-header h1 {
-  font-size: 32px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  color: var(--text-strong);
-}
-
-.upload-header p {
-  color: var(--muted);
-  font-size: 14px;
-  margin: 0;
-}
-
-.upload-main-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  align-items: start;
-}
-
-@media (max-width: 768px) {
-  .upload-main-container {
-    grid-template-columns: 1fr;
-    gap: 24px;
+/* ========== Animations ========== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
-}
-
-/* Upload Area */
-.upload-form-section {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group:last-child {
-  margin-bottom: 0;
-}
-
-.form-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-
-/* Type Selection */
-.type-selector {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.type-option {
-  flex: 1;
-  position: relative;
-}
-
-.type-option input[type="radio"] {
-  display: none;
-}
-
-.type-option label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px 12px;
-  background: var(--surface-2);
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-  min-height: 80px;
-}
-
-.type-option label:hover {
-  border-color: var(--muted);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.type-option input[type="radio"]:checked + label {
-  background: rgba(47, 141, 255, 0.1);
-  border-color: #2f8dff;
-  color: #2f8dff;
-}
-
-.type-icon {
-  font-size: 24px;
-}
-
-/* File Input */
-.file-input-wrapper {
-  position: relative;
-  margin-bottom: 20px;
-}
-
-.file-input-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 32px 20px;
-  background: var(--surface-2);
-  border: 2px dashed var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-height: 160px;
-}
-
-.file-input-label:hover {
-  border-color: #2f8dff;
-  background: rgba(47, 141, 255, 0.05);
-}
-
-.file-input-label.has-file {
-  background: rgba(47, 141, 255, 0.08);
-  border-color: #2f8dff;
-}
-
-#mediaInput {
-  display: none;
-}
-
-.upload-icon {
-  font-size: 32px;
-  color: #2f8dff;
-}
-
-.file-input-text {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-  text-align: center;
-}
-
-.file-input-subtext {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-/* Textarea */
-.caption-textarea {
-  width: 100%;
-  background: var(--input-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 13px;
-  resize: vertical;
-  transition: border-color 0.3s ease;
-}
-
-.caption-textarea:focus {
-  outline: none;
-  border-color: #2f8dff;
-  box-shadow: 0 0 0 3px rgba(47, 141, 255, 0.1);
-}
-
-/* Submit Button */
-.submit-button {
-  width: 100%;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #2f8dff 0%, #0066cc 100%);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.submit-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(47, 141, 255, 0.3);
-}
-
-.submit-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Preview Section */
-.preview-section {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.preview-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 1;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--muted);
-  gap: 12px;
-  min-height: 300px;
-}
-
-.preview-placeholder-icon {
-  font-size: 48px;
-  opacity: 0.5;
-}
-
-.preview-image,
-.preview-video {
-  width: 100%;
-  border-radius: 8px;
-  background: #000;
-  object-fit: cover;
-}
-
-.preview-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.preview-info-item {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-}
-
-.preview-info-label {
-  color: var(--muted);
-}
-
-.preview-info-value {
-  color: var(--text);
-  font-weight: 500;
-}
-
-.preview-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.remove-file-btn {
-  flex: 1;
-  padding: 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--danger);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.remove-file-btn:hover {
-  background: rgba(255, 79, 109, 0.1);
-  border-color: var(--danger);
-}
-
-/* Messages */
-.message-box {
-  padding: 12px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  margin-bottom: 16px;
-  display: none;
-  animation: slideDown 0.3s ease;
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideDown {
@@ -320,50 +27,520 @@
   }
 }
 
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.upload-page-wrapper {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 16px;
+  animation: fadeIn 0.5s ease;
+}
+
+.upload-header {
+  margin-bottom: 40px;
+  text-align: center;
+  opacity: 0;
+  animation: fadeIn 0.6s ease 0.1s forwards;
+}
+
+.upload-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--text-strong);
+  letter-spacing: -0.5px;
+}
+
+.upload-header p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.upload-main-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+  opacity: 0;
+  animation: fadeIn 0.6s ease 0.2s forwards;
+}
+
+@media (max-width: 768px) {
+  .upload-main-container {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* ========== Form Section ========== */
+.upload-form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  transition: all 0.3s ease;
+}
+
+.form-group {
+  margin-bottom: 22px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  transition: color 0.3s ease;
+}
+
+/* Type Selection */
+.type-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.type-option {
+  flex: 1;
+}
+
+.type-option input[type="radio"] {
+  display: none;
+}
+
+.type-option label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 12px;
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  min-height: 75px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.type-option label::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  right: 0;
+  bottom: 0;
+  background: rgba(47, 141, 255, 0.08);
+  transition: left 0.3s ease;
+  z-index: 0;
+}
+
+.type-option label:hover {
+  border-color: #2f8dff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(47, 141, 255, 0.1);
+}
+
+.type-option label > * {
+  position: relative;
+  z-index: 1;
+}
+
+.type-option input[type="radio"]:checked + label {
+  background: rgba(47, 141, 255, 0.12);
+  border-color: #2f8dff;
+  color: #2f8dff;
+  box-shadow: 0 0 0 3px rgba(47, 141, 255, 0.1);
+}
+
+.type-icon {
+  font-size: 24px;
+  transition: transform 0.3s ease;
+}
+
+.type-option input[type="radio"]:checked + label .type-icon {
+  transform: scale(1.1);
+}
+
+/* File Input */
+.file-input-wrapper {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.file-input-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 36px 20px;
+  background: var(--surface-2);
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 160px;
+  position: relative;
+  overflow: hidden;
+}
+
+.file-input-label::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(47, 141, 255, 0.03) 100%);
+  pointer-events: none;
+}
+
+.file-input-label:hover {
+  border-color: #2f8dff;
+  background: var(--surface-2);
+  box-shadow: 0 8px 24px rgba(47, 141, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+.file-input-label.has-file {
+  border-color: #2f8dff;
+  background: rgba(47, 141, 255, 0.08);
+}
+
+#mediaInput {
+  display: none;
+}
+
+.upload-icon {
+  font-size: 32px;
+  color: #2f8dff;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.file-input-label:hover .upload-icon {
+  transform: translateY(-4px);
+}
+
+.file-input-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.file-input-subtext {
+  font-size: 12px;
+  color: var(--muted);
+  position: relative;
+  z-index: 1;
+}
+
+/* Textarea */
+.caption-textarea {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+  transition: all 0.3s ease;
+  min-height: 100px;
+}
+
+.caption-textarea:focus {
+  outline: none;
+  border-color: #2f8dff;
+  box-shadow: 0 0 0 3px rgba(47, 141, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.caption-textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* Submit Button */
+.submit-button {
+  width: 100%;
+  padding: 13px 20px;
+  background: linear-gradient(135deg, #2f8dff 0%, #0066cc 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(47, 141, 255, 0.2);
+}
+
+.submit-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+  transition: left 0.4s ease;
+}
+
+.submit-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(47, 141, 255, 0.3);
+}
+
+.submit-button:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: 0 4px 12px rgba(47, 141, 255, 0.1);
+}
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Preview Section */
+.preview-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: all 0.3s ease;
+}
+
+.preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  gap: 12px;
+  min-height: 300px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.preview-placeholder::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(47, 141, 255, 0.04) 100%);
+  pointer-events: none;
+}
+
+.preview-placeholder-icon {
+  font-size: 48px;
+  opacity: 0.4;
+  transition: transform 0.3s ease;
+}
+
+.preview-placeholder:hover .preview-placeholder-icon {
+  transform: scale(1.05);
+}
+
+.preview-image,
+.preview-video {
+  width: 100%;
+  border-radius: 10px;
+  background: #000;
+  object-fit: cover;
+  animation: fadeIn 0.4s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  opacity: 0;
+  animation: fadeIn 0.4s ease 0.15s forwards;
+}
+
+.preview-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.preview-info-item:last-child {
+  border-bottom: none;
+}
+
+.preview-info-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.preview-info-value {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.remove-file-btn {
+  flex: 1;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.remove-file-btn:hover {
+  background: rgba(255, 79, 109, 0.08);
+  border-color: var(--danger);
+  transform: translateY(-1px);
+}
+
+/* Messages */
+.message-box {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+  animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-left: 3px solid transparent;
+}
+
 .message-box.error {
   background: rgba(255, 79, 109, 0.1);
   color: var(--danger);
-  border: 1px solid var(--danger);
+  border-color: var(--danger);
 }
 
 .message-box.info {
   background: rgba(47, 141, 255, 0.1);
   color: #2f8dff;
-  border: 1px solid #2f8dff;
+  border-color: #2f8dff;
 }
 
 .message-box.success {
   background: rgba(76, 175, 80, 0.1);
   color: #4caf50;
-  border: 1px solid #4caf50;
+  border-color: #4caf50;
 }
 
 /* Progress Bar */
 #progressWrap {
   display: none;
-  animation: slideDown 0.3s ease;
+  animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .progress-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  padding: 14px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
 }
 
 .progress-bar-wrapper {
-  height: 6px;
-  background: var(--surface-2);
-  border-radius: 3px;
+  height: 4px;
+  background: var(--surface);
+  border-radius: 2px;
   overflow: hidden;
   position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 #progressBar {
   height: 100%;
   background: linear-gradient(90deg, #2f8dff 0%, #0066cc 100%);
   width: 0%;
-  transition: width 0.3s ease;
-  border-radius: 3px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(47, 141, 255, 0.4);
 }
 
 .progress-text {
@@ -376,7 +553,7 @@
 
 .progress-percentage {
   color: #2f8dff;
-  font-weight: 600;
+  font-weight: 700;
 }
 </style>
 
@@ -454,8 +631,10 @@
 
         <!-- Submit Button -->
         <button type="submit" class="submit-button" id="uploadBtn">
-          <i class="bi bi-upload"></i>
-          <span>Upload</span>
+          <span class="submit-btn-icon">
+            <i class="bi bi-cloud-arrow-up"></i>
+          </span>
+          <span class="submit-btn-text">Upload</span>
         </button>
       </form>
     </div>
@@ -466,29 +645,27 @@
         <span class="form-label">Preview</span>
         <div class="preview-placeholder" id="previewContainer">
           <div class="preview-placeholder-icon">📁</div>
-          <span style="font-size: 14px; font-weight: 500;">No file selected</span>
+          <span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>
         </div>
       </div>
 
       <div class="preview-info" id="previewInfo" style="display: none;">
         <div class="preview-info-item">
-          <span class="preview-info-label">File Name</span>
-          <span class="preview-info-value" id="previewName">-</span>
+          <span class="preview-info-label">📄 Name</span>
+          <span class="preview-info-value" id="previewName" title="">-</span>
         </div>
         <div class="preview-info-item">
-          <span class="preview-info-label">File Size</span>
+          <span class="preview-info-label">💾 Size</span>
           <span class="preview-info-value" id="previewSize">-</span>
         </div>
-        <div class="preview-info-item">
-          <span class="preview-info-label">Type</span>
-          <span class="preview-info-value" id="previewType">-</span>
-        </div>
         <div class="preview-info-item" id="previewDurationItem" style="display: none;">
-          <span class="preview-info-label">Duration</span>
+          <span class="preview-info-label">⏱️ Duration</span>
           <span class="preview-info-value" id="previewDuration">-</span>
         </div>
         <div class="preview-actions">
-          <button type="button" class="remove-file-btn" id="removeFileBtn">Remove File</button>
+          <button type="button" class="remove-file-btn" id="removeFileBtn">
+            <i class="bi bi-trash"></i> Remove
+          </button>
         </div>
       </div>
     </div>
@@ -620,6 +797,148 @@
     }
   });
 
+<script>
+(() => {
+  const form = document.getElementById('simpleUploadForm');
+  const media = document.getElementById('mediaInput');
+  const radios = document.querySelectorAll('input[name="type"]');
+  const msg = document.getElementById('message');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const submitBtnText = document.querySelector('.submit-btn-text');
+  const submitBtnIcon = document.querySelector('.submit-btn-icon');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const fileInputLabel = document.getElementById('fileInputLabel');
+  const previewContainer = document.getElementById('previewContainer');
+  const previewInfo = document.getElementById('previewInfo');
+  const removeFileBtn = document.getElementById('removeFileBtn');
+  
+  const CHUNK_SIZE = {{ upload_chunk_size|default:1048576 }};
+  const PARALLEL_UPLOADS = 2;
+  const MAX_RETRIES = 3;
+
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  function formatDuration(seconds) {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hrs > 0) {
+      return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  }
+
+  function showMessage(text, type = 'info', duration = 0) {
+    msg.className = `message-box ${type}`;
+    msg.textContent = text;
+    msg.style.display = 'block';
+    
+    if (duration > 0) {
+      setTimeout(() => {
+        msg.style.display = 'none';
+      }, duration);
+    }
+  }
+
+  function setAccept() {
+    const t = document.querySelector('input[name="type"]:checked').value;
+    media.accept = t === 'post' ? 'image/*' : 'video/*';
+  }
+
+  function clearPreview() {
+    previewContainer.innerHTML = '<div class="preview-placeholder-icon">📁</div><span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>';
+    previewInfo.style.display = 'none';
+    fileInputLabel.classList.remove('has-file');
+    msg.style.display = 'none';
+  }
+
+  radios.forEach(r => r.addEventListener('change', () => {
+    setAccept();
+    msg.style.display = 'none';
+  }));
+  setAccept();
+
+  // Drag and drop with better feedback
+  let dragCounter = 0;
+  fileInputLabel.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    fileInputLabel.style.borderColor = '#2f8dff';
+    fileInputLabel.style.boxShadow = '0 8px 24px rgba(47, 141, 255, 0.15)';
+  });
+
+  fileInputLabel.addEventListener('dragleave', () => {
+    dragCounter--;
+    if (dragCounter === 0) {
+      fileInputLabel.style.borderColor = '';
+      fileInputLabel.style.boxShadow = '';
+    }
+  });
+
+  fileInputLabel.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    fileInputLabel.style.borderColor = '';
+    fileInputLabel.style.boxShadow = '';
+    if (e.dataTransfer.files.length) {
+      media.files = e.dataTransfer.files;
+      media.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+
+  media.addEventListener('change', async () => {
+    const f = media.files && media.files[0];
+    if (!f) {
+      clearPreview();
+      return;
+    }
+
+    // Show preview info with animation
+    previewInfo.style.display = 'block';
+    fileInputLabel.classList.add('has-file');
+    
+    const name = f.name.length > 20 ? f.name.substring(0, 17) + '...' : f.name;
+    document.getElementById('previewName').textContent = name;
+    document.getElementById('previewName').title = f.name;
+    document.getElementById('previewSize').textContent = formatFileSize(f.size);
+
+    if (f.type && f.type.startsWith('image/')) {
+      const url = URL.createObjectURL(f);
+      previewContainer.innerHTML = `<img src="${url}" class="preview-image" alt="Preview" style="animation: fadeIn 0.4s ease;">`;
+    } else if (f.type && f.type.startsWith('video/')) {
+      const url = URL.createObjectURL(f);
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.src = url;
+      
+      v.onloadedmetadata = () => {
+        const secs = v.duration || 0;
+        const durationItem = document.getElementById('previewDurationItem');
+        durationItem.style.display = 'flex';
+        document.getElementById('previewDuration').textContent = formatDuration(secs);
+        
+        if (secs > 60) {
+          const postRadio = document.querySelector('input[name="type"][value="post"]');
+          if (postRadio) {
+            postRadio.checked = true;
+            setAccept();
+          }
+          showMessage('⏱️ Video is longer than 1:00 — uploading as Post', 'info');
+        }
+      };
+
+      previewContainer.innerHTML = `<video controls class="preview-video" style="animation: fadeIn 0.4s ease;"><source src="${url}"></video>`;
+    }
+  });
+
   removeFileBtn.addEventListener('click', (e) => {
     e.preventDefault();
     media.value = '';
@@ -649,17 +968,16 @@
     return firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.storageBucket && window.firebase;
   }
 
-  function setBusy(state, text) {
+  function setBusy(state) {
     if (state) {
       uploadBtn.disabled = true;
-      if (text) {
-        msg.className = 'message-box info';
-        msg.textContent = text;
-        msg.style.display = 'block';
-      }
-      progressWrap.style.display = 'block';
+      submitBtnIcon.innerHTML = '<span class="spinner"></span>';
+      submitBtnText.textContent = 'Uploading...';
+      progressWrap.style.display = 'flex';
     } else {
       uploadBtn.disabled = false;
+      submitBtnIcon.innerHTML = '<i class="bi bi-cloud-arrow-up"></i>';
+      submitBtnText.textContent = 'Upload';
       progressWrap.style.display = 'none';
     }
   }
@@ -747,14 +1065,12 @@
 
     if (file.type && file.type.startsWith('video/') && file.size > CHUNK_SIZE) {
       e.preventDefault();
-      setBusy(true, '📤 Uploading... 0%');
+      setBusy(true);
       try {
         await uploadInChunks(file, postType, caption);
         return;
       } catch (err) {
-        msg.className = 'message-box error';
-        msg.textContent = '❌ Chunked upload failed. Please try again.';
-        msg.style.display = 'block';
+        showMessage('❌ Upload failed. Please try again.', 'error');
         setBusy(false);
         return;
       }
@@ -764,14 +1080,12 @@
     if (directUploadMinBytes && file.size < directUploadMinBytes) return;
     if (maxDirectUploadBytes && file.size > maxDirectUploadBytes) {
       e.preventDefault();
-      msg.className = 'message-box error';
-      msg.textContent = '❌ File is too large for direct upload.';
-      msg.style.display = 'block';
+      showMessage('❌ File is too large. Max size: ' + formatFileSize(maxDirectUploadBytes), 'error');
       return;
     }
 
     e.preventDefault();
-    setBusy(true, '📤 Uploading... 0%');
+    setBusy(true);
 
     try {
       if (!firebase.apps.length) {
@@ -809,14 +1123,10 @@
         window.location.href = data.redirect;
         return;
       }
-      msg.className = 'message-box error';
-      msg.textContent = (data && data.error) ? `❌ ${data.error}` : '❌ Upload completed, but response was unexpected.';
-      msg.style.display = 'block';
+      showMessage((data && data.error) ? `❌ ${data.error}` : '❌ Upload failed', 'error');
       setBusy(false);
     } catch (err) {
-      msg.className = 'message-box error';
-      msg.textContent = '❌ Upload failed. Please try again.';
-      msg.style.display = 'block';
+      showMessage('❌ Upload failed. Please try again.', 'error');
       setBusy(false);
     }
   });
