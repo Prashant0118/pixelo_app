@@ -102,26 +102,26 @@
 
             <!-- Email -->
             <div class="form-floating mb-3">
-                <input type="email" class="form-control" name="email" id="email" placeholder="Email" required>
+                <input type="email" class="form-control" name="email" id="email" placeholder="Email" autocomplete="email" required>
                 <label for="email">Email address</label>
             </div>
 
             <!-- Username -->
             <div class="form-floating mb-3">
-                <input type="text" class="form-control" name="username" id="username" placeholder="Username" required>
+                <input type="text" class="form-control" name="username" id="username" placeholder="Username" autocomplete="username" required>
                 <label for="username">Username</label>
             </div>
 
             <!-- Password -->
             <div class="form-floating mb-3 password-wrapper">
-                <input type="password" class="form-control" name="password1" id="password1" placeholder="Password" required>
+                <input type="password" class="form-control" name="password1" id="password1" placeholder="Password" autocomplete="new-password" required>
                 <label for="password1">Password</label>
                 <span class="toggle-password" onclick="togglePassword('password1', this)">Show</span>
             </div>
 
             <!-- Confirm Password -->
             <div class="form-floating mb-3 password-wrapper">
-                <input type="password" class="form-control" name="password2" id="password2" placeholder="Confirm Password" required>
+                <input type="password" class="form-control" name="password2" id="password2" placeholder="Confirm Password" autocomplete="new-password" required>
                 <label for="password2">Confirm Password</label>
                 <span class="toggle-password" onclick="togglePassword('password2', this)">Show</span>
             </div>
