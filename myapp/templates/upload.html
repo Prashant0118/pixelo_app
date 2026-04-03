@@ -1067,7 +1067,17 @@
       headers: { 'X-CSRFToken': getCookie('csrftoken') },
       body: doneForm
     });
-    const data = await completeRes.json();
+
+    const contentType = (completeRes.headers.get('content-type') || '').toLowerCase();
+    let data = null;
+
+    if (completeRes.ok && contentType.includes('application/json')) {
+      data = await completeRes.json();
+    } else {
+      const text = await completeRes.text();
+      throw new Error(`Upload complete failed (${completeRes.status}) ${text.length > 200 ? text.slice(0, 200) + '...' : text}`);
+    }
+
     if (data && data.redirect) {
       window.location.href = data.redirect;
       return;
@@ -1137,7 +1147,16 @@
           caption: caption,
         }),
       });
-      const data = await res.json();
+
+      const rcType = (res.headers.get('content-type') || '').toLowerCase();
+      let data = null;
+      if (res.ok && rcType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(`Firebase complete failed (${res.status}): ${text.length > 200 ? text.slice(0, 200) + '...' : text}`);
+      }
+
       if (data && data.redirect) {
         window.location.href = data.redirect;
         return;
