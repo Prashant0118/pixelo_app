@@ -681,6 +681,12 @@
           <div class="preview-placeholder-icon">📁</div>
           <span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>
         </div>
+        <div id="previewInfo" style="display: none; margin-top: 12px; font-size: 12px; color: var(--muted);">
+          <div><strong>Name:</strong> <span id="previewName"></span></div>
+          <div><strong>Size:</strong> <span id="previewSize"></span></div>
+          <div><strong>Type:</strong> <span id="previewType"></span></div>
+          <div id="previewDurationItem" style="display: none;"><strong>Duration:</strong> <span id="previewDuration"></span></div>
+        </div>
       </div>
 
       <div class="preview-info" id="previewInfo" style="display: none;">
@@ -1126,9 +1132,13 @@
     const postType = document.querySelector('input[name="type"]:checked').value;
     const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
 
+    // Show progress for video uploads
+    if (file.type && file.type.startsWith('video/')) {
+      setBusy(true);
+    }
+
     if (file.type && file.type.startsWith('video/') && file.size > CHUNK_SIZE) {
       e.preventDefault();
-      setBusy(true);
       try {
         await uploadInChunks(file, postType, caption);
         return;
@@ -1144,6 +1154,7 @@
     if (maxDirectUploadBytes && file.size > maxDirectUploadBytes) {
       e.preventDefault();
       showMessage('❌ File is too large. Max size: ' + formatFileSize(maxDirectUploadBytes), 'error');
+      setBusy(false);
       return;
     }
 
