@@ -2362,7 +2362,7 @@ def upload_chunk_complete(request):
                     return JsonResponse({"error": f"Missing chunk {idx}."}, status=400)
                 with open(chunk_path, "rb") as src:
                     while True:
-                        buf = src.read(1024 * 1024)
+                        buf = src.read(8 * 1024 * 1024)
                         if not buf:
                             break
                         out.write(buf)
