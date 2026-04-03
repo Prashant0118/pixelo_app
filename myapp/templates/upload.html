@@ -603,9 +603,9 @@
             <label for="mediaInput" class="file-input-label" id="fileInputLabel">
               <i class="bi bi-cloud-arrow-up upload-icon"></i>
               <span class="file-input-text">Click or drag to upload</span>
-              <span class="file-input-subtext">PNG, JPG, MP4, WebM</span>
+              <span class="file-input-subtext">PNG, JPG, GIF</span>
             </label>
-            <input type="file" name="media" id="mediaInput" accept="image/*" required>
+            <input type="file" name="media" id="mediaInput" accept="image/*,video/*" required>
           </div>
         </div>
 
@@ -718,7 +718,11 @@
 
   function setAccept() {
     const t = document.querySelector('input[name="type"]:checked').value;
-    media.accept = t === 'post' ? 'image/*' : 'video/*';
+    media.accept = t === 'post' ? 'image/*' : 'video/*,image/*';
+    const subtext = document.querySelector('.file-input-subtext');
+    if (subtext) {
+      subtext.textContent = t === 'post' ? 'PNG, JPG, GIF' : 'MP4, WebM, MOV, AVI';
+    }
     msg.style.display = 'none';
   }
 
