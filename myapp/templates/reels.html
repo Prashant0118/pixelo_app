@@ -40,7 +40,7 @@
     {% if reel.media_url %}
         <div class="feed-media-frame {% if reel.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
 
-            {% if reel.type == 'reel' or reel.is_video %}
+            {% if reel.type == 'reel' %}
                 <video class="reel-media"
                        id="reel-video-{{ reel.id }}"
                        autoplay
