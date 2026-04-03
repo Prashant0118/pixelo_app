@@ -4,7 +4,7 @@ import django
 django.setup()
 from django.contrib.auth.models import User
 from myapp.models import Post
-u = User.objects.filter(username='test_image').first()
+u = User.objects.filter(username='test_video_progress').first()
 if not u:
     print('No user')
 else:

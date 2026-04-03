@@ -7,12 +7,12 @@ URL_BASE = "http://127.0.0.1:8000"
 UPLOAD_URL = f"{URL_BASE}/upload/"
 REGISTER_URL = f"{URL_BASE}/register/"
 LOGIN_URL = f"{URL_BASE}/login/"
-TEST_FILE = "test_image.jpg"
-SIZE_MB = 1  # 1 MB
+TEST_FILE = "test_large_video.mp4"
+SIZE_MB = 10  # 10 MB video for testing
 
 # Test account
-TEST_USERNAME = "test_image"
-TEST_EMAIL = "test_image@example.com"
+TEST_USERNAME = "test_video_progress"
+TEST_EMAIL = "test_video_progress@example.com"
 TEST_PASSWORD = "Testpass123!"
 
 # Create test file if not present
@@ -74,11 +74,11 @@ except Exception as e:
     print('Login failed:', e)
 
 files = {
-    'media': (TEST_FILE, open(TEST_FILE, 'rb'), 'image/jpeg')
+    'media': (TEST_FILE, open(TEST_FILE, 'rb'), 'video/mp4')
 }
 data = {
-    'type': 'post',
-    'caption': 'Automated image upload test (authenticated)',
+    'type': 'reel',
+    'caption': 'Test video upload with progress bar',
     'csrfmiddlewaretoken': session.cookies.get('csrftoken',''),
 }
 headers = {

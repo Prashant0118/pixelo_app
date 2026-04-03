@@ -1037,8 +1037,8 @@
       const now = Date.now();
       const percent = Math.round((uploadedBytes / file.size) * 100);
       
-      // Throttle updates to every 100ms or when percentage changes by 5%
-      if (now - lastProgressUpdate > 100 || Math.abs(percent - lastProgressPercent) >= 5) {
+      // Update progress bar (throttle to every 50ms for smooth updates)
+      if (now - lastProgressUpdate > 50) {
         progressBar.style.width = `${percent}%`;
         progressText.textContent = percent;
         lastProgressUpdate = now;
@@ -1108,6 +1108,10 @@
       body: doneForm
     });
 
+    // Set progress to 100% before final response
+    progressBar.style.width = '100%';
+    progressText.textContent = '100';
+
     const contentType = (completeRes.headers.get('content-type') || '').toLowerCase();
     let data = null;
 
@@ -1132,17 +1136,21 @@
     const postType = document.querySelector('input[name="type"]:checked').value;
     const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
 
-    // Show progress for video uploads
+    // Handle all video uploads with chunked upload (shows progress)
     if (file.type && file.type.startsWith('video/')) {
-      setBusy(true);
-    }
-
-    if (file.type && file.type.startsWith('video/') && file.size > CHUNK_SIZE) {
       e.preventDefault();
+      setBusy(true);
+      progressBar.style.width = '0%';
+      progressText.textContent = '0';
+      progressWrap.style.display = 'flex';
+      
       try {
         await uploadInChunks(file, postType, caption);
+        showMessage('✅ Video uploaded successfully!', 'success');
+        setBusy(false);
         return;
       } catch (err) {
+        console.error('Upload error:', err);
         showMessage('❌ Upload failed. Please try again.', 'error');
         setBusy(false);
         return;
