@@ -2111,6 +2111,17 @@ def upload(request):
             # Get file size early for validation
             size = getattr(media, "size", None) or 0
 
+            # Enforce size limits
+            try:
+                if post_type == "reel":
+                    max_bytes = int(getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0) or 0)
+                else:
+                    max_bytes = int(getattr(settings, "MAX_POST_UPLOAD_BYTES", 0) or 0)
+                if max_bytes and size > max_bytes:
+                    return render(request, "upload.html", _upload_page_context("File too large."))
+            except Exception:
+                pass
+
             # Quick file type validation
             content_type = (getattr(media, "content_type", "") or "").lower()
             name = getattr(media, "name", "") or ""
@@ -2374,9 +2385,12 @@ def upload_chunk_complete(request):
             )
         return JsonResponse({"error": "Failed to assemble upload."}, status=500)
 
-    # Enforce size guard for posts
+    # Enforce size guard
     try:
-        max_bytes = int(getattr(settings, "MAX_POST_UPLOAD_BYTES", 0) or 0)
+        if post_type == "reel":
+            max_bytes = int(getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0) or 0)
+        else:
+            max_bytes = int(getattr(settings, "MAX_POST_UPLOAD_BYTES", 0) or 0)
         if max_bytes and os.path.getsize(assembled_abs) > max_bytes:
             try:
                 os.remove(assembled_abs)
@@ -2385,7 +2399,7 @@ def upload_chunk_complete(request):
             if _media_debug_enabled():
                 print(
                     "[media-debug][upload_chunk_complete] too large",
-                    {"upload_id": upload_id, "max_bytes": max_bytes},
+                    {"upload_id": upload_id, "max_bytes": max_bytes, "post_type": post_type},
                 )
             return JsonResponse({"error": "File too large."}, status=400)
     except Exception:
@@ -2395,6 +2409,18 @@ def upload_chunk_complete(request):
         with open(assembled_abs, "rb") as f:
             django_file = File(f, name=assembled_name)
             post = Post.objects.create(user=request.user, media=django_file, caption=caption, type=post_type)
+
+            # Server-side duration check: always try to detect video duration for reels
+            if post and post.type == "reel" and post.is_video:
+                try:
+                    duration = _ffprobe_duration_seconds(post.media.path)
+                    if duration and duration > 60:
+                        post.type = "post"
+                        post.save(update_fields=["type"])
+                except Exception as e:
+                    # Non-fatal: log and continue
+                    print(f"[upload_chunk_complete] duration check failed: {e}")
+
     except Exception as exc:
         if _media_debug_enabled():
             print(
