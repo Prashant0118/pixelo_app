@@ -93,6 +93,10 @@ if not CSRF_TRUSTED_ORIGINS:
         is_local = host in ("localhost", "127.0.0.1","https://pixelo-app.onrender.com") or host.startswith("192.168.") or host.startswith("10.") or host.startswith("172.")
         if is_local or DEBUG:
             derived.append(f"http://{host}")
+            # For localhost and 127.0.0.1 in development, also add common ports
+            if DEBUG and host in ("localhost", "127.0.0.1"):
+                for port in [8000, 8001, 3000, 5000, 5173]:
+                    derived.append(f"http://{host}:{port}")
         derived.append(f"https://{host}")
     CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(derived))
 
