@@ -7,12 +7,12 @@ URL_BASE = "http://127.0.0.1:8000"
 UPLOAD_URL = f"{URL_BASE}/upload/"
 REGISTER_URL = f"{URL_BASE}/register/"
 LOGIN_URL = f"{URL_BASE}/login/"
-TEST_FILE = "test_large_video.mp4"
-SIZE_MB = 60  # 60 MB, should be larger than reel limit -> post
+TEST_FILE = "test_image.jpg"
+SIZE_MB = 1  # 1 MB
 
 # Test account
-TEST_USERNAME = "test_long_video"
-TEST_EMAIL = "test_long_video@example.com"
+TEST_USERNAME = "test_image"
+TEST_EMAIL = "test_image@example.com"
 TEST_PASSWORD = "Testpass123!"
 
 # Create test file if not present
@@ -74,11 +74,11 @@ except Exception as e:
     print('Login failed:', e)
 
 files = {
-    'media': (TEST_FILE, open(TEST_FILE, 'rb'), 'video/mp4')
+    'media': (TEST_FILE, open(TEST_FILE, 'rb'), 'image/jpeg')
 }
 data = {
-    'type': 'reel',
-    'caption': 'Automated long-video upload test (authenticated)',
+    'type': 'post',
+    'caption': 'Automated image upload test (authenticated)',
     'csrfmiddlewaretoken': session.cookies.get('csrftoken',''),
 }
 headers = {
