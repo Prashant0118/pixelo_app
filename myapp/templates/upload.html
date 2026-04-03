@@ -3,40 +3,498 @@
 
 {% block content %}
 
-<div class="upload-container" style="max-width:640px;margin:24px auto;">
-  <h3>Create Post / Reel</h3>
+<style>
+.upload-page-wrapper {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 16px;
+}
+
+.upload-header {
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.upload-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--text-strong);
+}
+
+.upload-header p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.upload-main-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .upload-main-container {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* Upload Area */
+.upload-form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+/* Type Selection */
+.type-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.type-option {
+  flex: 1;
+  position: relative;
+}
+
+.type-option input[type="radio"] {
+  display: none;
+}
+
+.type-option label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  min-height: 80px;
+}
+
+.type-option label:hover {
+  border-color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.type-option input[type="radio"]:checked + label {
+  background: rgba(47, 141, 255, 0.1);
+  border-color: #2f8dff;
+  color: #2f8dff;
+}
+
+.type-icon {
+  font-size: 24px;
+}
+
+/* File Input */
+.file-input-wrapper {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.file-input-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 20px;
+  background: var(--surface-2);
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 160px;
+}
+
+.file-input-label:hover {
+  border-color: #2f8dff;
+  background: rgba(47, 141, 255, 0.05);
+}
+
+.file-input-label.has-file {
+  background: rgba(47, 141, 255, 0.08);
+  border-color: #2f8dff;
+}
+
+#mediaInput {
+  display: none;
+}
+
+.upload-icon {
+  font-size: 32px;
+  color: #2f8dff;
+}
+
+.file-input-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: center;
+}
+
+.file-input-subtext {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Textarea */
+.caption-textarea {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+  transition: border-color 0.3s ease;
+}
+
+.caption-textarea:focus {
+  outline: none;
+  border-color: #2f8dff;
+  box-shadow: 0 0 0 3px rgba(47, 141, 255, 0.1);
+}
+
+/* Submit Button */
+.submit-button {
+  width: 100%;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #2f8dff 0%, #0066cc 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.submit-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(47, 141, 255, 0.3);
+}
+
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Preview Section */
+.preview-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  gap: 12px;
+  min-height: 300px;
+}
+
+.preview-placeholder-icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.preview-image,
+.preview-video {
+  width: 100%;
+  border-radius: 8px;
+  background: #000;
+  object-fit: cover;
+}
+
+.preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-info-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.preview-info-label {
+  color: var(--muted);
+}
+
+.preview-info-value {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.remove-file-btn {
+  flex: 1;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.remove-file-btn:hover {
+  background: rgba(255, 79, 109, 0.1);
+  border-color: var(--danger);
+}
+
+/* Messages */
+.message-box {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-box.error {
+  background: rgba(255, 79, 109, 0.1);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.message-box.info {
+  background: rgba(47, 141, 255, 0.1);
+  color: #2f8dff;
+  border: 1px solid #2f8dff;
+}
+
+.message-box.success {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+  border: 1px solid #4caf50;
+}
+
+/* Progress Bar */
+#progressWrap {
+  display: none;
+  animation: slideDown 0.3s ease;
+}
+
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.progress-bar-wrapper {
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+#progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, #2f8dff 0%, #0066cc 100%);
+  width: 0%;
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
+.progress-text {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.progress-percentage {
+  color: #2f8dff;
+  font-weight: 600;
+}
+</style>
+
+<div class="upload-page-wrapper">
+  <div class="upload-header">
+    <h1>Create New Post</h1>
+    <p>Share your best moments with the community</p>
+  </div>
+
   {% if error %}
-    <div class="alert alert-danger">{{ error }}</div>
+    <div class="message-box error" style="display: block;">
+      <strong>Error:</strong> {{ error }}
+    </div>
   {% endif %}
 
-  <form method="POST" enctype="multipart/form-data" id="simpleUploadForm">
-    {% csrf_token %}
+  <div class="upload-main-container">
+    <!-- Left Section: Form -->
+    <div class="upload-form-section">
+      <form method="POST" enctype="multipart/form-data" id="simpleUploadForm">
+        {% csrf_token %}
 
-    <div style="margin-bottom:12px;">
-      <label style="margin-right:12px;"><input type="radio" name="type" value="post" checked> Post (image)</label>
-      <label><input type="radio" name="type" value="reel"> Reel (video)</label>
+        <!-- Type Selection -->
+        <div class="form-group">
+          <span class="form-label">Content Type</span>
+          <div class="type-selector">
+            <div class="type-option">
+              <input type="radio" id="typePost" name="type" value="post" checked>
+              <label for="typePost">
+                <span class="type-icon">🖼️</span>
+                <span>Post</span>
+              </label>
+            </div>
+            <div class="type-option">
+              <input type="radio" id="typeReel" name="type" value="reel">
+              <label for="typeReel">
+                <span class="type-icon">🎬</span>
+                <span>Reel</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- File Upload -->
+        <div class="form-group">
+          <span class="form-label">Select Media</span>
+          <div class="file-input-wrapper">
+            <label for="mediaInput" class="file-input-label" id="fileInputLabel">
+              <i class="bi bi-cloud-arrow-up upload-icon"></i>
+              <span class="file-input-text">Click or drag to upload</span>
+              <span class="file-input-subtext">PNG, JPG, MP4, WebM</span>
+            </label>
+            <input type="file" name="media" id="mediaInput" accept="image/*" required>
+          </div>
+        </div>
+
+        <!-- Message Box -->
+        <div id="message" class="message-box"></div>
+
+        <!-- Progress Bar -->
+        <div id="progressWrap" class="progress-container">
+          <div class="progress-bar-wrapper">
+            <div id="progressBar"></div>
+          </div>
+          <div class="progress-text">
+            <span>Uploading...</span>
+            <span class="progress-percentage"><span id="progressText">0</span>%</span>
+          </div>
+        </div>
+
+        <!-- Caption -->
+        <div class="form-group">
+          <span class="form-label">Caption (Optional)</span>
+          <textarea name="caption" placeholder="Tell your story... Add hashtags, mentions, or links" rows="3" class="caption-textarea"></textarea>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="submit-button" id="uploadBtn">
+          <i class="bi bi-upload"></i>
+          <span>Upload</span>
+        </button>
+      </form>
     </div>
 
-    <div style="margin-bottom:12px;">
-      <input type="file" name="media" id="mediaInput" accept="image/*" required>
-    </div>
-
-    <div id="message" style="color:#9b111e;margin-bottom:12px;display:none;"></div>
-    <div id="progressWrap" style="display:none;margin-bottom:12px;">
-      <div style="height:8px;background:#1c2b42;border:1px solid #3b4f6f;">
-        <div id="progressBar" style="height:100%;width:0%;background:#2f8dff;"></div>
+    <!-- Right Section: Preview -->
+    <div class="preview-section">
+      <div>
+        <span class="form-label">Preview</span>
+        <div class="preview-placeholder" id="previewContainer">
+          <div class="preview-placeholder-icon">📁</div>
+          <span style="font-size: 14px; font-weight: 500;">No file selected</span>
+        </div>
       </div>
-      <div id="progressText" style="color:#c3cde0;font-size:12px;margin-top:6px;">0%</div>
+
+      <div class="preview-info" id="previewInfo" style="display: none;">
+        <div class="preview-info-item">
+          <span class="preview-info-label">File Name</span>
+          <span class="preview-info-value" id="previewName">-</span>
+        </div>
+        <div class="preview-info-item">
+          <span class="preview-info-label">File Size</span>
+          <span class="preview-info-value" id="previewSize">-</span>
+        </div>
+        <div class="preview-info-item">
+          <span class="preview-info-label">Type</span>
+          <span class="preview-info-value" id="previewType">-</span>
+        </div>
+        <div class="preview-info-item" id="previewDurationItem" style="display: none;">
+          <span class="preview-info-label">Duration</span>
+          <span class="preview-info-value" id="previewDuration">-</span>
+        </div>
+        <div class="preview-actions">
+          <button type="button" class="remove-file-btn" id="removeFileBtn">Remove File</button>
+        </div>
+      </div>
     </div>
-
-    <div style="margin-bottom:12px;">
-      <textarea name="caption" placeholder="Caption (optional)" rows="3" style="width:100%;"></textarea>
-    </div>
-
-    <button type="submit" class="btn btn-primary" id="uploadBtn">Upload</button>
-  </form>
-
+  </div>
 </div>
+
 
 {% if firebase_api_key and firebase_storage_bucket and firebase_project_id %}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -53,9 +511,34 @@
   const progressWrap = document.getElementById('progressWrap');
   const progressBar = document.getElementById('progressBar');
   const progressText = document.getElementById('progressText');
-  const CHUNK_SIZE = {{ upload_chunk_size|default:1048576 }}; // bytes
+  const fileInputLabel = document.getElementById('fileInputLabel');
+  const previewContainer = document.getElementById('previewContainer');
+  const previewInfo = document.getElementById('previewInfo');
+  const removeFileBtn = document.getElementById('removeFileBtn');
+  
+  const CHUNK_SIZE = {{ upload_chunk_size|default:1048576 }};
   const PARALLEL_UPLOADS = 2;
   const MAX_RETRIES = 3;
+
+  // Format file size
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  // Format duration
+  function formatDuration(seconds) {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hrs > 0) {
+      return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  }
 
   function setAccept() {
     const t = document.querySelector('input[name="type"]:checked').value;
@@ -63,33 +546,85 @@
     msg.style.display = 'none';
   }
 
+  function clearPreview() {
+    previewContainer.innerHTML = '<div class="preview-placeholder-icon">📁</div><span style="font-size: 14px; font-weight: 500;">No file selected</span>';
+    previewInfo.style.display = 'none';
+    fileInputLabel.classList.remove('has-file');
+  }
+
   radios.forEach(r => r.addEventListener('change', setAccept));
   setAccept();
+
+  // Drag and drop
+  fileInputLabel.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    fileInputLabel.style.borderColor = '#2f8dff';
+    fileInputLabel.style.background = 'rgba(47, 141, 255, 0.1)';
+  });
+
+  fileInputLabel.addEventListener('dragleave', () => {
+    fileInputLabel.style.borderColor = '';
+    fileInputLabel.style.background = '';
+  });
+
+  fileInputLabel.addEventListener('drop', (e) => {
+    e.preventDefault();
+    fileInputLabel.style.borderColor = '';
+    fileInputLabel.style.background = '';
+    if (e.dataTransfer.files.length) {
+      media.files = e.dataTransfer.files;
+      media.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
 
   media.addEventListener('change', async () => {
     msg.style.display = 'none';
     const f = media.files && media.files[0];
-    if (!f) return;
-    if (f.type && f.type.startsWith('video/')) {
-      // quick duration check in browser
+    if (!f) {
+      clearPreview();
+      return;
+    }
+
+    // Show preview info
+    previewInfo.style.display = 'block';
+    fileInputLabel.classList.add('has-file');
+    document.getElementById('previewName').textContent = f.name;
+    document.getElementById('previewSize').textContent = formatFileSize(f.size);
+    document.getElementById('previewType').textContent = f.type || 'Unknown';
+
+    if (f.type && f.type.startsWith('image/')) {
+      const url = URL.createObjectURL(f);
+      previewContainer.innerHTML = `<img src="${url}" class="preview-image" alt="Preview">`;
+    } else if (f.type && f.type.startsWith('video/')) {
       const url = URL.createObjectURL(f);
       const v = document.createElement('video');
       v.preload = 'metadata';
       v.src = url;
+      
       v.onloadedmetadata = () => {
-        URL.revokeObjectURL(url);
         const secs = v.duration || 0;
+        document.getElementById('previewDurationItem').style.display = 'flex';
+        document.getElementById('previewDuration').textContent = formatDuration(secs);
+        
         if (secs > 60) {
-          // auto-switch to post and inform user
           const postRadio = document.querySelector('input[name="type"][value="post"]');
           if (postRadio) postRadio.checked = true;
           setAccept();
-          msg.textContent = 'Video is longer than 1:00 — it will be uploaded as a Post (main feed).';
+          msg.className = 'message-box info';
+          msg.textContent = '⏱️ Video is longer than 1:00 — it will be uploaded as a Post (main feed).';
           msg.style.display = 'block';
         }
       };
-      v.onerror = () => { URL.revokeObjectURL(url); };
+
+      previewContainer.innerHTML = `<video controls class="preview-video"><source src="${url}"></video>`;
     }
+  });
+
+  removeFileBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    media.value = '';
+    clearPreview();
+    document.getElementById('previewDurationItem').style.display = 'none';
   });
 
   const firebaseConfig = {
@@ -118,6 +653,7 @@
     if (state) {
       uploadBtn.disabled = true;
       if (text) {
+        msg.className = 'message-box info';
         msg.textContent = text;
         msg.style.display = 'block';
       }
@@ -137,9 +673,7 @@
     const updateProgress = () => {
       const percent = Math.round((uploadedBytes / file.size) * 100);
       progressBar.style.width = `${percent}%`;
-      progressText.textContent = `${percent}%`;
-      msg.textContent = `Uploading... ${percent}%`;
-      msg.style.display = 'block';
+      progressText.textContent = percent;
     };
 
     const uploadChunk = async (i) => {
@@ -211,15 +745,15 @@
     const postType = document.querySelector('input[name="type"]:checked').value;
     const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
 
-    // Chunked upload for large videos to avoid 502s.
     if (file.type && file.type.startsWith('video/') && file.size > CHUNK_SIZE) {
       e.preventDefault();
-      setBusy(true, 'Uploading... 0%');
+      setBusy(true, '📤 Uploading... 0%');
       try {
         await uploadInChunks(file, postType, caption);
         return;
       } catch (err) {
-        msg.textContent = 'Chunked upload failed. Please try again.';
+        msg.className = 'message-box error';
+        msg.textContent = '❌ Chunked upload failed. Please try again.';
         msg.style.display = 'block';
         setBusy(false);
         return;
@@ -230,13 +764,14 @@
     if (directUploadMinBytes && file.size < directUploadMinBytes) return;
     if (maxDirectUploadBytes && file.size > maxDirectUploadBytes) {
       e.preventDefault();
-      msg.textContent = 'File is too large for direct upload.';
+      msg.className = 'message-box error';
+      msg.textContent = '❌ File is too large for direct upload.';
       msg.style.display = 'block';
       return;
     }
 
     e.preventDefault();
-    setBusy(true, 'Uploading... 0%');
+    setBusy(true, '📤 Uploading... 0%');
 
     try {
       if (!firebase.apps.length) {
@@ -250,8 +785,8 @@
 
       uploadTask.on('state_changed', (snapshot) => {
         const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-        msg.textContent = `Uploading... ${progress}%`;
-        msg.style.display = 'block';
+        progressBar.style.width = `${progress}%`;
+        progressText.textContent = progress;
       });
 
       await uploadTask;
@@ -274,11 +809,13 @@
         window.location.href = data.redirect;
         return;
       }
-      msg.textContent = (data && data.error) ? data.error : 'Upload completed, but response was unexpected.';
+      msg.className = 'message-box error';
+      msg.textContent = (data && data.error) ? `❌ ${data.error}` : '❌ Upload completed, but response was unexpected.';
       msg.style.display = 'block';
       setBusy(false);
     } catch (err) {
-      msg.textContent = 'Upload failed. Please try again.';
+      msg.className = 'message-box error';
+      msg.textContent = '❌ Upload failed. Please try again.';
       msg.style.display = 'block';
       setBusy(false);
     }
