@@ -151,16 +151,49 @@
   padding: 14px 12px;
   background: var(--surface-2);
   border: 2px solid var(--border);
-  border-radius: 8px;
+  border-radius: 50px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
   color: var(--text);
-  min-height: 75px;
+  min-height: 70px;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  width: 100%;
 }
+
+.form-group small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.type-option label:hover {
+  border-color: #2f8dff;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 18px rgba(47, 141, 255, 0.13);
+}
+
+.type-option input[type="radio"]:checked + label {
+  background: #2f8dff;
+  color: #ffffff;
+  border-color: #2f8dff;
+  box-shadow: 0 0 0 1px rgba(47, 141, 255, 0.25);
+}
+
+.type-option input[type="radio"]:checked + label .type-icon {
+  transform: scale(1.2);
+}
+
 
 .type-option label::before {
   content: '';
@@ -575,25 +608,26 @@
       <form method="POST" enctype="multipart/form-data" id="simpleUploadForm">
         {% csrf_token %}
 
-        <!-- Type Selection -->
+        <!-- Type Selection (Instagram-style tabs) -->
         <div class="form-group">
-          <span class="form-label">Content Type</span>
+          <span class="form-label">Upload as</span>
           <div class="type-selector">
             <div class="type-option">
               <input type="radio" id="typePost" name="type" value="post" checked>
-              <label for="typePost">
+              <label for="typePost" class="tab-btn">
                 <span class="type-icon">🖼️</span>
                 <span>Post</span>
               </label>
             </div>
             <div class="type-option">
               <input type="radio" id="typeReel" name="type" value="reel">
-              <label for="typeReel">
+              <label for="typeReel" class="tab-btn">
                 <span class="type-icon">🎬</span>
                 <span>Reel</span>
               </label>
             </div>
           </div>
+          <small style="color: var(--muted);">Reels are videos under 60 seconds; longer videos become posts.</small>
         </div>
 
         <!-- File Upload -->
