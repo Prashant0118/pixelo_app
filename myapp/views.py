@@ -2231,6 +2231,8 @@ def upload(request):
 
 @login_required
 @require_POST
+@login_required
+@require_POST
 def upload_chunk(request):
     upload_id = (request.POST.get("upload_id") or "").strip()
     chunk_index = request.POST.get("chunk_index")
@@ -2317,6 +2319,8 @@ def upload_chunk(request):
     return JsonResponse({"ok": True})
 
 
+@login_required
+@require_POST
 @login_required
 @require_POST
 def upload_chunk_complete(request):
@@ -2526,6 +2530,8 @@ def cloudinary_signature(request):
 
 @login_required
 @require_POST
+@login_required
+@require_POST
 def cloudinary_complete_upload(request):
     if not getattr(settings, "CAN_USE_CLOUDINARY", False):
         return JsonResponse({"error": "Cloudinary is not configured."}, status=400)
@@ -2566,6 +2572,8 @@ def cloudinary_complete_upload(request):
     return JsonResponse({"ok": True, "redirect": reverse("home")})
 
 
+@login_required
+@require_POST
 @login_required
 @require_POST
 def firebase_complete_upload(request):
