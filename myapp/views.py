@@ -2196,6 +2196,8 @@ def upload(request):
             try:
                 detail = str(exc)
                 if detail and len(detail) < 200:
+                    if "Invalid image file" in detail or "BadRequest" in detail:
+                        err_text = "Upload failed: video upload may require Cloudinary resource_type=auto and reel type. "
                     err_text = f"{err_text} - {detail}"
             except Exception:
                 pass
@@ -2405,6 +2407,29 @@ def upload_chunk_complete(request):
     except Exception:
         pass
 
+    # Validate post/reel type matches file kind
+    try:
+        name = filename or ""
+        ext = os.path.splitext(name)[1].lower()
+        video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
+        is_video_upload = _is_video_file(name) or (ext in video_exts)
+
+        if post_type == "post" and is_video_upload:
+            try:
+                os.remove(assembled_abs)
+            except Exception:
+                pass
+            return JsonResponse({"error": "Post uploads must be images. Choose 'Reel' to upload videos."}, status=400)
+
+        if post_type == "reel" and not is_video_upload:
+            try:
+                os.remove(assembled_abs)
+            except Exception:
+                pass
+            return JsonResponse({"error": "Reel uploads must be videos."}, status=400)
+    except Exception:
+        pass
+
     try:
         with open(assembled_abs, "rb") as f:
             django_file = File(f, name=assembled_name)
@@ -2422,12 +2447,21 @@ def upload_chunk_complete(request):
                     print(f"[upload_chunk_complete] duration check failed: {e}")
 
     except Exception as exc:
+        err_text = f"Upload failed: {exc.__class__.__name__}"
+        try:
+            detail = str(exc)
+            if detail:
+                err_text = f"{err_text} - {detail}"
+                if "Invalid image file" in detail or "BadRequest" in detail:
+                    err_text = "Upload failed: video upload requires Cloudinary resource_type=auto and reel type. " + err_text
+        except Exception:
+            pass
         if _media_debug_enabled():
             print(
                 "[media-debug][upload_chunk_complete] create failed",
                 {"upload_id": upload_id, "error": f"{exc.__class__.__name__}: {exc}"},
             )
-        return JsonResponse({"error": f"Upload failed: {exc.__class__.__name__}"}, status=500)
+        return JsonResponse({"error": err_text}, status=500)
     finally:
         try:
             os.remove(assembled_abs)

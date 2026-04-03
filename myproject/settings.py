@@ -138,7 +138,11 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
         "API_KEY": CLOUDINARY_API_KEY,
         "API_SECRET": CLOUDINARY_API_SECRET,
         "SECURE": True,
+        # Use auto resource type so videos no longer fail as invalid image file
+        "RESOURCE_TYPE": "auto",
     }
+    if CLOUDINARY_UPLOAD_PRESET:
+        CLOUDINARY_STORAGE["UPLOAD_PRESET"] = CLOUDINARY_UPLOAD_PRESET
 
 # Firebase Storage (direct upload from browser)
 FIREBASE_API_KEY = (os.getenv("FIREBASE_API_KEY") or "").strip()
