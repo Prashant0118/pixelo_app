@@ -41,6 +41,12 @@ if MediaCloudinaryStorage:
         This ensures videos are uploaded with resource_type="video".
         """
 
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Initialize upload_options if not present
+            if not hasattr(self, 'upload_options'):
+                self.upload_options = {}
+
         def get_folder_name(self, name):
             """Extract folder from name (everything before the last slash)"""
             return os.path.dirname(name) or ""
@@ -62,7 +68,8 @@ if MediaCloudinaryStorage:
                 'folder': folder,
             }
             
-            if self.upload_options:
+            # Add upload_options if they exist
+            if hasattr(self, 'upload_options') and self.upload_options:
                 options.update(self.upload_options)
             
             # Upload the file directly
