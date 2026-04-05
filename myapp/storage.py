@@ -1,4 +1,5 @@
 import os
+import mimetypes
 from django.core.files.storage import FileSystemStorage
 
 try:
@@ -6,12 +7,30 @@ try:
 except Exception:  # pragma: no cover - fallback when cloudinary storage isn't installed
     MediaCloudinaryStorage = None
 
-_VIDEO_EXTS = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".3gp", ".3gpp", ".ogv"}
+_VIDEO_EXTS = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".3gp", ".3gpp", ".ogv", ".flv", ".wmv", ".m3u8", ".ts", ".mts"}
+_VIDEO_MIMETYPES = {
+    "video/mp4", "video/webm", "video/quicktime", "video/x-msvideo",
+    "video/x-matroska", "video/3gpp", "video/ogg", "video/x-flv",
+    "video/x-ms-wmv", "application/x-mpegURL", "video/mp2t"
+}
 
 
 def _is_video_name(name):
-    ext = os.path.splitext(name or "")[1].lower()
-    return ext in _VIDEO_EXTS
+    """Check if a file is a video based on extension and MIME type."""
+    if not name:
+        return False
+    
+    # Check extension first (fastest)
+    ext = os.path.splitext(str(name))[1].lower()
+    if ext in _VIDEO_EXTS:
+        return True
+    
+    # Fallback to MIME type detection
+    guessed_type, _ = mimetypes.guess_type(str(name))
+    if guessed_type and guessed_type.lower() in _VIDEO_MIMETYPES:
+        return True
+    
+    return False
 
 
 if MediaCloudinaryStorage:

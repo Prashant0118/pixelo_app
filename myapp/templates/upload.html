@@ -712,12 +712,6 @@
   </div>
 </div>
 
-
-{% if firebase_api_key and firebase_storage_bucket and firebase_project_id %}
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-{% endif %}
-
 <script>
 (() => {
   const form = document.getElementById('simpleUploadForm');
@@ -989,14 +983,6 @@
     document.getElementById('previewDurationItem').style.display = 'none';
   });
 
-  const firebaseConfig = {
-    apiKey: "{{ firebase_api_key|default:'' }}",
-    authDomain: "{{ firebase_auth_domain|default:'' }}",
-    projectId: "{{ firebase_project_id|default:'' }}",
-    storageBucket: "{{ firebase_storage_bucket|default:'' }}",
-    appId: "{{ firebase_app_id|default:'' }}",
-    measurementId: "{{ firebase_measurement_id|default:'' }}",
-  };
   const directUploadMinBytes = {{ direct_upload_min_bytes|default:0 }};
   const maxDirectUploadBytes = {{ max_direct_upload_bytes|default:0 }};
 
@@ -1005,10 +991,6 @@
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop().split(';').shift();
     return '';
-  }
-
-  function canUseFirebase() {
-    return firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.storageBucket && window.firebase;
   }
 
   function setBusy(state) {
@@ -1155,70 +1137,6 @@
         setBusy(false);
         return;
       }
-    }
-
-    if (!canUseFirebase()) return;
-    if (directUploadMinBytes && file.size < directUploadMinBytes) return;
-    if (maxDirectUploadBytes && file.size > maxDirectUploadBytes) {
-      e.preventDefault();
-      showMessage('❌ File is too large. Max size: ' + formatFileSize(maxDirectUploadBytes), 'error');
-      setBusy(false);
-      return;
-    }
-
-    e.preventDefault();
-    setBusy(true);
-
-    try {
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-      }
-      const storage = firebase.storage();
-      const ts = Date.now();
-      const safeName = (file.name || 'upload').replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `uploads/${ts}_${safeName}`;
-      const uploadTask = storage.ref(path).put(file);
-
-      uploadTask.on('state_changed', (snapshot) => {
-        const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-        progressBar.style.width = `${progress}%`;
-        progressText.textContent = progress;
-      });
-
-      await uploadTask;
-      const downloadUrl = await storage.ref(path).getDownloadURL();
-
-      const res = await fetch('/upload/firebase-complete/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken'),
-        },
-        body: JSON.stringify({
-          download_url: downloadUrl,
-          post_type: postType,
-          caption: caption,
-        }),
-      });
-
-      const rcType = (res.headers.get('content-type') || '').toLowerCase();
-      let data = null;
-      if (res.ok && rcType.includes('application/json')) {
-        data = await res.json();
-      } else {
-        const text = await res.text();
-        throw new Error(`Firebase complete failed (${res.status}): ${text.length > 200 ? text.slice(0, 200) + '...' : text}`);
-      }
-
-      if (data && data.redirect) {
-        window.location.href = data.redirect;
-        return;
-      }
-      showMessage((data && data.error) ? `❌ ${data.error}` : '❌ Upload failed', 'error');
-      setBusy(false);
-    } catch (err) {
-      showMessage('❌ Upload failed. Please try again.', 'error');
-      setBusy(false);
     }
   });
 
