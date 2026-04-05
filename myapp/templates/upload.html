@@ -841,12 +841,12 @@
         document.getElementById('previewDuration').textContent = formatDuration(secs);
         
         if (secs > 60) {
-          const postRadio = document.querySelector('input[name="type"][value="post"]');
-          if (postRadio) {
-            postRadio.checked = true;
+          const reelRadio = document.querySelector('input[name="type"][value="reel"]');
+          if (reelRadio) {
+            reelRadio.checked = true;
             setAccept();
           }
-          showMessage('⏱️ Video is longer than 1:00 — uploading as Post', 'info');
+          showMessage('⏱️ Video is longer than 1:00 — keeping upload as Reel', 'info');
         }
       };
 
@@ -993,11 +993,22 @@
     const file = media.files && media.files[0];
     if (!file) return;
 
-    const postType = document.querySelector('input[name="type"]:checked').value;
+    let postType = document.querySelector('input[name="type"]:checked').value;
     const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
 
     // Handle all video uploads with chunked upload (shows progress)
     if (file.type && file.type.startsWith('video/')) {
+      // Safety: backend rejects video uploads as "post".
+      if (postType === 'post') {
+        const reelRadio = document.querySelector('input[name="type"][value="reel"]');
+        if (reelRadio) {
+          reelRadio.checked = true;
+          setAccept();
+        }
+        postType = 'reel';
+        showMessage('Video detected: switched to Reel for compatibility.', 'info', 3000);
+      }
+
       e.preventDefault();
       setBusy(true);
       progressBar.style.width = '0%';
