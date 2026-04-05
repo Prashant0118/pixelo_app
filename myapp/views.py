@@ -326,7 +326,16 @@ def _score_reel_for_user(reel, category_scores, creator_scores, liked_ids):
     for category in _categories_for_text(reel.caption or ""):
         score += category_scores.get(category, 0)
 
-    age_hours = max(1, (timezone.now() - reel.created_at).total_seconds() / 3600)
+    created_at = getattr(reel, "created_at", None)
+    if created_at is None:
+        age_hours = 24
+    else:
+        try:
+            if timezone.is_naive(created_at):
+                created_at = timezone.make_aware(created_at, timezone.get_current_timezone())
+            age_hours = max(1, (timezone.now() - created_at).total_seconds() / 3600)
+        except Exception:
+            age_hours = 24
     score += 36 / age_hours
     return score
 
