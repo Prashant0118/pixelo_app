@@ -35,6 +35,15 @@
         border: 0 !important;
     }
 }
+</style>
+{% endblock %}
+
+{% block body_attrs %} class="reels-page"{% endblock %}
+
+{% block content %}
+<div class="reels-feed" id="reelsFeed">
+{% for reel in reels %}
+<div class="reel-item" id="reel-{{ reel.id }}">
 <div class="reel-media-wrap" ondblclick="handleDoubleTapLike({{ reel.id }})">
 
     {% if reel.media_url %}
@@ -139,6 +148,14 @@
         <i class="bi bi-heart-fill"></i>
     </div>
 
+</div>
+{% empty %}
+<div class="reel-item">
+    <div class="reel-media reel-media-missing">
+        <img src="{% static 'images/default.png' %}" alt="placeholder" class="reel-media-placeholder" loading="lazy">
+    </div>
+</div>
+{% endfor %}
 </div>
 
 <div class="share-modal d-none" id="shareModal" onclick="closeShareModal(event)">
