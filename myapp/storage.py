@@ -35,33 +35,11 @@ def _is_video_name(name):
 
 if MediaCloudinaryStorage:
 
-    class _ImageCloudinaryStorage(MediaCloudinaryStorage):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.resource_type = "image"
-
-
-    class _VideoCloudinaryStorage(MediaCloudinaryStorage):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.resource_type = "video"
-
-
     class MediaCloudinaryAutoStorage(MediaCloudinaryStorage):
         """
         Cloudinary storage that routes images/videos to the correct resource_type.
         This ensures videos are uploaded with resource_type="video".
         """
-
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self._image_storage = _ImageCloudinaryStorage()
-            self._video_storage = _VideoCloudinaryStorage()
-
-        def _select_storage(self, name):
-            is_video = _is_video_name(name)
-            print(f"[storage-debug] _select_storage: name={name}, is_video={is_video}")
-            return self._video_storage if is_video else self._image_storage
 
         def save(self, name, content, max_length=None):
             # Set the resource_type based on the file name
@@ -69,15 +47,6 @@ if MediaCloudinaryStorage:
             print(f"[storage-debug] save: name={name}, resource_type={self.resource_type}")
             # Call the parent save method
             return super().save(name, content, max_length)
-
-        def url(self, name):
-            return self._select_storage(name).url(name)
-
-        def exists(self, name):
-            return self._select_storage(name).exists(name)
-
-        def delete(self, name):
-            return self._select_storage(name).delete(name)
 
 else:
 
