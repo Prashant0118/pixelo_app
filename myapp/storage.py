@@ -42,11 +42,29 @@ if MediaCloudinaryStorage:
         """
 
         def _save(self, name, content):
-            # Set the resource_type based on the file name
-            self.resource_type = "video" if _is_video_name(name) else "image"
-            print(f"[storage-debug] _save: name={name}, resource_type={self.resource_type}")
-            # Call the parent _save method
-            return super()._save(name, content)
+            # Get the folder and file_name like the parent does
+            folder = self.get_folder_name(name)
+            file_name = self.get_file_name(name)
+            
+            # Create options with correct resource_type
+            resource_type = "video" if _is_video_name(name) else "image"
+            options = {
+                'resource_type': resource_type,
+                'public_id': file_name,
+                'folder': folder,
+            }
+            
+            if self.upload_options:
+                options.update(self.upload_options)
+            
+            print(f"[storage-debug] _save: name={name}, resource_type={resource_type}")
+            
+            # Upload the file directly
+            import cloudinary.uploader
+            response = cloudinary.uploader.upload(content, **options)
+            
+            # Return the public_id
+            return response['public_id']
 
 else:
 
