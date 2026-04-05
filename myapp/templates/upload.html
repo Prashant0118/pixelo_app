@@ -730,6 +730,8 @@
   const CHUNK_SIZE = {{ upload_chunk_size|default:1048576 }};
   const PARALLEL_UPLOADS = 2;
   const MAX_RETRIES = 3;
+  const DIRECT_UPLOAD_ENABLED = {{ direct_upload_enabled|yesno:"true,false" }};
+  const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|default:''|escapejs }}";
 
   function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -886,6 +888,76 @@
     }
   }
 
+  async function uploadDirectToCloudinary(file, postType, caption) {
+    const resourceType = (file.type && file.type.startsWith('video/')) ? 'video' : 'image';
+    const signBody = {
+      folder: 'posts',
+      resource_type: resourceType,
+      timestamp: Math.floor(Date.now() / 1000),
+    };
+
+    const signRes = await fetch('/upload/cloudinary-signature/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify(signBody),
+    });
+
+    if (!signRes.ok) {
+      const errorText = await signRes.text();
+      throw new Error(`signature_failed:${errorText}`);
+    }
+
+    const signData = await signRes.json();
+    if (!signData.signature || !signData.api_key || !signData.cloud_name) {
+      throw new Error('signature_incomplete');
+    }
+
+    const cloudinaryForm = new FormData();
+    cloudinaryForm.append('file', file);
+    cloudinaryForm.append('api_key', signData.api_key);
+    cloudinaryForm.append('timestamp', String(signData.timestamp || signBody.timestamp));
+    cloudinaryForm.append('signature', signData.signature);
+    cloudinaryForm.append('folder', 'posts');
+
+    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${signData.cloud_name || CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, {
+      method: 'POST',
+      body: cloudinaryForm,
+    });
+
+    const uploadData = await uploadRes.json().catch(() => ({}));
+    if (!uploadRes.ok || !uploadData.secure_url) {
+      throw new Error(uploadData?.error?.message || 'cloudinary_upload_failed');
+    }
+
+    const completeRes = await fetch('/upload/cloudinary-complete/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify({
+        secure_url: uploadData.secure_url,
+        type: postType,
+        caption,
+      }),
+    });
+
+    const completeData = await completeRes.json().catch(() => ({}));
+    if (!completeRes.ok || (!completeData.ok && !completeData.redirect)) {
+      throw new Error(completeData?.error || 'cloudinary_complete_failed');
+    }
+
+    if (completeData.redirect) {
+      window.location.href = completeData.redirect;
+      return;
+    }
+
+    window.location.href = '/';
+  }
+
   async function uploadInChunks(file, postType, caption) {
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -997,25 +1069,55 @@
     let postType = document.querySelector('input[name="type"]:checked').value;
     const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
 
-    // Handle all video uploads with chunked upload (shows progress)
-    if (file.type && file.type.startsWith('video/')) {
-      // Safety: backend rejects video uploads as "post".
-      if (postType === 'post') {
-        const reelRadio = document.querySelector('input[name="type"][value="reel"]');
-        if (reelRadio) {
-          reelRadio.checked = true;
-          setAccept();
-        }
-        postType = 'reel';
-        showMessage('Video detected: switched to Reel for compatibility.', 'info', 3000);
+    if (file.type && file.type.startsWith('video/') && postType === 'post') {
+      const reelRadio = document.querySelector('input[name="type"][value="reel"]');
+      if (reelRadio) {
+        reelRadio.checked = true;
+        setAccept();
       }
+      postType = 'reel';
+      showMessage('Video detected: switched to Reel for compatibility.', 'info', 3000);
+    }
 
+    if (file.type && file.type.startsWith('image/') && postType === 'reel') {
+      const postRadio = document.querySelector('input[name="type"][value="post"]');
+      if (postRadio) {
+        postRadio.checked = true;
+        setAccept();
+      }
+      postType = 'post';
+      showMessage('Image detected: switched to Post for compatibility.', 'info', 3000);
+    }
+
+    if (DIRECT_UPLOAD_ENABLED) {
+      e.preventDefault();
+      setBusy(true);
+      progressBar.style.width = '20%';
+      progressText.textContent = '20';
+      progressWrap.style.display = 'flex';
+
+      try {
+        await uploadDirectToCloudinary(file, postType, caption);
+        progressBar.style.width = '100%';
+        progressText.textContent = '100';
+        showMessage('✅ Upload completed successfully!', 'success');
+        setBusy(false);
+        return;
+      } catch (err) {
+        console.error('Direct upload error:', err);
+        showMessage('❌ Direct upload failed. Trying standard upload...', 'error', 2500);
+        setBusy(false);
+      }
+    }
+
+    // Handle video uploads with chunked upload when direct upload is unavailable
+    if (file.type && file.type.startsWith('video/')) {
       e.preventDefault();
       setBusy(true);
       progressBar.style.width = '0%';
       progressText.textContent = '0';
       progressWrap.style.display = 'flex';
-      
+
       try {
         await uploadInChunks(file, postType, caption);
         showMessage('✅ Video uploaded successfully!', 'success');

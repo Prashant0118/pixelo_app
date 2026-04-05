@@ -26,5 +26,10 @@ if [ "${RUN_MEDIA_PATH_FIX}" = "1" ]; then
   python manage.py fix_media_paths
 fi
 
+# Optional: migrate existing local media records into configured cloud storage
+if [ "${RUN_MEDIA_MIGRATION}" = "1" ]; then
+  python manage.py migrate_reel_media --all-posts
+fi
+
 # Start server
 daphne -b 0.0.0.0 -p ${PORT} myproject.asgi:application
