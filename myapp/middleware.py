@@ -1,4 +1,41 @@
 from django.conf import settings
+import asyncio
+from django.http import HttpResponse
+from asgiref.sync import iscoroutinefunction, markcoroutinefunction
+
+
+class ClientDisconnectMiddleware:
+    """
+    Gracefully handle client disconnects/timeouts under ASGI.
+    Instead of surfacing asyncio.CancelledError as a 500-style traceback,
+    return a non-standard 499 (Client Closed Request) response.
+    """
+
+    sync_capable = True
+    async_capable = True
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self._is_async = iscoroutinefunction(get_response)
+        if self._is_async:
+            markcoroutinefunction(self)
+
+    def _cancelled_response(self):
+        return HttpResponse("Client Closed Request", status=499)
+
+    def __call__(self, request):
+        if self._is_async:
+            return self.__acall__(request)
+        try:
+            return self.get_response(request)
+        except asyncio.CancelledError:
+            return self._cancelled_response()
+
+    async def __acall__(self, request):
+        try:
+            return await self.get_response(request)
+        except asyncio.CancelledError:
+            return self._cancelled_response()
 
 
 class AllowFrameAncestorsMiddleware:

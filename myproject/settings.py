@@ -161,6 +161,7 @@ if CAN_USE_CLOUDINARY:
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'myapp.middleware.ClientDisconnectMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
