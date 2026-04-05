@@ -41,12 +41,12 @@ if MediaCloudinaryStorage:
         This ensures videos are uploaded with resource_type="video".
         """
 
-        def save(self, name, content, max_length=None):
+        def _save(self, name, content):
             # Set the resource_type based on the file name
             self.resource_type = "video" if _is_video_name(name) else "image"
-            print(f"[storage-debug] save: name={name}, resource_type={self.resource_type}")
-            # Call the parent save method
-            return super().save(name, content, max_length)
+            print(f"[storage-debug] _save: name={name}, resource_type={self.resource_type}")
+            # Call the parent _save method
+            return super()._save(name, content)
 
 else:
 
