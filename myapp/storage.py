@@ -79,6 +79,25 @@ if MediaCloudinaryStorage:
             # Return the public_id
             return response['public_id']
 
+        def url(self, name):
+            """Generate URL with correct resource_type"""
+            resource_type = "video" if _is_video_name(name) else "image"
+            try:
+                import cloudinary
+                from cloudinary.utils import cloudinary_url
+                public_id = self.get_file_name(name)
+                if self.get_folder_name(name):
+                    public_id = f"{self.get_folder_name(name)}/{public_id}"
+                url, _options = cloudinary_url(
+                    public_id,
+                    resource_type=resource_type,
+                    secure=True,
+                )
+                return url
+            except Exception:
+                # Fallback to parent implementation
+                return super().url(name)
+
 else:
 
     class MediaCloudinaryAutoStorage(FileSystemStorage):
