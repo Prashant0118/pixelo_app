@@ -64,9 +64,11 @@ if MediaCloudinaryStorage:
             return self._video_storage if is_video else self._image_storage
 
         def save(self, name, content, max_length=None):
-            storage = self._select_storage(name)
-            print(f"[storage-debug] save: name={name}, using storage={storage.__class__.__name__}, resource_type={getattr(storage, 'resource_type', 'unknown')}")
-            return storage.save(name, content, max_length)
+            # Set the resource_type based on the file name
+            self.resource_type = "video" if _is_video_name(name) else "image"
+            print(f"[storage-debug] save: name={name}, resource_type={self.resource_type}")
+            # Call the parent save method
+            return super().save(name, content, max_length)
 
         def url(self, name):
             return self._select_storage(name).url(name)
