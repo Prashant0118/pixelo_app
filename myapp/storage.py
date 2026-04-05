@@ -41,6 +41,14 @@ if MediaCloudinaryStorage:
         This ensures videos are uploaded with resource_type="video".
         """
 
+        def get_folder_name(self, name):
+            """Extract folder from name (everything before the last slash)"""
+            return os.path.dirname(name) or ""
+
+        def get_file_name(self, name):
+            """Extract filename from name (everything after the last slash)"""
+            return os.path.basename(name)
+
         def _save(self, name, content):
             # Get the folder and file_name like the parent does
             folder = self.get_folder_name(name)
