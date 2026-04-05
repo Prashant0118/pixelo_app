@@ -2518,6 +2518,7 @@ def cloudinary_signature(request):
     params.pop("file", None)
     params.pop("api_key", None)
     params.pop("signature", None)
+    params.pop("resource_type", None)
 
     timestamp = params.get("timestamp") or int(time.time())
     params["timestamp"] = timestamp

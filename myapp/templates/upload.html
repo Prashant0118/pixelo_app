@@ -892,7 +892,6 @@
     const resourceType = (file.type && file.type.startsWith('video/')) ? 'video' : 'image';
     const signBody = {
       folder: 'posts',
-      resource_type: resourceType,
       timestamp: Math.floor(Date.now() / 1000),
     };
 
@@ -921,7 +920,6 @@
     cloudinaryForm.append('timestamp', String(signData.timestamp || signBody.timestamp));
     cloudinaryForm.append('signature', signData.signature);
     cloudinaryForm.append('folder', 'posts');
-    cloudinaryForm.append('resource_type', resourceType);
 
     const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${signData.cloud_name || CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, {
       method: 'POST',
