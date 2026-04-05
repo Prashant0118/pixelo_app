@@ -921,6 +921,7 @@
     cloudinaryForm.append('timestamp', String(signData.timestamp || signBody.timestamp));
     cloudinaryForm.append('signature', signData.signature);
     cloudinaryForm.append('folder', 'posts');
+    cloudinaryForm.append('resource_type', resourceType);
 
     const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${signData.cloud_name || CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, {
       method: 'POST',
