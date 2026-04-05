@@ -524,7 +524,8 @@ class Post(models.Model):
                         storage = self.media.storage
                         if hasattr(storage, "exists") and not storage.exists(name):
                             _log_missing_media("post.media", name)
-                            return ""
+                            # Do not return early; still try to build a URL so
+                            # the client can attempt to render the media.
                     except Exception:
                         pass
                 if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
