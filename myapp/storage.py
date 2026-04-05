@@ -36,11 +36,15 @@ def _is_video_name(name):
 if MediaCloudinaryStorage:
 
     class _ImageCloudinaryStorage(MediaCloudinaryStorage):
-        resource_type = "image"
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.resource_type = "image"
 
 
     class _VideoCloudinaryStorage(MediaCloudinaryStorage):
-        resource_type = "video"
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.resource_type = "video"
 
 
     class MediaCloudinaryAutoStorage(MediaCloudinaryStorage):
