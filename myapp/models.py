@@ -516,54 +516,27 @@ class Post(models.Model):
 
     @property
     def media_url(self):
-        def _direct_fallback():
-            try:
-                if self.media and getattr(self.media, "url", ""):
-                    raw = self.media.url
-                    if self.type == "reel" or self.is_video or _looks_like_video_path(raw):
-                        return _ensure_https_url(_cloudinary_video_url(raw))
-                    return _ensure_https_url(raw)
-            except Exception:
-                return ""
+        if not (self.media and getattr(self.media, "name", "")):
             return ""
 
+        # Prefer storage-provided URL directly. This keeps resource_type aligned
+        # with how the backend actually stored the asset in Cloudinary.
         try:
-            if self.media and getattr(self.media, "name", ""):
-                name = _normalize_media_name(self.media.name or "")
-                if not getattr(settings, "CAN_USE_CLOUDINARY", False) and not _can_build_cloudinary_urls():
-                    try:
-                        storage = self.media.storage
-                        if hasattr(storage, "exists") and not storage.exists(name):
-                            _log_missing_media("post.media", name)
-                            # Do not return early; still try to build a URL so
-                            # the client can attempt to render the media.
-                    except Exception:
-                        pass
-                if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
-                    resource_type = "video" if (self.type == "reel" or self.is_video or _looks_like_video_name(name)) else "image"
-                    url = _cloudinary_url_for(name, resource_type)
-                    if url:
-                        return url
-                    # Fallback to the storage-provided URL and normalize if needed.
-                    try:
-                        url = _storage_url(self.media, name) if name else self.media.url
-                    except Exception:
-                        url = ""
-                    if url:
-                        if resource_type == "video" or _looks_like_video_path(url):
-                            return _cloudinary_video_url(url)
-                        return url
-                if name.startswith("http://") or name.startswith("https://"):
-                    if self.type == "reel" or self.is_video or _looks_like_video_name(name):
-                        return _ensure_https_url(_cloudinary_video_url(name))
-                    return _ensure_https_url(name)
-                url = _storage_url(self.media, name) if name else self.media.url
-                if self.type == "reel" or self.is_video or _looks_like_video_path(url) or _looks_like_video_name(name):
-                    return _cloudinary_video_url(url)
-                return url
+            raw_url = self.media.url
+            if raw_url:
+                return _ensure_https_url(raw_url)
         except Exception:
-            return _direct_fallback()
-        return _direct_fallback()
+            pass
+
+        try:
+            name = _normalize_media_name(self.media.name or "")
+            if not name:
+                return ""
+            if name.startswith("http://") or name.startswith("https://"):
+                return _ensure_https_url(name)
+            return _ensure_https_url(_storage_url(self.media, name))
+        except Exception:
+            return ""
 
     @property
     def media_name(self):

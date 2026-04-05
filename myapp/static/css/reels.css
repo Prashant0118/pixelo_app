@@ -496,6 +496,33 @@ body.reels-page .reels-feed {
     z-index: 1100;
 }
 
+/* Reels page must not inherit feed card sizing from home.css */
+body.reels-page .feed-media-frame,
+body.reels-page .feed-media-frame.is-reel,
+body.reels-page .feed-media-frame.is-post {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    display: block !important;
+    overflow: hidden !important;
+    background: #000 !important;
+}
+
+body.reels-page .reel-item {
+    height: var(--reels-vh) !important;
+    min-height: var(--reels-vh) !important;
+    max-height: var(--reels-vh) !important;
+    flex: 0 0 var(--reels-vh) !important;
+}
+
+body.reels-page .reel-media-wrap,
+body.reels-page .reel-media {
+    width: 100% !important;
+    height: 100% !important;
+}
+
 @media (min-width: 993px) {
     /* Desktop: center reels like Shorts */
     body.reels-page .reels-feed {
