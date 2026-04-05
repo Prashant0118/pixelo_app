@@ -65,7 +65,7 @@ if MediaCloudinaryStorage:
             if self.upload_options:
                 options.update(self.upload_options)
             
-            print(f"[storage-debug] _save: name={name}, resource_type={resource_type}")
+            # Upload the file directly
             import cloudinary.uploader
             response = cloudinary.uploader.upload(content, **options)
             
