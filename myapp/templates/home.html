@@ -79,14 +79,16 @@
                        controls
                        playsinline
                        preload="metadata"
-                       src="{{ media_src }}"
                        {% if post.type == "reel" %}muted autoplay loop{% endif %}>
                     
                     <source src="{{ media_src }}" type="video/mp4">
+                    <source src="{{ post.media.url }}" type="video/mp4">
                 </video>
 
             {% else %}
-                <img src="{{ media_src }}" class="img-fluid w-100 feed-media">
+                <img src="{{ media_src }}"
+                     class="img-fluid w-100 feed-media"
+                     onerror="this.onerror=null;this.src='{{ post.media.url|escapejs }}';">
             {% endif %}
 
         </div>
