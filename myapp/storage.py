@@ -55,10 +55,19 @@ if MediaCloudinaryStorage:
             self._video_storage = _VideoCloudinaryStorage()
 
         def _select_storage(self, name):
-            return self._video_storage if _is_video_name(name) else self._image_storage
+            is_video = _is_video_name(name)
+            print(f"[storage-debug] _select_storage: name={name}, is_video={is_video}")
+            return self._video_storage if is_video else self._image_storage
 
         def _save(self, name, content):
-            return self._select_storage(name)._save(name, content)
+            storage = self._select_storage(name)
+            print(f"[storage-debug] _save: name={name}, using storage={storage.__class__.__name__}, resource_type={getattr(storage, 'resource_type', 'unknown')}")
+            return storage._save(name, content)
+
+        def save(self, name, content, max_length=None):
+            storage = self._select_storage(name)
+            print(f"[storage-debug] save: name={name}, using storage={storage.__class__.__name__}, resource_type={getattr(storage, 'resource_type', 'unknown')}")
+            return storage.save(name, content, max_length)
 
         def url(self, name):
             return self._select_storage(name).url(name)
