@@ -276,11 +276,13 @@ DEFAULT_FILE_STORAGE = (
 
 # Allow serving media files directly from Django in production when needed.
 # Use with care on hosted environments; prefer Cloudinary for durability.
-SERVE_MEDIA = os.getenv("SERVE_MEDIA", "").lower() in ("1", "true", "yes", "on")
-# Always allow local media serving in DEBUG (dev), unless Cloudinary is active.
-SERVE_MEDIA = SERVE_MEDIA or DEBUG
-if CAN_USE_CLOUDINARY:
-    SERVE_MEDIA = False
+_raw_serve_media = (os.getenv("SERVE_MEDIA", "") or "").strip().lower()
+if _raw_serve_media:
+    SERVE_MEDIA = _raw_serve_media in ("1", "true", "yes", "on")
+else:
+    # Auto-enable media serving when Cloudinary is not configured so uploads
+    # remain visible on hosted environments like Render.
+    SERVE_MEDIA = DEBUG or (not CAN_USE_CLOUDINARY)
 
 # Upload limits (bytes). Raise to allow long videos; override via env as needed.
 # FILE_UPLOAD_MAX_MEMORY_SIZE: Peak memory usage per file during upload
