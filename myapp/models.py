@@ -516,6 +516,17 @@ class Post(models.Model):
 
     @property
     def media_url(self):
+        def _direct_fallback():
+            try:
+                if self.media and getattr(self.media, "url", ""):
+                    raw = self.media.url
+                    if self.type == "reel" or self.is_video or _looks_like_video_path(raw):
+                        return _ensure_https_url(_cloudinary_video_url(raw))
+                    return _ensure_https_url(raw)
+            except Exception:
+                return ""
+            return ""
+
         try:
             if self.media and getattr(self.media, "name", ""):
                 name = _normalize_media_name(self.media.name or "")
@@ -551,8 +562,8 @@ class Post(models.Model):
                     return _cloudinary_video_url(url)
                 return url
         except Exception:
-            return ""
-        return ""
+            return _direct_fallback()
+        return _direct_fallback()
 
     @property
     def media_name(self):
