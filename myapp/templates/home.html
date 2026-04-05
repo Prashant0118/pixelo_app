@@ -78,14 +78,14 @@
                        controls
                        playsinline
                        preload="metadata"
-                       src="{{ post.media.url }}"
+                       src="{{ post.media_url }}"
                        {% if post.type == "reel" %}muted autoplay loop{% endif %}>
                     
-                    <source src="{{ post.media.url }}" type="video/mp4">
+                    <source src="{{ post.media_url }}" type="video/mp4">
                 </video>
 
             {% else %}
-                <img src="{{ post.media.url }}" class="img-fluid w-100 feed-media">
+                <img src="{{ post.media_url }}" class="img-fluid w-100 feed-media">
             {% endif %}
 
         </div>
