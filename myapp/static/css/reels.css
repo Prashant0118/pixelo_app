@@ -34,6 +34,7 @@
 .reel-item {
     position: relative;
     height: var(--reels-vh);
+    min-height: var(--reels-vh);
     scroll-snap-align: start;
     scroll-snap-stop: always;
     overflow: hidden;

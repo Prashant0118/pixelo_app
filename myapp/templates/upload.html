@@ -681,12 +681,6 @@
           <div class="preview-placeholder-icon">📁</div>
           <span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>
         </div>
-        <div id="previewInfo" style="display: none; margin-top: 12px; font-size: 12px; color: var(--muted);">
-          <div><strong>Name:</strong> <span id="previewName"></span></div>
-          <div><strong>Size:</strong> <span id="previewSize"></span></div>
-          <div><strong>Type:</strong> <span id="previewType"></span></div>
-          <div id="previewDurationItem" style="display: none;"><strong>Duration:</strong> <span id="previewDuration"></span></div>
-        </div>
       </div>
 
       <div class="preview-info" id="previewInfo" style="display: none;">
@@ -697,6 +691,10 @@
         <div class="preview-info-item">
           <span class="preview-info-label">💾 Size</span>
           <span class="preview-info-value" id="previewSize">-</span>
+        </div>
+        <div class="preview-info-item">
+          <span class="preview-info-label">🎞 Type</span>
+          <span class="preview-info-value" id="previewType">-</span>
         </div>
         <div class="preview-info-item" id="previewDurationItem" style="display: none;">
           <span class="preview-info-label">⏱️ Duration</span>
@@ -773,6 +771,8 @@
     previewInfo.style.display = 'none';
     fileInputLabel.classList.remove('has-file');
     msg.style.display = 'none';
+    document.getElementById('previewType').textContent = '-';
+    document.getElementById('previewDurationItem').style.display = 'none';
   }
 
   radios.forEach(r => r.addEventListener('change', () => {
@@ -824,6 +824,7 @@
     document.getElementById('previewName').textContent = name;
     document.getElementById('previewName').title = f.name;
     document.getElementById('previewSize').textContent = formatFileSize(f.size);
+    document.getElementById('previewType').textContent = f.type || 'Unknown';
 
     if (f.type && f.type.startsWith('image/')) {
       const url = URL.createObjectURL(f);

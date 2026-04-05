@@ -80,9 +80,18 @@
                        playsinline
                        preload="metadata"
                        {% if post.type == "reel" %}muted autoplay loop{% endif %}>
-                    
-                    <source src="{{ media_src }}" type="video/mp4">
+                    {% with media_name=post.media_name %}
+                    <source src="{{ media_src }}"
+                        {% if media_name|slice:'-5:' == '.webm' %}type="video/webm"
+                        {% elif media_name|slice:'-4:' == '.mp4' or media_name|slice:'-4:' == '.m4v' %}type="video/mp4"
+                        {% elif media_name|slice:'-4:' == '.ogv' %}type="video/ogg"
+                        {% elif media_name|slice:'-4:' == '.mov' %}type="video/quicktime"
+                        {% elif media_name|slice:'-4:' == '.mkv' %}type="video/x-matroska"
+                        {% elif media_name|slice:'-4:' == '.avi' %}type="video/x-msvideo"
+                        {% elif media_name|slice:'-4:' == '.3gp' or media_name|slice:'-5:' == '.3gpp' %}type="video/3gpp"
+                        {% endif %}>
                     <source src="{{ post.media.url }}" type="video/mp4">
+                    {% endwith %}
                 </video>
 
             {% else %}

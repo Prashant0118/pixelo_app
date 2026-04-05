@@ -519,12 +519,13 @@ class Post(models.Model):
         if not (self.media and getattr(self.media, "name", "")):
             return ""
 
-        # Prefer storage-provided URL directly. This keeps resource_type aligned
-        # with how the backend actually stored the asset in Cloudinary.
         try:
             raw_url = self.media.url
             if raw_url:
-                return _ensure_https_url(raw_url)
+                normalized_url = _ensure_https_url(raw_url)
+                if self.is_video:
+                    return _cloudinary_video_url(normalized_url)
+                return normalized_url
         except Exception:
             pass
 
@@ -533,8 +534,19 @@ class Post(models.Model):
             if not name:
                 return ""
             if name.startswith("http://") or name.startswith("https://"):
-                return _ensure_https_url(name)
-            return _ensure_https_url(_storage_url(self.media, name))
+                normalized_url = _ensure_https_url(name)
+                if self.is_video:
+                    return _cloudinary_video_url(normalized_url)
+                return normalized_url
+            if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
+                resource_type = "video" if self.is_video else "image"
+                cloudinary_url = _cloudinary_url_for(name, resource_type)
+                if cloudinary_url:
+                    return cloudinary_url
+            storage_url = _ensure_https_url(_storage_url(self.media, name))
+            if self.is_video:
+                return _cloudinary_video_url(storage_url)
+            return storage_url
         except Exception:
             return ""
 
