@@ -46,7 +46,8 @@
 <div class="reel-item" id="reel-{{ reel.id }}">
 <div class="reel-media-wrap" ondblclick="handleDoubleTapLike({{ reel.id }})">
 
-    {% if reel.media_url %}
+    {% if reel.media %}
+        {% with media_src=reel.media_url|default:reel.media.url %}
         <div class="feed-media-frame {% if reel.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
 
             {% if reel.type == 'reel' %}
@@ -60,7 +61,7 @@
                        loop>
 
                     {% with media_name=reel.media_name %}
-                    <source src="{{ reel.media_url }}"
+                    <source src="{{ media_src }}"
                         {% if media_name|slice:'-5:' == '.webm' %}type="video/webm"
                         {% elif media_name|slice:'-4:' == '.mp4' or media_name|slice:'-4:' == '.m4v' %}type="video/mp4"
                         {% elif media_name|slice:'-4:' == '.ogv' %}type="video/ogg"
@@ -87,12 +88,13 @@
             {% else %}
                 <!-- Image -->
                 <img class="reel-media"
-                     src="{{ reel.media_url }}"
+                     src="{{ media_src }}"
                      alt="reel media"
                      loading="lazy">
             {% endif %}
 
         </div>
+        {% endwith %}
     {% else %}
         <!-- Fallback -->
         <div class="reel-media reel-media-missing">

@@ -70,6 +70,7 @@
 <div ondblclick="doubleLike({{ post.id }})">
     
     {% if post.media %}
+        {% with media_src=post.media_url|default:post.media.url %}
         <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
             
             {% if post.type == 'reel' or post.is_video %}
@@ -78,17 +79,18 @@
                        controls
                        playsinline
                        preload="metadata"
-                       src="{{ post.media_url }}"
+                       src="{{ media_src }}"
                        {% if post.type == "reel" %}muted autoplay loop{% endif %}>
                     
-                    <source src="{{ post.media_url }}" type="video/mp4">
+                    <source src="{{ media_src }}" type="video/mp4">
                 </video>
 
             {% else %}
-                <img src="{{ post.media_url }}" class="img-fluid w-100 feed-media">
+                <img src="{{ media_src }}" class="img-fluid w-100 feed-media">
             {% endif %}
 
         </div>
+        {% endwith %}
     {% else %}
         <div class="feed-media-frame">
             <div class="post-empty">
