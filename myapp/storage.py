@@ -85,11 +85,9 @@ if MediaCloudinaryStorage:
             try:
                 import cloudinary
                 from cloudinary.utils import cloudinary_url
-                public_id = self.get_file_name(name)
-                if self.get_folder_name(name):
-                    public_id = f"{self.get_folder_name(name)}/{public_id}"
+                # name is the public_id stored by _save
                 url, _options = cloudinary_url(
-                    public_id,
+                    name,
                     resource_type=resource_type,
                     secure=True,
                 )
