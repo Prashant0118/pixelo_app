@@ -156,6 +156,15 @@ class Profile(models.Model):
         if self.image and self.image.name:
             if self.image.name not in ("default.jpg", "default.png"):
                 try:
+                    # If image name is already a URL (e.g., Cloudinary), trust it.
+                    if str(self.image.name).startswith(("http://", "https://")):
+                        return _ensure_https_url(str(self.image.name))
+
+                    # For Cloudinary storage, avoid exists() checks that can fail.
+                    storage_name = self.image.storage.__class__.__name__.lower()
+                    if "cloudinary" in storage_name:
+                        return self.image.url
+
                     # Avoid storage.exists() because Cloudinary "auto" delivery URLs
                     # can 400 on HEAD requests. Just return the URL if available.
                     name = _normalize_media_name(self.image.name)

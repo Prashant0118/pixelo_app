@@ -31,8 +31,12 @@
 
                 <label class="change-text">
                     Change Profile Photo
-                    <input type="file" name="image" hidden onchange="previewImage(event)">
+                    <input type="file" name="image" accept="image/*" hidden onchange="previewImage(event)">
                 </label>
+
+                {% if p_form.image.errors %}
+                <small class="text-danger d-block mt-2">{{ p_form.image.errors|striptags }}</small>
+                {% endif %}
 
             </div>
 

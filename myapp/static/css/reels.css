@@ -144,6 +144,8 @@
     flex-direction: column;
     gap: 12px;
     align-items: center;
+    margin-bottom: 6px;
+    z-index: 4;
 }
 
 .reel-action-btn {
@@ -158,9 +160,14 @@
     cursor: pointer;
     border-radius: 14px;
     padding: 8px 10px;
-    min-width: 64px;
+    min-width: 72px;
     transition: background 0.2s ease, border-color 0.2s ease;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
+.reel-action-btn span {
+    line-height: 1.2;
+    font-weight: 600;
 }
 
 .reel-action-btn i {
@@ -571,7 +578,8 @@ body.reels-page .reel-media {
         border-color: transparent;
     }
 
-    /* Hide right panel on reels to keep focus */
+    /* Hide side panels on reels to keep focus */
+    body.reels-page .sidebar,
     body.reels-page .right-panel {
         display: none !important;
     }
