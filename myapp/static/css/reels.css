@@ -81,7 +81,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
     display: flex;
     justify-content: space-between;
     align-items: end;
@@ -160,14 +160,16 @@
     cursor: pointer;
     border-radius: 14px;
     padding: 8px 10px;
-    min-width: 72px;
+    min-width: 80px;
     transition: background 0.2s ease, border-color 0.2s ease;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+    white-space: nowrap;
 }
 
 .reel-action-btn span {
     line-height: 1.2;
     font-weight: 600;
+    font-size: 12px;
 }
 
 .reel-action-btn i {
@@ -470,32 +472,46 @@
 
 
 @media (max-width: 992px) {
-    body.reels-page .feed {
-        width: 100%;
-        max-width: 100%;
-        height: var(--reels-vh);
-        min-height: var(--reels-vh);
-        background: #000;
-        border-left: none;
-        border-right: none;
-        margin: 0;
-        padding: 0;
-    }
+body.reels-page .feed {
+    width: 100%;
+    max-width: 100%;
+    height: var(--reels-vh);
+    min-height: var(--reels-vh);
+    background: #000;
+    border-left: none;
+    border-right: none;
+    margin: 0;
+    padding: 0;
+}
 
-    body.reels-page .content-area {
-        height: var(--reels-vh);
-        min-height: var(--reels-vh);
-        padding: 0;
-    }
+body.reels-page .content-area {
+    height: var(--reels-vh);
+    min-height: var(--reels-vh);
+    padding: 0;
+}
 
-    body.reels-page {
-        overflow: hidden;
-    }
+body.reels-page {
+    overflow: hidden;
+}
 
-    body.reels-page .main-layout {
-        max-width: 100%;
-        height: var(--reels-vh);
-    }
+body.reels-page .main-layout {
+    max-width: 100%;
+    height: var(--reels-vh);
+}
+
+/* Reels-only view: hide all app chrome */
+body.reels-page .top-navbar,
+body.reels-page .mobile-bottom,
+body.reels-page .sidebar,
+body.reels-page .right-panel {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    pointer-events: none !important;
+}
 
     /* Hide app chrome on mobile so reels use the full viewport */
     body.reels-page .top-navbar,

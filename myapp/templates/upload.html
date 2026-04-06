@@ -726,6 +726,7 @@
   const previewContainer = document.getElementById('previewContainer');
   const previewInfo = document.getElementById('previewInfo');
   const removeFileBtn = document.getElementById('removeFileBtn');
+  let lastVideoDuration = null;
   
   const CHUNK_SIZE = {{ upload_chunk_size|default:1048576 }};
   const PARALLEL_UPLOADS = 2;
@@ -779,6 +780,7 @@
     msg.style.display = 'none';
     document.getElementById('previewType').textContent = '-';
     document.getElementById('previewDurationItem').style.display = 'none';
+    lastVideoDuration = null;
   }
 
   radios.forEach(r => r.addEventListener('change', () => {
@@ -843,6 +845,7 @@
       
       v.onloadedmetadata = () => {
         const secs = v.duration || 0;
+        lastVideoDuration = secs;
         const durationItem = document.getElementById('previewDurationItem');
         durationItem.style.display = 'flex';
         document.getElementById('previewDuration').textContent = formatDuration(secs);
@@ -866,6 +869,7 @@
     media.value = '';
     clearPreview();
     document.getElementById('previewDurationItem').style.display = 'none';
+    lastVideoDuration = null;
   });
 
   const directUploadMinBytes = {{ direct_upload_min_bytes|default:0 }};
@@ -1050,13 +1054,17 @@
     const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
 
     if (file.type && file.type.startsWith('video/') && postType === 'post') {
-      const reelRadio = document.querySelector('input[name="type"][value="reel"]');
-      if (reelRadio) {
-        reelRadio.checked = true;
-        setAccept();
+      if (lastVideoDuration && lastVideoDuration > 60) {
+        showMessage('Video is longer than 1:00 ? keeping upload as Post.', 'info', 3000);
+      } else {
+        const reelRadio = document.querySelector('input[name=\"type\"][value=\"reel\"]');
+        if (reelRadio) {
+          reelRadio.checked = true;
+          setAccept();
+        }
+        postType = 'reel';
+        showMessage('Video detected: switched to Reel for compatibility.', 'info', 3000);
       }
-      postType = 'reel';
-      showMessage('Video detected: switched to Reel for compatibility.', 'info', 3000);
     }
 
     if (file.type && file.type.startsWith('image/') && postType === 'reel') {
