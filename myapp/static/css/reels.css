@@ -12,6 +12,20 @@
     -webkit-overflow-scrolling: touch;
 }
 
+/* Reels-only view: hide app chrome on all screen sizes */
+body.reels-page .top-navbar,
+body.reels-page .mobile-bottom,
+body.reels-page .sidebar,
+body.reels-page .right-panel {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    pointer-events: none !important;
+}
+
 .reels-back-btn {
     position: fixed;
     top: calc(10px + env(safe-area-inset-top));
