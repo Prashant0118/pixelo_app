@@ -4,32 +4,6 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/reels.css' %}">
 <style>
-body.reels-page {
-    overflow: hidden;
-}
-
-body.reels-page .feed {
-    width: 100%;
-    max-width: none;
-    min-height: 100vh;
-    border: none;
-}
-
-body.reels-page .content-area {
-    height: 100vh;
-    min-height: 100vh;
-    padding: 0;
-}
-
-body.reels-page .content-area > * {
-    max-width: none;
-}
-
-body.reels-page .reels-feed {
-    width: 100%;
-    height: 100vh;
-}
-
 @media (max-width: 992px) {
     body.reels-page,
     body.reels-page .main-layout,
@@ -67,125 +41,141 @@ body.reels-page .reels-feed {
 {% block body_attrs %} class="reels-page"{% endblock %}
 
 {% block content %}
+<button type="button" class="reels-back-btn" onclick="goBackFromReels()" aria-label="Back">
+    <i class="bi bi-arrow-left"></i>
+</button>
+
 <div class="reels-feed" id="reelsFeed">
-{% for reel in reels %}
-<div class="reel-item" id="reel-{{ reel.id }}">
-<div class="reel-media-wrap" ondblclick="handleDoubleTapLike({{ reel.id }})">
+    {% if reels %}
+        {% for reel in reels %}
+        <article class="reel-item" id="reel-{{ reel.id }}">
+            <div class="reel-media-wrap" ondblclick="handleDoubleTapLike({{ reel.id }})">
 
-    {% if reel.media %}
-        {% with media_src=reel.media_url|default:reel.media.url %}
-        <div class="feed-media-frame {% if reel.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
+                {% if reel.media_url %}
+                    <div class="feed-media-frame {% if reel.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
 
-            {% if reel.is_video %}
-                <video class="reel-media"
-                       id="reel-video-{{ reel.id }}"
-                       autoplay
-                       muted
-                       playsinline
-                       webkit-playsinline
-                       preload="metadata"
-                       loop>
+                        {% if reel.type == 'reel' or reel.is_video %}
+                            <video class="reel-media"
+                                   id="reel-video-{{ reel.id }}"
+                                   autoplay
+                                   muted
+                                   playsinline
+                                   webkit-playsinline
+                                   preload="metadata"
+                                   loop>
 
-                    {% with media_name=reel.media_name %}
-                    <source src="{{ media_src }}"
-                        {% if media_name|slice:'-5:' == '.webm' %}type="video/webm"
-                        {% elif media_name|slice:'-4:' == '.mp4' or media_name|slice:'-4:' == '.m4v' %}type="video/mp4"
-                        {% elif media_name|slice:'-4:' == '.ogv' %}type="video/ogg"
-                        {% elif media_name|slice:'-4:' == '.mov' %}type="video/quicktime"
-                        {% elif media_name|slice:'-4:' == '.mkv' %}type="video/x-matroska"
-                        {% elif media_name|slice:'-4:' == '.avi' %}type="video/x-msvideo"
-                        {% elif media_name|slice:'-4:' == '.3gp' or media_name|slice:'-5:' == '.3gpp' %}type="video/3gpp"
-                        {% endif %}>
-                    <source src="{{ reel.media.url }}" type="video/mp4">
-                    {% endwith %}
+                                {% with media_name=reel.media_name %}
+                                <source src="{{ reel.media_url }}"
+                                    {% if media_name|slice:'-5:' == '.webm' %}type="video/webm"
+                                    {% elif media_name|slice:'-4:' == '.mp4' or media_name|slice:'-4:' == '.m4v' %}type="video/mp4"
+                                    {% elif media_name|slice:'-4:' == '.ogv' %}type="video/ogg"
+                                    {% elif media_name|slice:'-4:' == '.mov' %}type="video/quicktime"
+                                    {% elif media_name|slice:'-4:' == '.mkv' %}type="video/x-matroska"
+                                    {% elif media_name|slice:'-4:' == '.avi' %}type="video/x-msvideo"
+                                    {% elif media_name|slice:'-4:' == '.3gp' or media_name|slice:'-5:' == '.3gpp' %}type="video/3gpp"
+                                    {% endif %}>
+                                {% endwith %}
 
-                    <!-- Fallback text -->
-                    Your browser does not support video.
-                </video>
+                                Your browser does not support video.
+                            </video>
 
-                <!-- Sound Button -->
-                <button type="button"
-                        class="reel-sound-toggle"
-                        id="reel-sound-btn-{{ reel.id }}"
-                        onclick="toggleReelSound({{ reel.id }})"
-                        aria-label="Toggle sound">
-                    <i class="bi bi-volume-mute-fill" id="reel-sound-icon-{{ reel.id }}"></i>
-                </button>
+                            <button type="button"
+                                    class="reel-sound-toggle"
+                                    id="reel-sound-btn-{{ reel.id }}"
+                                    onclick="toggleReelSound({{ reel.id }})"
+                                    aria-label="Toggle sound">
+                                <i class="bi bi-volume-mute-fill" id="reel-sound-icon-{{ reel.id }}"></i>
+                            </button>
 
-            {% else %}
-                <!-- Image -->
-                <img class="reel-media"
-                     src="{{ media_src }}"
-                     alt="reel media"
-                     onerror="this.onerror=null;this.src='{{ reel.media.url|escapejs }}';"
-                     loading="lazy">
-            {% endif %}
+                        {% else %}
+                            <img class="reel-media"
+                                 src="{{ reel.media_url }}"
+                                 alt="reel media"
+                                 loading="lazy">
+                        {% endif %}
 
-        </div>
-        {% endwith %}
+                    </div>
+                {% else %}
+                    <div class="reel-media reel-media-missing">
+                        <img src="{% static 'images/default.png' %}"
+                             alt="placeholder"
+                             class="reel-media-placeholder"
+                             loading="lazy">
+                    </div>
+                {% endif %}
+
+                <div class="reel-overlay">
+                    <div class="reel-meta">
+                        <a href="{% url 'profile' reel.user.username %}" class="reel-user">
+                            <span class="reel-user-avatar-wrap">
+                                <img src="{{ reel.user.profile.avatar_url }}"
+                                     alt="{{ reel.user.username }}"
+                                     class="reel-user-avatar"
+                                     loading="lazy">
+                            </span>
+                            <span>@{{ reel.user.username }}</span>
+                        </a>
+                        <p class="reel-caption">{{ reel.caption }}</p>
+                    </div>
+
+                    <div class="reel-actions">
+                        <button class="reel-action-btn" onclick="likeReel({{ reel.id }})">
+                            <i id="reel-like-icon-{{ reel.id }}"
+                               class="bi {% if reel.id in liked_post_ids %}bi-heart-fill liked{% else %}bi-heart{% endif %}"></i>
+                            <span id="reel-like-count-{{ reel.id }}">{{ reel.likes.count }}</span>
+                        </button>
+
+                        <button class="reel-action-btn" onclick="toggleComments({{ reel.id }})">
+                            <i class="bi bi-chat"></i>
+                            <span id="reel-comment-count-{{ reel.id }}">{{ reel.comments.count }}</span>
+                        </button>
+
+                        <button class="reel-action-btn" onclick="openShareModal({{ reel.id }})">
+                            <i class="bi bi-send"></i>
+                            <span>Share</span>
+                        </button>
+
+                        <button class="reel-action-btn"
+                                onclick="directPayCreator('{{ reel.user.username|escapejs }}', '{{ reel.user.profile.upi_id|escapejs }}')">
+                            <i class="bi bi-currency-rupee"></i>
+                            <span>Pay</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="heart-burst" id="heart-burst-{{ reel.id }}">
+                    <i class="bi bi-heart-fill"></i>
+                </div>
+
+                <div class="reel-comments" id="reel-comments-{{ reel.id }}">
+                    <div class="reel-comments-head">
+                        <strong>Comments</strong>
+                        <button class="close-comments" type="button" onclick="toggleComments({{ reel.id }})">Close</button>
+                    </div>
+                    <div class="reel-comments-list" id="reel-comments-list-{{ reel.id }}">
+                        {% for comment in reel.comments.all %}
+                            {% include "single_comment.html" %}
+                        {% empty %}
+                            <p class="empty-comment">No comments yet.</p>
+                        {% endfor %}
+                    </div>
+                    <div class="reel-comment-form">
+                        <input type="text"
+                               id="reel-comment-input-{{ reel.id }}"
+                               placeholder="Add a comment..."
+                               autocomplete="off">
+                        <button type="button" onclick="addComment({{ reel.id }})">Send</button>
+                    </div>
+                </div>
+
+            </div>
+        </article>
+        {% endfor %}
     {% else %}
-        <!-- Fallback -->
-        <div class="reel-media reel-media-missing">
-            <img src="{% static 'images/default.png' %}"
-                 alt="placeholder"
-                 class="reel-media-placeholder"
-                 loading="lazy">
+        <div class="no-reels">
+            <p>No reels available yet.</p>
         </div>
     {% endif %}
-
-    <!-- Overlay -->
-    <div class="reel-overlay">
-        <div class="reel-meta">
-            <a href="{% url 'profile' reel.user.username %}" class="reel-user">
-                <span class="reel-user-avatar-wrap">
-                    <img src="{{ reel.user.profile.avatar_url }}"
-                         alt="{{ reel.user.username }}"
-                         class="reel-user-avatar"
-                         loading="lazy">
-                </span>
-                <span>@{{ reel.user.username }}</span>
-            </a>
-            <p class="reel-caption">{{ reel.caption }}</p>
-        </div>
-
-        <div class="reel-actions">
-            <button class="reel-action-btn" onclick="likeReel({{ reel.id }})">
-                <i id="reel-like-icon-{{ reel.id }}"
-                   class="bi {% if reel.id in liked_post_ids %}bi-heart-fill liked{% else %}bi-heart{% endif %}"></i>
-                <span id="reel-like-count-{{ reel.id }}">{{ reel.likes.count }}</span>
-            </button>
-
-            <button class="reel-action-btn" onclick="toggleComments({{ reel.id }})">
-                <i class="bi bi-chat"></i>
-                <span id="reel-comment-count-{{ reel.id }}">{{ reel.comments.count }}</span>
-            </button>
-
-            <button class="reel-action-btn" onclick="openShareModal({{ reel.id }})">
-                <i class="bi bi-send"></i>
-                <span>Share</span>
-            </button>
-
-            <button class="reel-action-btn"
-                    onclick="directPayCreator('{{ reel.user.username|escapejs }}', '{{ reel.user.profile.upi_id|escapejs }}')">
-                <i class="bi bi-currency-rupee"></i>
-                <span>Pay</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Like Animation -->
-    <div class="heart-burst" id="heart-burst-{{ reel.id }}">
-        <i class="bi bi-heart-fill"></i>
-    </div>
-
-</div>
-{% empty %}
-<div class="reel-item">
-    <div class="reel-media reel-media-missing">
-        <img src="{% static 'images/default.png' %}" alt="placeholder" class="reel-media-placeholder" loading="lazy">
-    </div>
-</div>
-{% endfor %}
 </div>
 
 <div class="share-modal d-none" id="shareModal" onclick="closeShareModal(event)">
@@ -240,7 +230,7 @@ let activeWatchStartedAt = null;
 const viewedReelsInSession = new Set();
 let awaitingUserUnmute = false;
 let userHasInteracted = false;
-const pendingReelWatches = new Map(); // Track pending requests to avoid duplicates
+const pendingReelWatches = new Map();
 document.body.classList.add("reels-page");
 if (window.innerWidth <= 992) {
     const topBar = document.querySelector(".top-navbar");
@@ -284,16 +274,15 @@ function getReelIdFromVideo(videoEl) {
 }
 
 function sendReelWatch(postId, seconds, markView) {
-    // Avoid duplicate requests within 500ms window
     const key = `${postId}`;
     if (pendingReelWatches.has(key)) {
         return;
     }
-    
+
     const formData = new FormData();
     formData.append("seconds", String(Math.max(0, seconds || 0)));
     formData.append("mark_view", markView ? "1" : "0");
-    
+
     pendingReelWatches.set(key, true);
 
     fetch(`/reel-watch/${postId}/`, {
@@ -307,7 +296,6 @@ function sendReelWatch(postId, seconds, markView) {
         console.error(`Reel watch error for reel ${postId}:`, err);
     })
     .finally(() => {
-        // Clear pending flag after 500ms to allow new requests
         setTimeout(() => pendingReelWatches.delete(key), 500);
     });
 }
@@ -538,7 +526,6 @@ function tryPlayWithPreferredSound(video) {
     if (!video) return;
     applySoundPreference(video);
     video.play().catch(() => {
-        // Browser may block autoplay with sound. Fallback to muted playback.
         video.muted = true;
         awaitingUserUnmute = true;
         const postId = video.id.replace("reel-video-", "");
@@ -620,8 +607,6 @@ if (videos.length) {
         tryPlayWithPreferredSound(firstVideo);
     }
 }
-
-// CSS scroll-snap handles mobile reel snapping; avoid JS snap jitter.
 
 const targetReelId = new URLSearchParams(window.location.search).get("reel");
 if (targetReelId) {
