@@ -331,14 +331,19 @@ body.home-page .top-navbar {
 
 .feed-media-frame.is-post {
     /* Natural height for post media */
+    position: relative;
     aspect-ratio: var(--ig-portrait);
     width: 100%;
+    max-width: 100%;
     display: block;
+    overflow: hidden;
 }
 
 /* Ensure post videos fill the full post frame (mobile-like) */
 .feed-media-frame.is-post video,
 .feed-media-frame.is-post .feed-video-media {
+    position: absolute;
+    inset: 0;
     width: 100% !important;
     height: 100% !important;
     object-fit: cover;
