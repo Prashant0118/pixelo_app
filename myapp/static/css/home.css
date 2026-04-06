@@ -331,7 +331,7 @@ body.home-page .top-navbar {
 
 .feed-media-frame.is-post {
     /* Natural height for post media */
-    aspect-ratio: auto;
+    aspect-ratio: var(--ig-portrait);
     width: 100%;
     display: block;
 }
@@ -340,7 +340,7 @@ body.home-page .top-navbar {
 .feed-media-frame.is-post video,
 .feed-media-frame.is-post .feed-video-media {
     width: 100% !important;
-    height: auto !important;
+    height: 100% !important;
     object-fit: cover;
     object-position: center;
     display: block;
