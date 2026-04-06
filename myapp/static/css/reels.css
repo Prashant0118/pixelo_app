@@ -487,6 +487,18 @@ body.reels-page .main-layout {
     height: var(--reels-vh);
 }
 
+/* Hide app chrome so reels use the full viewport on all sizes */
+body.reels-page .top-navbar,
+body.reels-page .mobile-bottom {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    pointer-events: none !important;
+}
+
 /* Force reels to render above app chrome (top/bottom nav) on mobile */
 body.reels-page .reels-feed {
     position: fixed;
