@@ -315,9 +315,10 @@ body.home-page .top-navbar {
 }
 
 .card video{
-    /* reduce max height so posts appear a bit smaller */
-    max-height:540px;
-    object-fit:cover;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    object-fit: contain;
 }
 
 .feed-media-frame {
