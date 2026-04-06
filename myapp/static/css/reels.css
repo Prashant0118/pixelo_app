@@ -81,12 +81,13 @@
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 18px 14px;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
     display: flex;
     justify-content: space-between;
     align-items: end;
     gap: 10px;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+    z-index: 3;
 }
 
 .reel-meta {
@@ -141,13 +142,13 @@
 .reel-actions {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
 }
 
 .reel-action-btn {
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    background: rgba(12, 18, 30, 0.52);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(8, 12, 20, 0.75);
     color: #fff;
     display: flex;
     flex-direction: column;
@@ -156,9 +157,10 @@
     font-size: 12px;
     cursor: pointer;
     border-radius: 14px;
-    padding: 7px 10px;
-    min-width: 60px;
+    padding: 8px 10px;
+    min-width: 64px;
     transition: background 0.2s ease, border-color 0.2s ease;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 
 .reel-action-btn i {
@@ -542,6 +544,48 @@ body.reels-page .reel-media {
     /* Desktop: center reels like Shorts */
     body.reels-page {
         background: #000;
+    }
+
+    body.reels-page .main-layout {
+        max-width: 100%;
+        background: #000;
+    }
+
+    body.reels-page .feed {
+        width: 100%;
+        max-width: none;
+        background: #000;
+        border-left: none;
+        border-right: none;
+    }
+
+    body.reels-page .content-area {
+        padding: 0;
+        background: #000;
+    }
+
+    /* Keep left navigation, but make side panels blend into black */
+    body.reels-page .sidebar,
+    body.reels-page .right-panel {
+        background: #000;
+        border-color: transparent;
+    }
+
+    /* Hide right panel on reels to keep focus */
+    body.reels-page .right-panel {
+        display: none !important;
+    }
+
+    body.reels-page .sidebar .logo,
+    body.reels-page .sidebar .nav-link,
+    body.reels-page .sidebar .nav-link i {
+        color: #ffffff;
+    }
+
+    body.reels-page .sidebar .nav-link:hover,
+    body.reels-page .sidebar .nav-link:hover i {
+        color: #ffffff;
+        opacity: 0.9;
     }
 
     body.reels-page .reels-feed {
