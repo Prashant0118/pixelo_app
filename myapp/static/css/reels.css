@@ -557,10 +557,12 @@ body.reels-page .reel-item {
     flex: 0 0 var(--reels-vh) !important;
 }
 
-body.reels-page .reel-media-wrap,
-body.reels-page .reel-media {
-    width: 100% !important;
-    height: 100% !important;
+@media (max-width: 992px) {
+    body.reels-page .reel-media-wrap,
+    body.reels-page .reel-media {
+        width: 100% !important;
+        height: 100% !important;
+    }
 }
 
 @media (min-width: 993px) {
