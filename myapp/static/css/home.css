@@ -341,7 +341,7 @@ body.home-page .top-navbar {
 .feed-media-frame.is-post .feed-video-media {
     width: 100% !important;
     height: auto !important;
-    object-fit: contain;
+    object-fit: cover;
     object-position: center;
     display: block;
     max-height: none;
