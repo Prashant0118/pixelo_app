@@ -460,43 +460,45 @@
 }
 
 
-body.reels-page .feed {
-    width: 100%;
-    max-width: 100%;
-    height: var(--reels-vh);
-    min-height: var(--reels-vh);
-    background: #000;
-    border-left: none;
-    border-right: none;
-    margin: 0;
-    padding: 0;
-}
+@media (max-width: 992px) {
+    body.reels-page .feed {
+        width: 100%;
+        max-width: 100%;
+        height: var(--reels-vh);
+        min-height: var(--reels-vh);
+        background: #000;
+        border-left: none;
+        border-right: none;
+        margin: 0;
+        padding: 0;
+    }
 
-body.reels-page .content-area {
-    height: var(--reels-vh);
-    min-height: var(--reels-vh);
-    padding: 0;
-}
+    body.reels-page .content-area {
+        height: var(--reels-vh);
+        min-height: var(--reels-vh);
+        padding: 0;
+    }
 
-body.reels-page {
-    overflow: hidden;
-}
+    body.reels-page {
+        overflow: hidden;
+    }
 
-body.reels-page .main-layout {
-    max-width: 100%;
-    height: var(--reels-vh);
-}
+    body.reels-page .main-layout {
+        max-width: 100%;
+        height: var(--reels-vh);
+    }
 
-/* Hide app chrome so reels use the full viewport on all sizes */
-body.reels-page .top-navbar,
-body.reels-page .mobile-bottom {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    min-height: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    pointer-events: none !important;
+    /* Hide app chrome on mobile so reels use the full viewport */
+    body.reels-page .top-navbar,
+    body.reels-page .mobile-bottom {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        pointer-events: none !important;
+    }
 }
 
 /* Force reels to render above app chrome (top/bottom nav) on mobile */
