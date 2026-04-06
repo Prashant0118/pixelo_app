@@ -1050,8 +1050,18 @@
     const file = media.files && media.files[0];
     if (!file) return;
 
-    let postType = document.querySelector('input[name="type"]:checked').value;
-    const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
+    let postType = document.querySelector('input[name=\"type\"]:checked').value;
+    const caption = (document.querySelector('textarea[name=\"caption\"]').value || '').trim();
+
+    if (file.type && file.type.startsWith('video/') && lastVideoDuration && lastVideoDuration > 60) {
+      const postRadio = document.querySelector('input[name=\"type\"][value=\"post\"]');
+      if (postRadio) {
+        postRadio.checked = true;
+        setAccept();
+      }
+      postType = 'post';
+      showMessage('Video is longer than 1:00 ? keeping upload as Post.', 'info', 3000);
+    }
 
     if (file.type && file.type.startsWith('video/') && postType === 'post') {
       if (lastVideoDuration && lastVideoDuration > 60) {
