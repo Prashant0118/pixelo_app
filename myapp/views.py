@@ -561,11 +561,12 @@ def media_serve(request, path):
 
 
 def _direct_upload_enabled():
+    # Client-side direct uploads must be unsigned to avoid CORS issues.
     return bool(
         getattr(settings, "CAN_USE_CLOUDINARY", False)
         and getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
-        and getattr(settings, "CLOUDINARY_API_KEY", "")
-        and getattr(settings, "CLOUDINARY_API_SECRET", "")
+        and getattr(settings, "CLOUDINARY_UPLOAD_PRESET", "")
+        and getattr(settings, "ALLOW_UNSIGNED_UPLOAD", False)
     )
 
 
@@ -580,6 +581,7 @@ def _upload_page_context(error=None):
         "cloudinary_upload_preset": upload_preset,
         "cloudinary_widget_enabled": bool(upload_preset and direct_upload_enabled),
         "allow_unsigned_upload": getattr(settings, "ALLOW_UNSIGNED_UPLOAD", False),
+        "chunk_upload_enabled": bool(getattr(settings, "ALLOW_CHUNK_UPLOAD", False)),
         "direct_upload_min_bytes": getattr(settings, "DIRECT_UPLOAD_MIN_BYTES", 0),
         "max_direct_upload_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
         "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),

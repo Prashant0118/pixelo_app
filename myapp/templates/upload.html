@@ -731,7 +731,11 @@
   const PARALLEL_UPLOADS = 2;
   const MAX_RETRIES = 3;
   const DIRECT_UPLOAD_ENABLED = {{ direct_upload_enabled|yesno:"true,false" }};
+  const CHUNK_UPLOAD_ENABLED = {{ chunk_upload_enabled|yesno:"true,false" }};
+  const ALLOW_UNSIGNED_UPLOAD = {{ allow_unsigned_upload|yesno:"true,false" }};
   const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|default:''|escapejs }}";
+  const CLOUDINARY_UPLOAD_PRESET = "{{ cloudinary_upload_preset|default:''|escapejs }}";
+  const USE_UNSIGNED_UPLOAD = Boolean(ALLOW_UNSIGNED_UPLOAD && CLOUDINARY_UPLOAD_PRESET && CLOUDINARY_CLOUD_NAME);
 
   function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -889,39 +893,16 @@
   }
 
   async function uploadDirectToCloudinary(file, postType, caption) {
+    if (!USE_UNSIGNED_UPLOAD) {
+      throw new Error('unsigned_upload_not_configured');
+    }
     const resourceType = (file.type && file.type.startsWith('video/')) ? 'video' : 'image';
-    const signBody = {
-      folder: 'posts',
-      timestamp: Math.floor(Date.now() / 1000),
-    };
-
-    const signRes = await fetch('/upload/cloudinary-signature/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken'),
-      },
-      body: JSON.stringify(signBody),
-    });
-
-    if (!signRes.ok) {
-      const errorText = await signRes.text();
-      throw new Error(`signature_failed:${errorText}`);
-    }
-
-    const signData = await signRes.json();
-    if (!signData.signature || !signData.api_key || !signData.cloud_name) {
-      throw new Error('signature_incomplete');
-    }
-
     const cloudinaryForm = new FormData();
     cloudinaryForm.append('file', file);
-    cloudinaryForm.append('api_key', signData.api_key);
-    cloudinaryForm.append('timestamp', String(signData.timestamp || signBody.timestamp));
-    cloudinaryForm.append('signature', signData.signature);
+    cloudinaryForm.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     cloudinaryForm.append('folder', 'posts');
 
-    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${signData.cloud_name || CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, {
+    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, {
       method: 'POST',
       body: cloudinaryForm,
     });
@@ -1088,7 +1069,7 @@
       showMessage('Image detected: switched to Post for compatibility.', 'info', 3000);
     }
 
-    if (DIRECT_UPLOAD_ENABLED) {
+    if (DIRECT_UPLOAD_ENABLED && USE_UNSIGNED_UPLOAD) {
       e.preventDefault();
       setBusy(true);
       progressBar.style.width = '20%';
@@ -1110,7 +1091,7 @@
     }
 
     // Handle video uploads with chunked upload when direct upload is unavailable
-    if (file.type && file.type.startsWith('video/')) {
+    if (CHUNK_UPLOAD_ENABLED && file.type && file.type.startsWith('video/')) {
       e.preventDefault();
       setBusy(true);
       progressBar.style.width = '0%';
