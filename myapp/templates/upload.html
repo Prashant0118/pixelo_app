@@ -627,7 +627,7 @@
               </label>
             </div>
           </div>
-          <small style="color: var(--muted);">Reels are videos under 60 seconds; longer videos become posts.</small>
+          <small style="color: var(--muted);">Reels are videos up to 60 seconds; longer videos become posts.</small>
         </div>
 
         <!-- File Upload -->
@@ -637,7 +637,7 @@
             <label for="mediaInput" class="file-input-label" id="fileInputLabel">
               <i class="bi bi-cloud-arrow-up upload-icon"></i>
               <span class="file-input-text">Click or drag to upload</span>
-              <span class="file-input-subtext">PNG, JPG, GIF</span>
+              <span class="file-input-subtext">PNG, JPG, GIF, MP4</span>
             </label>
             <input type="file" name="media" id="mediaInput" accept="image/*,video/*" required>
           </div>
@@ -770,7 +770,7 @@
 
   function setAccept() {
     const t = document.querySelector('input[name="type"]:checked').value;
-    media.accept = t === 'post' ? 'image/*' : 'video/*';
+    media.accept = t === 'reel' ? 'video/*' : 'image/*,video/*';
   }
 
   function clearPreview() {
@@ -849,14 +849,21 @@
         const durationItem = document.getElementById('previewDurationItem');
         durationItem.style.display = 'flex';
         document.getElementById('previewDuration').textContent = formatDuration(secs);
-        
-        if (secs > 60) {
-          const reelRadio = document.querySelector('input[name="type"][value="reel"]');
-          if (reelRadio) {
-            reelRadio.checked = true;
-            setAccept();
+
+        if (secs > 0) {
+          const desiredType = secs > 60 ? 'post' : 'reel';
+          const currentType = document.querySelector('input[name="type"]:checked')?.value;
+          if (currentType !== desiredType) {
+            const targetRadio = document.querySelector(`input[name="type"][value="${desiredType}"]`);
+            if (targetRadio) {
+              targetRadio.checked = true;
+              setAccept();
+            }
+            const msgText = desiredType === 'post'
+              ? 'Video longer than 1:00 - switched to Post.'
+              : 'Video under 1:00 - switched to Reel.';
+            showMessage(msgText, 'info', 3000);
           }
-          showMessage('⏱️ Video is longer than 1:00 — keeping upload as Reel', 'info');
         }
       };
 
@@ -1053,30 +1060,21 @@
     let postType = document.querySelector('input[name=\"type\"]:checked').value;
     const caption = (document.querySelector('textarea[name=\"caption\"]').value || '').trim();
 
-    if (file.type && file.type.startsWith('video/') && lastVideoDuration && lastVideoDuration > 60) {
-      const postRadio = document.querySelector('input[name=\"type\"][value=\"post\"]');
-      if (postRadio) {
-        postRadio.checked = true;
-        setAccept();
-      }
-      postType = 'post';
-      showMessage('Video is longer than 1:00 ? keeping upload as Post.', 'info', 3000);
-    }
-
-    if (file.type && file.type.startsWith('video/') && postType === 'post') {
-      if (lastVideoDuration && lastVideoDuration > 60) {
-        showMessage('Video is longer than 1:00 ? keeping upload as Post.', 'info', 3000);
-      } else {
-        const reelRadio = document.querySelector('input[name=\"type\"][value=\"reel\"]');
-        if (reelRadio) {
-          reelRadio.checked = true;
+    if (file.type && file.type.startsWith('video/') && lastVideoDuration) {
+      const desiredType = lastVideoDuration > 60 ? 'post' : 'reel';
+      if (postType !== desiredType) {
+        const targetRadio = document.querySelector(`input[name="type"][value="${desiredType}"]`);
+        if (targetRadio) {
+          targetRadio.checked = true;
           setAccept();
         }
-        postType = 'reel';
-        showMessage('Video detected: switched to Reel for compatibility.', 'info', 3000);
+        postType = desiredType;
+        const msgText = desiredType === 'post'
+          ? 'Video longer than 1:00 - switched to Post.'
+          : 'Video under 1:00 - switched to Reel.';
+        showMessage(msgText, 'info', 3000);
       }
     }
-
     if (file.type && file.type.startsWith('image/') && postType === 'reel') {
       const postRadio = document.querySelector('input[name="type"][value="post"]');
       if (postRadio) {
@@ -1134,3 +1132,5 @@
 </script>
 
 {% endblock %}
+
+

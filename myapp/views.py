@@ -2135,10 +2135,7 @@ def upload(request):
 
             is_video_upload = _is_video_file(name, content_type) or (ext in video_exts)
 
-            # Enforce: Posts must be images. Reels must be videos.
-            if post_type == "post" and is_video_upload:
-                return render(request, "upload.html", _upload_page_context("Post uploads must be images. Choose 'Reel' to upload videos."))
-
+            # Reels must be videos. Posts can be images or videos.
             if post_type == "reel" and not is_video_upload:
                 guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
                 if not (guessed and guessed.startswith("video/")):
@@ -2177,13 +2174,15 @@ def upload(request):
 
             post = Post.objects.create(user=request.user, media=media, caption=caption, type=post_type)
 
-            # Server-side duration check: always try to detect video duration for reels
-            if post and post.type == "reel" and is_video_upload:
+            # Server-side duration check: enforce <=60s as reels, >60s as posts.
+            if post and is_video_upload:
                 try:
                     duration = _video_duration_seconds(media)
-                    if duration and duration > 60 and post.type == "reel":
-                        post.type = "post"
-                        post.save(update_fields=["type"])
+                    if duration:
+                        target_type = "reel" if duration <= 60 else "post"
+                        if post.type != target_type:
+                            post.type = target_type
+                            post.save(update_fields=["type"])
                 except Exception as e:
                     # Non-fatal: log and continue
                     print(f"[upload] duration check failed: {e}")
@@ -2202,7 +2201,7 @@ def upload(request):
                 detail = str(exc)
                 if detail and len(detail) < 200:
                     if "Invalid image file" in detail or "BadRequest" in detail:
-                        err_text = "Upload failed: Cloudinary rejected the file. Ensure videos use proper video format (mp4, webm, mov, etc.) and upload as Reel type. "
+                        err_text = "Upload failed: Cloudinary rejected the file. Ensure videos use proper video format (mp4, webm, mov, etc.) and upload as Reel or Post. "
                     err_text = f"{err_text} - {detail}"
             except Exception:
                 pass
@@ -2423,13 +2422,6 @@ def upload_chunk_complete(request):
         video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
         is_video_upload = _is_video_file(name) or (ext in video_exts)
 
-        if post_type == "post" and is_video_upload:
-            try:
-                os.remove(assembled_abs)
-            except Exception:
-                pass
-            return JsonResponse({"error": "Post uploads must be images. Choose 'Reel' to upload videos."}, status=400)
-
         if post_type == "reel" and not is_video_upload:
             try:
                 os.remove(assembled_abs)
@@ -2444,13 +2436,15 @@ def upload_chunk_complete(request):
             django_file = File(f, name=assembled_name)
             post = Post.objects.create(user=request.user, media=django_file, caption=caption, type=post_type)
 
-            # Server-side duration check: always try to detect video duration for reels
-            if post and post.type == "reel" and post.is_video:
+            # Server-side duration check: enforce <=60s as reels, >60s as posts.
+            if post and post.is_video:
                 try:
                     duration = _ffprobe_duration_seconds(post.media.path)
-                    if duration and duration > 60:
-                        post.type = "post"
-                        post.save(update_fields=["type"])
+                    if duration:
+                        target_type = "reel" if duration <= 60 else "post"
+                        if post.type != target_type:
+                            post.type = target_type
+                            post.save(update_fields=["type"])
                 except Exception as e:
                     # Non-fatal: log and continue
                     print(f"[upload_chunk_complete] duration check failed: {e}")
@@ -2462,7 +2456,7 @@ def upload_chunk_complete(request):
             if detail:
                 err_text = f"{err_text} - {detail}"
                 if "Invalid image file" in detail or "BadRequest" in detail:
-                    err_text = "Upload failed: Ensure video is in correct format (mp4, webm, mov, etc.) and upload as Reel type. " + err_text
+                    err_text = "Upload failed: Ensure video is in correct format (mp4, webm, mov, etc.) and upload as Reel or Post. " + err_text
         except Exception:
             pass
         if _media_debug_enabled():
