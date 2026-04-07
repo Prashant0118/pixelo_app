@@ -737,6 +737,7 @@
   const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|default:''|escapejs }}";
   const CLOUDINARY_UPLOAD_PRESET = "{{ cloudinary_upload_preset|default:''|escapejs }}";
   const USE_UNSIGNED_UPLOAD = Boolean(ALLOW_UNSIGNED_UPLOAD && CLOUDINARY_UPLOAD_PRESET && CLOUDINARY_CLOUD_NAME);
+  let directUploadFailed = false;
 
   function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -1085,7 +1086,7 @@
       showMessage('Image detected: switched to Post for compatibility.', 'info', 3000);
     }
 
-    if (DIRECT_UPLOAD_ENABLED && USE_UNSIGNED_UPLOAD) {
+    if (DIRECT_UPLOAD_ENABLED && USE_UNSIGNED_UPLOAD && !directUploadFailed) {
       e.preventDefault();
       setBusy(true);
       progressBar.style.width = '20%';
@@ -1101,8 +1102,11 @@
         return;
       } catch (err) {
         console.error('Direct upload error:', err);
-        showMessage('❌ Direct upload failed. Trying standard upload...', 'error', 2500);
+        showMessage('❌ Direct upload failed. Switching to standard upload...', 'error', 2500);
+        directUploadFailed = true;
         setBusy(false);
+        form.submit();
+        return;
       }
     }
 

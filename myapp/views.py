@@ -561,13 +561,8 @@ def media_serve(request, path):
 
 
 def _direct_upload_enabled():
-    # Client-side direct uploads must be unsigned to avoid CORS issues.
-    return bool(
-        getattr(settings, "CAN_USE_CLOUDINARY", False)
-        and getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
-        and getattr(settings, "CLOUDINARY_UPLOAD_PRESET", "")
-        and getattr(settings, "ALLOW_UNSIGNED_UPLOAD", False)
-    )
+    # Disabled to avoid CORS issues on the client.
+    return False
 
 
 def _upload_page_context(error=None):
