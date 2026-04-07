@@ -332,7 +332,7 @@ body.home-page .top-navbar {
 .feed-media-frame.is-post {
     /* Natural height for post media */
     position: relative;
-    aspect-ratio: var(--ig-portrait);
+    aspect-ratio: auto;
     width: 100%;
     max-width: 100%;
     display: block;
@@ -342,11 +342,11 @@ body.home-page .top-navbar {
 /* Ensure post videos fill the full post frame (mobile-like) */
 .feed-media-frame.is-post video,
 .feed-media-frame.is-post .feed-video-media {
-    position: absolute;
-    inset: 0;
+    position: relative;
+    inset: auto;
     width: 100% !important;
-    height: 100% !important;
-    object-fit: cover;
+    height: auto !important;
+    object-fit: contain;
     object-position: center;
     display: block;
     max-height: none;
