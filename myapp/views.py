@@ -561,12 +561,8 @@ def media_serve(request, path):
 
 
 def _direct_upload_enabled():
-    return bool(
-        getattr(settings, "CAN_USE_CLOUDINARY", False)
-        and getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
-        and getattr(settings, "CLOUDINARY_API_KEY", "")
-        and getattr(settings, "CLOUDINARY_API_SECRET", "")
-    )
+    # Disable direct upload to avoid CORS issues with Cloudinary API
+    return False
 
 
 def _upload_page_context(error=None):
