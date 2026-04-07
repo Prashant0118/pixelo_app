@@ -1054,6 +1054,38 @@
     throw new Error('complete_failed');
   }
 
+  function uploadStandardForm(formEl) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData(formEl);
+      xhr.open('POST', formEl.getAttribute('action') || window.location.href, true);
+
+      xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const percent = Math.round((e.loaded / e.total) * 100);
+        progressBar.style.width = `${percent}%`;
+        progressText.textContent = percent;
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 400) {
+          // Redirect if server responds with redirect
+          if (xhr.responseURL) {
+            window.location.href = xhr.responseURL;
+            return resolve();
+          }
+          resolve();
+          return;
+        }
+        reject(new Error(`Upload failed (${xhr.status})`));
+      };
+
+      xhr.onerror = () => reject(new Error('network_error'));
+
+      xhr.send(formData);
+    });
+  }
+
   form.addEventListener('submit', async (e) => {
     const file = media.files && media.files[0];
     if (!file) return;
@@ -1129,6 +1161,24 @@
         setBusy(false);
         return;
       }
+    }
+
+    // Fallback: standard form upload with progress
+    e.preventDefault();
+    setBusy(true);
+    progressBar.style.width = '0%';
+    progressText.textContent = '0';
+    progressWrap.style.display = 'flex';
+
+    try {
+      await uploadStandardForm(form);
+      showMessage('✅ Upload completed successfully!', 'success', 2000);
+      setBusy(false);
+      return;
+    } catch (err) {
+      console.error('Standard upload error:', err);
+      showMessage('❌ Upload failed. Please try again.', 'error', 3000);
+      setBusy(false);
     }
   });
 
