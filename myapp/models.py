@@ -499,6 +499,8 @@ class Post(models.Model):
 
     caption = models.TextField(blank=True)
 
+    duration = models.FloatField(null=True, blank=True)  # Duration in seconds for videos
+
     type = models.CharField(
         max_length=10,
         choices=TYPE_CHOICES,

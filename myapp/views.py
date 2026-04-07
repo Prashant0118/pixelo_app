@@ -936,7 +936,7 @@ def home(request):
             default=Value(1),
             output_field=IntegerField(),
         )
-    )
+    ).filter(type='post')
     if selected_category == "Trending":
         posts = (
             posts_qs.annotate(
@@ -2171,13 +2171,16 @@ def upload(request):
 
             post = Post.objects.create(user=request.user, media=media, caption=caption, type=post_type)
 
-            # Server-side duration check: always try to detect video duration for reels
-            if post and post.type == "reel" and is_video_upload:
+            # Server-side duration check: classify videos by duration
+            if post and is_video_upload:
                 try:
                     duration = _video_duration_seconds(media)
-                    if duration and duration > 60 and post.type == "reel":
+                    post.duration = duration
+                    if duration and duration <= 60:
+                        post.type = "reel"
+                    else:
                         post.type = "post"
-                        post.save(update_fields=["type"])
+                    post.save(update_fields=["duration", "type"])
                 except Exception as e:
                     # Non-fatal: log and continue
                     print(f"[upload] duration check failed: {e}")
