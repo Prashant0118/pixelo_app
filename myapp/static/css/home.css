@@ -331,18 +331,19 @@ body.home-page .top-navbar {
 
 .feed-media-frame.is-post {
     /* Natural height for post media */
-    position: relative;
+    position: static;
     aspect-ratio: auto;
     width: 100%;
     max-width: 100%;
     display: block;
     overflow: hidden;
+    background: transparent;
 }
 
 /* Ensure post videos fill the full post frame (mobile-like) */
 .feed-media-frame.is-post video,
 .feed-media-frame.is-post .feed-video-media {
-    position: relative;
+    position: static;
     inset: auto;
     width: 100% !important;
     height: auto !important;
@@ -350,7 +351,12 @@ body.home-page .top-navbar {
     object-position: center;
     display: block;
     max-height: none;
-    background: transparent;
+    background: #000;
+}
+
+.feed-media-frame.is-post .feed-media {
+    height: auto !important;
+    object-fit: contain !important;
 }
 
 @media (min-width: 1000px) {
