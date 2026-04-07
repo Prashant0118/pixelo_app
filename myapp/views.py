@@ -2129,14 +2129,16 @@ def upload(request):
 
             is_video_upload = _is_video_file(name, content_type) or (ext in video_exts)
 
-            # Enforce: Posts must be images. Reels must be videos.
-            if post_type == "post" and is_video_upload:
-                return render(request, "upload.html", _upload_page_context("Post uploads must be images. Choose 'Reel' to upload videos."))
+            # Enforce: Images must be posts, videos auto-classified by duration
+            if not is_video_upload:
+                post_type = 'post'
+            elif is_video_upload:
+                # Videos will be classified later by duration
+                pass
+            else:
+                post_type = 'post'
 
-            if post_type == "reel" and not is_video_upload:
-                guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
-                if not (guessed and guessed.startswith("video/")):
-                    return render(request, "upload.html", _upload_page_context("Reel upload only supports video files (mp4, webm, mov, m4v, etc.)."))
+            # Enforce size limits
 
             # Ensure video files keep a video extension
             if is_video_upload and ext not in video_exts:
