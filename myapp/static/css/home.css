@@ -330,7 +330,7 @@ body.home-page .top-navbar {
 
 .feed-media-frame.is-post {
     /* Natural height for post media */
-    aspect-ratio: 16 / 9;
+    aspect-ratio: auto;
     width: 100%;
 }
 
@@ -338,8 +338,8 @@ body.home-page .top-navbar {
 .feed-media-frame.is-post video,
 .feed-media-frame.is-post .feed-video-media {
     width: 100% !important;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
     object-position: center;
     display: block;
     max-height: none;
