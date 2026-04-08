@@ -35,6 +35,13 @@
         border: 0 !important;
     }
 }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="reels-feed" id="reelsFeed">
+{% for reel in reels %}
+<div class="reel-item">
 <div class="reel-media-wrap" ondblclick="handleDoubleTapLike({{ reel.id }})">
 
     {% if reel.media_url %}
@@ -140,6 +147,9 @@
     </div>
 
 </div>
+</div>
+{% endfor %}
+</div>
 
 <div class="share-modal d-none" id="shareModal" onclick="closeShareModal(event)">
     <div class="share-card">
@@ -183,6 +193,7 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
 <script>
 let activeSharePostId = null;
@@ -640,4 +651,3 @@ document.addEventListener("keydown", () => {
     });
 }, { once: true });
 </script>
-{% endblock %}
