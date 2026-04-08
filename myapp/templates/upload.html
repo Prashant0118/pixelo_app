@@ -714,11 +714,30 @@
 
 
 {% if firebase_api_key and firebase_storage_bucket and firebase_project_id %}
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" onerror="console.warn('Firebase app script failed to load')"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js" onerror="console.warn('Firebase storage script failed to load')"></script>
 {% endif %}
 
 <script>
+// Safe localStorage access (handles Tracking Prevention blocks)
+const safeStorage = {
+  getItem(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.warn('localStorage access blocked (Tracking Prevention):', e);
+      return null;
+    }
+  },
+  setItem(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn('localStorage write blocked (Tracking Prevention):', e);
+    }
+  },
+};
+
 (() => {
   const form = document.getElementById('simpleUploadForm');
   const media = document.getElementById('mediaInput');
@@ -1170,7 +1189,16 @@
     setBusy(true);
 
     try {
-      if (!firebase.apps.length) {
+      // Check if Firebase is available and properly configured
+      if (typeof firebase === 'undefined') {
+        throw new Error('Firebase not loaded - using standard upload');
+      }
+      
+      if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+        throw new Error('Firebase not configured - using standard upload');
+      }
+
+      if (!firebase.apps || !firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
       }
       const storage = firebase.storage();
@@ -1217,6 +1245,13 @@
       showMessage((data && data.error) ? `❌ ${data.error}` : '❌ Upload failed', 'error');
       setBusy(false);
     } catch (err) {
+      // If Firebase failed to load or initialize, fall back to standard upload
+      if (err.message.includes('Firebase not loaded') || err.message.includes('Firebase not configured')) {
+        console.log('Firebase unavailable, falling back to standard upload...');
+        form.dispatchEvent(new Event('submit'));
+        return;
+      }
+      console.error('Upload error:', err);
       showMessage('❌ Upload failed. Please try again.', 'error');
       setBusy(false);
     }
