@@ -144,14 +144,6 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
     if CLOUDINARY_UPLOAD_PRESET:
         CLOUDINARY_STORAGE["UPLOAD_PRESET"] = CLOUDINARY_UPLOAD_PRESET
 
-# Firebase Storage (direct upload from browser)
-FIREBASE_API_KEY = (os.getenv("FIREBASE_API_KEY") or "").strip()
-FIREBASE_AUTH_DOMAIN = (os.getenv("FIREBASE_AUTH_DOMAIN") or "").strip()
-FIREBASE_PROJECT_ID = (os.getenv("FIREBASE_PROJECT_ID") or "").strip()
-FIREBASE_STORAGE_BUCKET = (os.getenv("FIREBASE_STORAGE_BUCKET") or "").strip()
-FIREBASE_APP_ID = (os.getenv("FIREBASE_APP_ID") or "").strip()
-FIREBASE_MEASUREMENT_ID = (os.getenv("FIREBASE_MEASUREMENT_ID") or "").strip()
-
 # Configure explicit Cloudinary credentials when available.
 if CAN_USE_CLOUDINARY:
     try:
