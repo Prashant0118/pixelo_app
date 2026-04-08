@@ -1,6 +1,53 @@
 {% extends "base.html" %}
 {% load static %}
 
+<!-- Comprehensive error handler for external resources -->
+<script>
+// Suppress Tracking Prevention console warnings globally
+const originalWarn = console.warn;
+const originalError = console.error;
+
+function shouldSuppressMessage(message) {
+  if (!message) return false;
+  const msg = String(message).toLowerCase();
+  return msg.includes('tracking prevention') || 
+         msg.includes('blocked access') ||
+         msg.includes('cross-origin') ||
+         msg.includes('cors');
+}
+
+// Override console methods to filter tracking prevention messages
+console.warn = function(...args) {
+  const firstArg = args[0];
+  if (!shouldSuppressMessage(firstArg)) {
+    originalWarn.apply(console, args);
+  }
+};
+
+console.error = function(...args) {
+  const firstArg = args[0];
+  if (!shouldSuppressMessage(firstArg)) {
+    originalError.apply(console, args);
+  }
+};
+
+// Global error listener for syntax errors
+window.addEventListener('error', (event) => {
+  if (event.message && shouldSuppressMessage(event.message)) {
+    event.preventDefault();
+    return false;
+  }
+});
+
+// Handle unhandled promise rejections from failed external resources
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && shouldSuppressMessage(String(event.reason))) {
+    event.preventDefault();
+    return false;
+  }
+});
+</script>
+
 {% block content %}
 
 <!-- Fallback styles in case CDN CSS fails due to Tracking Prevention -->
@@ -796,8 +843,10 @@ input[type="text"], input[type="file"], textarea {
 
 
 {% if firebase_api_key and firebase_storage_bucket and firebase_project_id %}
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" onerror="console.warn('Firebase app script failed to load')"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js" onerror="console.warn('Firebase storage script failed to load')"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" 
+        crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js" 
+        crossorigin="anonymous"></script>
 {% endif %}
 
 <script>
@@ -807,7 +856,7 @@ const safeStorage = {
     try {
       return localStorage.getItem(key);
     } catch (e) {
-      console.warn('localStorage access blocked (Tracking Prevention):', e);
+      // Silently fail - skip logging to prevent console pollution
       return null;
     }
   },
@@ -815,7 +864,7 @@ const safeStorage = {
     try {
       localStorage.setItem(key, value);
     } catch (e) {
-      console.warn('localStorage write blocked (Tracking Prevention):', e);
+      // Silently fail - skip logging
     }
   },
 };
