@@ -151,6 +151,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 3px;
     font-size: 12px;
     cursor: pointer;
@@ -158,6 +159,7 @@
     padding: 7px 10px;
     min-width: 60px;
     transition: background 0.2s ease, border-color 0.2s ease;
+    position: relative;
 }
 
 .reel-action-btn i {
@@ -167,6 +169,35 @@
 .reel-action-btn:hover {
     background: rgba(26, 37, 58, 0.82);
     border-color: rgba(255, 255, 255, 0.28);
+}
+
+/* Payment button styling */
+.reel-action-btn:has(> .bi-currency-rupee) {
+    border-color: rgba(76, 175, 80, 0.4);
+    background: rgba(76, 175, 80, 0.15);
+}
+
+.reel-action-btn:has(> .bi-currency-rupee):hover {
+    background: rgba(76, 175, 80, 0.25);
+    border-color: rgba(76, 175, 80, 0.6);
+}
+
+/* UPI available indicator */
+.upi-available {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #4caf50;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
 .liked {

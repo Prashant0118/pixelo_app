@@ -1202,7 +1202,7 @@ def reels(request):
         selected_category = "All"
 
     social_priority_ids = _social_priority_user_ids(request.user)
-    reels_qs = Post.objects.filter(type="reel").select_related("user").prefetch_related(
+    reels_qs = Post.objects.filter(type="reel").select_related("user", "user__profile").prefetch_related(
         "likes", "comments__user"
     )
     if profile_username:

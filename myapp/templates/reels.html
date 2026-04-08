@@ -133,10 +133,14 @@
                 <span>Share</span>
             </button>
 
-            <button class="reel-action-btn"
+            <button class="reel-action-btn" 
+                    title="Support this creator"
+                    data-creator-username="{{ reel.user.username|escapejs }}"
+                    data-creator-upi="{{ reel.user.profile.upi_id|escapejs }}"
                     onclick="directPayCreator('{{ reel.user.username|escapejs }}', '{{ reel.user.profile.upi_id|escapejs }}')">
                 <i class="bi bi-currency-rupee"></i>
                 <span>Pay</span>
+                {% if reel.user.profile.upi_id %}<span class="upi-available" title="UPI available">✓</span>{% endif %}
             </button>
         </div>
     </div>
@@ -432,7 +436,15 @@ function copyShareLink() {
 function directPayCreator(username, upiId) {
     const cleanUpi = (upiId || "").trim();
     if (!cleanUpi) {
-        alert("Creator has not added a UPI ID yet.");
+        // Show a more friendly message
+        const msg = `@${username} hasn't set up payments yet. Check back soon!`;
+        console.warn("Payment not available:", msg);
+        // Try to show a toast-like message instead of alert
+        if (window.__showNotification) {
+            window.__showNotification(msg, 'warning');
+        } else {
+            alert(msg);
+        }
         return;
     }
 
