@@ -270,7 +270,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Default storage backend (overridden by STORAGES when configured).
 # Keep it aligned with CAN_USE_CLOUDINARY to avoid misconfigured uploads.
 DEFAULT_FILE_STORAGE = (
-    "cloudinary_storage.storage.MediaCloudinaryStorage"
+    "myapp.storage.MediaCloudinaryAutoStorage"
     if CAN_USE_CLOUDINARY
     else "django.core.files.storage.FileSystemStorage"
 )

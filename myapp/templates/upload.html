@@ -810,12 +810,6 @@ input[type="text"], input[type="file"], textarea {
           <div class="preview-placeholder-icon">📁</div>
           <span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>
         </div>
-        <div id="previewInfo" style="display: none; margin-top: 12px; font-size: 12px; color: var(--muted);">
-          <div><strong>Name:</strong> <span id="previewName"></span></div>
-          <div><strong>Size:</strong> <span id="previewSize"></span></div>
-          <div><strong>Type:</strong> <span id="previewType"></span></div>
-          <div id="previewDurationItem" style="display: none;"><strong>Duration:</strong> <span id="previewDuration"></span></div>
-        </div>
       </div>
 
       <div class="preview-info" id="previewInfo" style="display: none;">
@@ -851,7 +845,6 @@ const safeStorage = {
     try {
       return localStorage.getItem(key);
     } catch (e) {
-      // Silently fail - skip logging to prevent console pollution
       return null;
     }
   },
@@ -859,17 +852,19 @@ const safeStorage = {
     try {
       localStorage.setItem(key, value);
     } catch (e) {
-      // Silently fail - skip logging
+      // Silent fail.
     }
   },
 };
 
-(() => {
+(function () {
   const form = document.getElementById('simpleUploadForm');
   const media = document.getElementById('mediaInput');
   const radios = document.querySelectorAll('input[name="type"]');
   const msg = document.getElementById('message');
   const uploadBtn = document.getElementById('uploadBtn');
+  const submitBtnText = document.querySelector('.submit-btn-text');
+  const submitBtnIcon = document.querySelector('.submit-btn-icon');
   const progressWrap = document.getElementById('progressWrap');
   const progressBar = document.getElementById('progressBar');
   const progressText = document.getElementById('progressText');
@@ -877,10 +872,11 @@ const safeStorage = {
   const previewContainer = document.getElementById('previewContainer');
   const previewInfo = document.getElementById('previewInfo');
   const removeFileBtn = document.getElementById('removeFileBtn');
-  
+
   const CHUNK_SIZE = {{ upload_chunk_size|default:5242880 }};
   const PARALLEL_UPLOADS = 4;
   const MAX_RETRIES = 3;
+  const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|m4v|avi|mkv|ogv|3gp|3gpp)$/i;
 
   function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -890,7 +886,6 @@ const safeStorage = {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   }
 
-  // Format duration
   function formatDuration(seconds) {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -901,9 +896,18 @@ const safeStorage = {
     return `${mins}:${String(secs).padStart(2, '0')}`;
   }
 
+  function showMessage(text, type = 'info', duration = 0) {
+    msg.className = `message-box ${type}`;
+    msg.textContent = text;
+    msg.style.display = 'block';
+    if (duration > 0) {
+      setTimeout(() => { msg.style.display = 'none'; }, duration);
+    }
+  }
+
   function setAccept() {
     const t = document.querySelector('input[name="type"]:checked').value;
-    media.accept = t === 'post' ? 'image/*' : 'video/*,image/*';
+    media.accept = t === 'post' ? 'image/*' : 'video/*';
     const subtext = document.querySelector('.file-input-subtext');
     if (subtext) {
       subtext.textContent = t === 'post' ? 'PNG, JPG, GIF' : 'MP4, WebM, MOV, AVI';
@@ -912,15 +916,117 @@ const safeStorage = {
   }
 
   function clearPreview() {
-    previewContainer.innerHTML = '<div class="preview-placeholder-icon">📁</div><span style="font-size: 14px; font-weight: 500;">No file selected</span>';
+    previewContainer.innerHTML = '<div class="preview-placeholder-icon">📁</div><span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>';
     previewInfo.style.display = 'none';
     fileInputLabel.classList.remove('has-file');
   }
 
-  radios.forEach(r => r.addEventListener('change', setAccept));
+  function isVideoFile(file) {
+    return (file.type && file.type.startsWith('video/')) || VIDEO_EXTENSIONS.test(file.name || '');
+  }
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+  }
+
+  function setBusy(state) {
+    if (state) {
+      uploadBtn.disabled = true;
+      submitBtnIcon.innerHTML = '<span class="spinner"></span>';
+      submitBtnText.textContent = 'Uploading...';
+      progressWrap.style.display = 'flex';
+    } else {
+      uploadBtn.disabled = false;
+      submitBtnIcon.innerHTML = '<i class="bi bi-cloud-arrow-up"></i>';
+      submitBtnText.textContent = 'Upload';
+      progressWrap.style.display = 'none';
+    }
+  }
+
+  function updateProgressBar(percent) {
+    const value = Math.min(100, Math.max(0, Math.round(percent)));
+    progressBar.style.width = `${value}%`;
+    progressText.textContent = value;
+  }
+
+  async function uploadInChunks(file, postType, caption) {
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const filename = file.name || 'upload';
+    let uploadedBytes = 0;
+
+    const uploadChunk = async (i) => {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const blob = file.slice(start, end);
+      const formData = new FormData();
+      formData.append('upload_id', uploadId);
+      formData.append('chunk_index', String(i));
+      formData.append('total_chunks', String(totalChunks));
+      formData.append('filename', filename);
+      formData.append('chunk', blob);
+
+      let attempt = 0;
+      while (attempt < MAX_RETRIES) {
+        attempt += 1;
+        const res = await fetch('/upload/chunk/', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCookie('csrftoken') },
+          body: formData,
+        });
+        if (res.ok) break;
+        if (attempt >= MAX_RETRIES) throw new Error('Chunk upload failed');
+        await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+      }
+
+      uploadedBytes += blob.size;
+      updateProgressBar((uploadedBytes / file.size) * 100);
+    };
+
+    const queue = Array.from({ length: totalChunks }, (_, i) => i);
+    const workers = new Array(Math.min(PARALLEL_UPLOADS, totalChunks)).fill(null).map(async () => {
+      while (queue.length) {
+        const idx = queue.shift();
+        if (idx === undefined) break;
+        await uploadChunk(idx);
+      }
+    });
+    await Promise.all(workers);
+
+    const doneForm = new FormData();
+    doneForm.append('upload_id', uploadId);
+    doneForm.append('total_chunks', String(totalChunks));
+    doneForm.append('filename', filename);
+    doneForm.append('type', postType);
+    doneForm.append('caption', caption);
+
+    const completeRes = await fetch('/upload/chunk/complete/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      body: doneForm,
+    });
+
+    updateProgressBar(100);
+
+    if (!completeRes.ok) {
+      const text = await completeRes.text();
+      throw new Error(`Upload complete failed (${completeRes.status}) ${text}`);
+    }
+
+    const data = await completeRes.json();
+    if (data.redirect) {
+      window.location.href = data.redirect;
+      return;
+    }
+    throw new Error('Upload complete response invalid.');
+  }
+
+  radios.forEach((r) => r.addEventListener('change', setAccept));
   setAccept();
 
-  // Drag and drop
   fileInputLabel.addEventListener('dragover', (e) => {
     e.preventDefault();
     fileInputLabel.style.borderColor = '#2f8dff';
@@ -950,7 +1056,6 @@ const safeStorage = {
       return;
     }
 
-    // Show preview info
     previewInfo.style.display = 'block';
     fileInputLabel.classList.add('has-file');
     document.getElementById('previewName').textContent = f.name;
@@ -960,159 +1065,16 @@ const safeStorage = {
     if (f.type && f.type.startsWith('image/')) {
       const url = URL.createObjectURL(f);
       previewContainer.innerHTML = `<img src="${url}" class="preview-image" alt="Preview">`;
-    } else if (f.type && f.type.startsWith('video/')) {
+      document.getElementById('previewDurationItem').style.display = 'none';
+    } else if (isVideoFile(f)) {
       const url = URL.createObjectURL(f);
       const v = document.createElement('video');
       v.preload = 'metadata';
       v.src = url;
-      
       v.onloadedmetadata = () => {
         const secs = v.duration || 0;
         document.getElementById('previewDurationItem').style.display = 'flex';
         document.getElementById('previewDuration').textContent = formatDuration(secs);
-        
-        if (secs > 60) {
-          const postRadio = document.querySelector('input[name="type"][value="post"]');
-          if (postRadio) postRadio.checked = true;
-          setAccept();
-          msg.className = 'message-box info';
-          msg.textContent = '⏱️ Video is longer than 1:00 — it will be uploaded as a Post (main feed).';
-          msg.style.display = 'block';
-        }
-      };
-
-      previewContainer.innerHTML = `<video controls class="preview-video"><source src="${url}"></video>`;
-    }
-  });
-
-<script>
-(() => {
-  const form = document.getElementById('simpleUploadForm');
-  const media = document.getElementById('mediaInput');
-  const radios = document.querySelectorAll('input[name="type"]');
-  const msg = document.getElementById('message');
-  const uploadBtn = document.getElementById('uploadBtn');
-  const submitBtnText = document.querySelector('.submit-btn-text');
-  const submitBtnIcon = document.querySelector('.submit-btn-icon');
-  const progressWrap = document.getElementById('progressWrap');
-  const progressBar = document.getElementById('progressBar');
-  const progressText = document.getElementById('progressText');
-  const fileInputLabel = document.getElementById('fileInputLabel');
-  const previewContainer = document.getElementById('previewContainer');
-  const previewInfo = document.getElementById('previewInfo');
-  const removeFileBtn = document.getElementById('removeFileBtn');
-  
-  const CHUNK_SIZE = {{ upload_chunk_size|default:1048576 }};
-  const PARALLEL_UPLOADS = 2;
-  const MAX_RETRIES = 3;
-
-  function formatFileSize(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-  }
-
-  function formatDuration(seconds) {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    if (hrs > 0) {
-      return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    }
-    return `${mins}:${String(secs).padStart(2, '0')}`;
-  }
-
-  function showMessage(text, type = 'info', duration = 0) {
-    msg.className = `message-box ${type}`;
-    msg.textContent = text;
-    msg.style.display = 'block';
-    
-    if (duration > 0) {
-      setTimeout(() => {
-        msg.style.display = 'none';
-      }, duration);
-    }
-  }
-
-  function setAccept() {
-    const t = document.querySelector('input[name="type"]:checked').value;
-    media.accept = t === 'post' ? 'image/*' : 'video/*';
-  }
-
-  function clearPreview() {
-    previewContainer.innerHTML = '<div class="preview-placeholder-icon">📁</div><span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>';
-    previewInfo.style.display = 'none';
-    fileInputLabel.classList.remove('has-file');
-    msg.style.display = 'none';
-  }
-
-  radios.forEach(r => r.addEventListener('change', () => {
-    setAccept();
-    msg.style.display = 'none';
-  }));
-  setAccept();
-
-  // Drag and drop with better feedback
-  let dragCounter = 0;
-  fileInputLabel.addEventListener('dragenter', (e) => {
-    e.preventDefault();
-    dragCounter++;
-    fileInputLabel.style.borderColor = '#2f8dff';
-    fileInputLabel.style.boxShadow = '0 8px 24px rgba(47, 141, 255, 0.15)';
-  });
-
-  fileInputLabel.addEventListener('dragleave', () => {
-    dragCounter--;
-    if (dragCounter === 0) {
-      fileInputLabel.style.borderColor = '';
-      fileInputLabel.style.boxShadow = '';
-    }
-  });
-
-  fileInputLabel.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dragCounter = 0;
-    fileInputLabel.style.borderColor = '';
-    fileInputLabel.style.boxShadow = '';
-    if (e.dataTransfer.files.length) {
-      media.files = e.dataTransfer.files;
-      media.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-  });
-
-  media.addEventListener('change', async () => {
-    const f = media.files && media.files[0];
-    if (!f) {
-      clearPreview();
-      return;
-    }
-
-    // Show preview info with animation
-    previewInfo.style.display = 'block';
-    fileInputLabel.classList.add('has-file');
-    
-    const name = f.name.length > 20 ? f.name.substring(0, 17) + '...' : f.name;
-    document.getElementById('previewName').textContent = name;
-    document.getElementById('previewName').title = f.name;
-    document.getElementById('previewSize').textContent = formatFileSize(f.size);
-
-    if (f.type && f.type.startsWith('image/')) {
-      const url = URL.createObjectURL(f);
-      previewContainer.innerHTML = `<img src="${url}" class="preview-image" alt="Preview" style="animation: fadeIn 0.4s ease;">`;
-    } else if (f.type && f.type.startsWith('video/')) {
-      const url = URL.createObjectURL(f);
-      const v = document.createElement('video');
-      v.preload = 'metadata';
-      v.src = url;
-      
-      v.onloadedmetadata = () => {
-        const secs = v.duration || 0;
-        const durationItem = document.getElementById('previewDurationItem');
-        durationItem.style.display = 'flex';
-        document.getElementById('previewDuration').textContent = formatDuration(secs);
-        
         if (secs > 60) {
           const postRadio = document.querySelector('input[name="type"][value="post"]');
           if (postRadio) {
@@ -1122,8 +1084,7 @@ const safeStorage = {
           showMessage('⏱️ Video is longer than 1:00 — uploading as Post', 'info');
         }
       };
-
-      previewContainer.innerHTML = `<video controls class="preview-video" style="animation: fadeIn 0.4s ease;"><source src="${url}"></video>`;
+      previewContainer.innerHTML = `<video controls class="preview-video"><source src="${url}"></video>`;
     }
   });
 
@@ -1134,138 +1095,6 @@ const safeStorage = {
     document.getElementById('previewDurationItem').style.display = 'none';
   });
 
-  const directUploadMinBytes = {{ direct_upload_min_bytes|default:0 }};
-  const maxDirectUploadBytes = {{ max_direct_upload_bytes|default:0 }};
-
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-    return '';
-  }
-
-  function canUseFirebase() {
-    return false; // Firebase removed - always use Cloudinary/standard upload
-  }
-
-  function setBusy(state) {
-    if (state) {
-      uploadBtn.disabled = true;
-      submitBtnIcon.innerHTML = '<span class="spinner"></span>';
-      submitBtnText.textContent = 'Uploading...';
-      progressWrap.style.display = 'flex';
-    } else {
-      uploadBtn.disabled = false;
-      submitBtnIcon.innerHTML = '<i class="bi bi-cloud-arrow-up"></i>';
-      submitBtnText.textContent = 'Upload';
-      progressWrap.style.display = 'none';
-    }
-  }
-
-  async function uploadInChunks(file, postType, caption) {
-    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-    const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    const filename = file.name || 'upload';
-    let uploadedBytes = 0;
-    let lastProgressUpdate = 0;
-    let lastProgressPercent = 0;
-
-    const updateProgress = () => {
-      const now = Date.now();
-      const percent = Math.round((uploadedBytes / file.size) * 100);
-      
-      // Update progress bar (throttle to every 50ms for smooth updates)
-      if (now - lastProgressUpdate > 50) {
-        progressBar.style.width = `${percent}%`;
-        progressText.textContent = percent;
-        lastProgressUpdate = now;
-        lastProgressPercent = percent;
-      }
-    };
-
-    const uploadChunk = async (i) => {
-      const start = i * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, file.size);
-      const blob = file.slice(start, end);
-
-      const formData = new FormData();
-      formData.append('upload_id', uploadId);
-      formData.append('chunk_index', String(i));
-      formData.append('total_chunks', String(totalChunks));
-      formData.append('filename', filename);
-      formData.append('chunk', blob);
-
-      let attempt = 0;
-      while (true) {
-        attempt += 1;
-        try {
-          const res = await fetch('/upload/chunk/', {
-            method: 'POST',
-            headers: { 'X-CSRFToken': getCookie('csrftoken') },
-            body: formData
-          });
-          if (res.ok) break;
-          if (attempt >= MAX_RETRIES) {
-            throw new Error('chunk_failed');
-          }
-          await new Promise(r => setTimeout(r, 300 * attempt));
-        } catch (err) {
-          if (attempt >= MAX_RETRIES) {
-            throw err;
-          }
-          await new Promise(r => setTimeout(r, 300 * attempt));
-        }
-      }
-
-      uploadedBytes += blob.size;
-      updateProgress();
-    };
-
-    updateProgress();
-    const queue = Array.from({ length: totalChunks }, (_, i) => i);
-    const workers = new Array(Math.min(PARALLEL_UPLOADS, totalChunks)).fill(0).map(async () => {
-      while (queue.length) {
-        const i = queue.shift();
-        if (i === undefined) break;
-        await uploadChunk(i);
-      }
-    });
-    await Promise.all(workers);
-
-    const doneForm = new FormData();
-    doneForm.append('upload_id', uploadId);
-    doneForm.append('total_chunks', String(totalChunks));
-    doneForm.append('filename', filename);
-    doneForm.append('type', postType);
-    doneForm.append('caption', caption);
-
-    const completeRes = await fetch('/upload/chunk/complete/', {
-      method: 'POST',
-      headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      body: doneForm
-    });
-
-    // Set progress to 100% before final response
-    progressBar.style.width = '100%';
-    progressText.textContent = '100';
-
-    const contentType = (completeRes.headers.get('content-type') || '').toLowerCase();
-    let data = null;
-
-    if (completeRes.ok && contentType.includes('application/json')) {
-      data = await completeRes.json();
-    } else {
-      const text = await completeRes.text();
-      throw new Error(`Upload complete failed (${completeRes.status}) ${text.length > 200 ? text.slice(0, 200) + '...' : text}`);
-    }
-
-    if (data && data.redirect) {
-      window.location.href = data.redirect;
-      return;
-    }
-    throw new Error('complete_failed');
-  }
-
   form.addEventListener('submit', async (e) => {
     const file = media.files && media.files[0];
     if (!file) return;
@@ -1273,32 +1102,25 @@ const safeStorage = {
     const postType = document.querySelector('input[name="type"]:checked').value;
     const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
 
-    // Handle all video uploads with chunked upload (shows progress)
-    if (file.type && file.type.startsWith('video/')) {
+    if (isVideoFile(file)) {
       e.preventDefault();
       setBusy(true);
-      progressBar.style.width = '0%';
-      progressText.textContent = '0';
+      updateProgressBar(0);
       progressWrap.style.display = 'flex';
-      
       try {
         await uploadInChunks(file, postType, caption);
         showMessage('✅ Video uploaded successfully!', 'success');
-        setBusy(false);
-        return;
       } catch (err) {
         console.error('Upload error:', err);
         showMessage('❌ Upload failed. Please try again.', 'error');
+      } finally {
         setBusy(false);
-        return;
       }
+      return;
     }
 
-    if (!canUseFirebase()) return;
-    // Firebase removed - always use standard upload
-    return;
+    // Standard form submission for non-video uploads.
   });
-
 })();
 </script>
 
