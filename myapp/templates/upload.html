@@ -821,6 +821,10 @@ input[type="text"], input[type="file"], textarea {
           <span class="preview-info-label">💾 Size</span>
           <span class="preview-info-value" id="previewSize">-</span>
         </div>
+        <div class="preview-info-item">
+          <span class="preview-info-label">📦 Type</span>
+          <span class="preview-info-value" id="previewType">-</span>
+        </div>
         <div class="preview-info-item" id="previewDurationItem" style="display: none;">
           <span class="preview-info-label">⏱️ Duration</span>
           <span class="preview-info-value" id="previewDuration">-</span>
@@ -871,6 +875,7 @@ const safeStorage = {
   const fileInputLabel = document.getElementById('fileInputLabel');
   const previewContainer = document.getElementById('previewContainer');
   const previewInfo = document.getElementById('previewInfo');
+  const previewType = document.getElementById('previewType');
   const removeFileBtn = document.getElementById('removeFileBtn');
 
   const CHUNK_SIZE = {{ upload_chunk_size|default:5242880 }};
@@ -918,6 +923,9 @@ const safeStorage = {
   function clearPreview() {
     previewContainer.innerHTML = '<div class="preview-placeholder-icon">📁</div><span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>';
     previewInfo.style.display = 'none';
+    if (previewType) {
+      previewType.textContent = '-';
+    }
     fileInputLabel.classList.remove('has-file');
   }
 
@@ -1060,7 +1068,9 @@ const safeStorage = {
     fileInputLabel.classList.add('has-file');
     document.getElementById('previewName').textContent = f.name;
     document.getElementById('previewSize').textContent = formatFileSize(f.size);
-    document.getElementById('previewType').textContent = f.type || 'Unknown';
+    if (previewType) {
+      previewType.textContent = f.type || 'Unknown';
+    }
 
     if (f.type && f.type.startsWith('image/')) {
       const url = URL.createObjectURL(f);
