@@ -16,7 +16,7 @@ _VIDEO_MIMETYPES = {
 
 
 def _is_video_name(name):
-    """Check if a file is a video based on extension and MIME type."""
+    """Check if a file is a video based on extension, MIME type, or name heuristics."""
     if not name:
         return False
     
@@ -30,7 +30,19 @@ def _is_video_name(name):
     if guessed_type and guessed_type.lower() in _VIDEO_MIMETYPES:
         return True
     
+    # Heuristic for uploads without extensions (e.g. WhatsApp_Video_*).
+    raw = os.path.basename(str(name)).lower()
+    if not os.path.splitext(raw)[1]:  # No extension
+        return "video" in raw
+    
     return False
+
+
+class LocalMediaStorage(FileSystemStorage):
+    """
+    Local storage for media files.
+    """
+    pass
 
 
 if MediaCloudinaryStorage:

@@ -289,14 +289,9 @@ class Story(models.Model):
             if not (self.media and getattr(self.media, "name", "")):
                 return ""
             name = _normalize_media_name(self.media.name)
-            if not getattr(settings, "CAN_USE_CLOUDINARY", False) and not _can_build_cloudinary_urls():
-                try:
-                    storage = self.media.storage
-                    if hasattr(storage, "exists") and not storage.exists(name):
-                        _log_missing_media("story.media", name)
-                        return ""
-                except Exception:
-                    pass
+            if name and not self.media.storage.exists(name):
+                _log_missing_media("story.media", name)
+                return ""
             if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
                 resource_type = "video" if self.media_type == "video" else "image"
                 url = _cloudinary_url_for(name, resource_type)
@@ -513,6 +508,8 @@ class Post(models.Model):
 
     caption = models.TextField(blank=True)
 
+    duration = models.FloatField(null=True, blank=True)  # Duration in seconds for videos
+
     type = models.CharField(
         max_length=10,
         choices=TYPE_CHOICES,
@@ -526,6 +523,10 @@ class Post(models.Model):
     @property
     def media_url(self):
         if not (self.media and getattr(self.media, "name", "")):
+            return ""
+
+        name = getattr(self.media, "name", "")
+        if name and not self.media.storage.exists(name):
             return ""
 
         try:

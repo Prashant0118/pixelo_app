@@ -561,8 +561,12 @@ def media_serve(request, path):
 
 
 def _direct_upload_enabled():
-    # Disabled to avoid CORS issues on the client.
-    return False
+    return bool(
+        getattr(settings, "CAN_USE_CLOUDINARY", False)
+        and getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+        and getattr(settings, "CLOUDINARY_API_KEY", "")
+        and getattr(settings, "CLOUDINARY_API_SECRET", "")
+    )
 
 
 def _upload_page_context(error=None):
@@ -937,7 +941,7 @@ def home(request):
             default=Value(1),
             output_field=IntegerField(),
         )
-    )
+    ).filter(type='post')
     if selected_category == "Trending":
         posts = (
             posts_qs.annotate(
@@ -2130,7 +2134,10 @@ def upload(request):
 
             is_video_upload = _is_video_file(name, content_type) or (ext in video_exts)
 
-            # Reels must be videos. Posts can be images or videos.
+            # Enforce: Posts must be images. Reels must be videos.
+            if post_type == "post" and is_video_upload:
+                return render(request, "upload.html", _upload_page_context("Post uploads must be images. Choose 'Reel' to upload videos."))
+
             if post_type == "reel" and not is_video_upload:
                 guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
                 if not (guessed and guessed.startswith("video/")):
@@ -2169,15 +2176,13 @@ def upload(request):
 
             post = Post.objects.create(user=request.user, media=media, caption=caption, type=post_type)
 
-            # Server-side duration check: enforce <=60s as reels, >60s as posts.
-            if post and is_video_upload:
+            # Server-side duration check: always try to detect video duration for reels
+            if post and post.type == "reel" and is_video_upload:
                 try:
                     duration = _video_duration_seconds(media)
-                    if duration:
-                        target_type = "reel" if duration <= 60 else "post"
-                        if post.type != target_type:
-                            post.type = target_type
-                            post.save(update_fields=["type"])
+                    if duration and duration > 60 and post.type == "reel":
+                        post.type = "post"
+                        post.save(update_fields=["type"])
                 except Exception as e:
                     # Non-fatal: log and continue
                     print(f"[upload] duration check failed: {e}")

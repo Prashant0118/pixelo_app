@@ -695,7 +695,9 @@ chatMessages.addEventListener("click", function(event) {
 });
 
 chatMessages.addEventListener("scroll", function() {
-    autoStickToBottom = isNearBottom(80);
+    requestAnimationFrame(() => {
+        autoStickToBottom = isNearBottom(80);
+    });
 });
 
 initializeExistingIds();
