@@ -73,7 +73,8 @@
         {% with media_url=post.media_url %}
         <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
             
-            {% if media_url and (post.type == 'reel' or post.is_video) %}
+            {% if media_url %}
+            {% if post.type == 'reel' or post.is_video %}
                 <video class="w-100 feed-media feed-video-media {% if post.type == 'reel' %}feed-reel-video{% endif %}"
                        data-post-id="{{ post.id }}"
                        controls
@@ -85,13 +86,14 @@
                     <source src="{{ media_url }}" type="video/mp4">
                 </video>
 
-            {% elif media_url %}
+                                {% else %}
                 <img src="{{ media_url }}" class="img-fluid w-100 feed-media">
-            {% else %}
-                <div class="post-empty">
-                    <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
-                </div>
             {% endif %}
+                                {% else %}
+                                    <div class="post-empty">
+                                        <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
+                                    </div>
+                                {% endif %}
 
         </div>
         {% endwith %}
