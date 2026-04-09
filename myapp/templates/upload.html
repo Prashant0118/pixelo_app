@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {% extends "base.html" %}
 {% load static %}
 
@@ -864,8 +865,1104 @@
               ? 'Video longer than 1:00 - switched to Post.'
               : 'Video under 1:00 - switched to Reel.';
             showMessage(msgText, 'info', 3000);
+=======
+{% extends "base.html" %}
+{% load static %}
+
+<!-- Comprehensive error handler for external resources -->
+<script>
+// Suppress Tracking Prevention console warnings globally
+const originalWarn = console.warn;
+const originalError = console.error;
+
+function shouldSuppressMessage(message) {
+  if (!message) return false;
+  const msg = String(message).toLowerCase();
+  return msg.includes('tracking prevention') || 
+         msg.includes('blocked access') ||
+         msg.includes('cross-origin') ||
+         msg.includes('cors');
+}
+
+// Override console methods to filter tracking prevention messages
+console.warn = function(...args) {
+  const firstArg = args[0];
+  if (!shouldSuppressMessage(firstArg)) {
+    originalWarn.apply(console, args);
+  }
+};
+
+console.error = function(...args) {
+  const firstArg = args[0];
+  if (!shouldSuppressMessage(firstArg)) {
+    originalError.apply(console, args);
+  }
+};
+
+// Global error listener for syntax errors
+window.addEventListener('error', (event) => {
+  if (event.message && shouldSuppressMessage(event.message)) {
+    event.preventDefault();
+    return false;
+  }
+});
+
+// Handle unhandled promise rejections from failed external resources
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && shouldSuppressMessage(String(event.reason))) {
+    event.preventDefault();
+    return false;
+  }
+});
+</script>
+
+{% block content %}
+
+<!-- Fallback styles in case CDN CSS fails due to Tracking Prevention -->
+<style>
+/* Minimal fallback styles */
+:root {
+  --bs-body-bg: #1a1a1a;
+  --bs-body-color: #e0e0e0;
+  --bs-primary: #2f8dff;
+}
+
+body {
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.btn, button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--bs-primary);
+  background: var(--bs-primary);
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+input[type="text"], input[type="file"], textarea {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #2a2a2a;
+  color: #e0e0e0;
+  box-sizing: border-box;
+}
+
+.container {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 20px;
+}
+
+.alert {
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 6px;
+}
+
+.alert-danger {
+  background: #4a2a2a;
+  color: #ff6b6b;
+  border: 1px solid #ff6b6b;
+}
+
+.alert-success {
+  background: #2a4a2a;
+  color: #51cf66;
+  border: 1px solid #51cf66;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid var(--bs-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ========== Animations ========== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.upload-page-wrapper {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 16px;
+  animation: fadeIn 0.5s ease;
+}
+
+.upload-header {
+  margin-bottom: 40px;
+  text-align: center;
+  opacity: 0;
+  animation: fadeIn 0.6s ease 0.1s forwards;
+}
+
+.upload-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--text-strong);
+  letter-spacing: -0.5px;
+}
+
+.upload-header p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.upload-main-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+  opacity: 0;
+  animation: fadeIn 0.6s ease 0.2s forwards;
+}
+
+@media (max-width: 768px) {
+  .upload-main-container {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* ========== Form Section ========== */
+.upload-form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  transition: all 0.3s ease;
+}
+
+.form-group {
+  margin-bottom: 22px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  transition: color 0.3s ease;
+}
+
+/* Type Selection */
+.type-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.type-option {
+  flex: 1;
+}
+
+.type-option input[type="radio"] {
+  display: none;
+}
+
+.type-option label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 12px;
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  min-height: 70px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.form-group small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.type-option label:hover {
+  border-color: #2f8dff;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 18px rgba(47, 141, 255, 0.13);
+}
+
+.type-option input[type="radio"]:checked + label {
+  background: #2f8dff;
+  color: #ffffff;
+  border-color: #2f8dff;
+  box-shadow: 0 0 0 1px rgba(47, 141, 255, 0.25);
+}
+
+.type-option input[type="radio"]:checked + label .type-icon {
+  transform: scale(1.2);
+}
+
+
+.type-option label::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  right: 0;
+  bottom: 0;
+  background: rgba(47, 141, 255, 0.08);
+  transition: left 0.3s ease;
+  z-index: 0;
+}
+
+.type-option label:hover {
+  border-color: #2f8dff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(47, 141, 255, 0.1);
+}
+
+.type-option label > * {
+  position: relative;
+  z-index: 1;
+}
+
+.type-option input[type="radio"]:checked + label {
+  background: rgba(47, 141, 255, 0.12);
+  border-color: #2f8dff;
+  color: #2f8dff;
+  box-shadow: 0 0 0 3px rgba(47, 141, 255, 0.1);
+}
+
+.type-icon {
+  font-size: 24px;
+  transition: transform 0.3s ease;
+}
+
+.type-option input[type="radio"]:checked + label .type-icon {
+  transform: scale(1.1);
+}
+
+/* File Input */
+.file-input-wrapper {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.file-input-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 36px 20px;
+  background: var(--surface-2);
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 160px;
+  position: relative;
+  overflow: hidden;
+}
+
+.file-input-label::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(47, 141, 255, 0.03) 100%);
+  pointer-events: none;
+}
+
+.file-input-label:hover {
+  border-color: #2f8dff;
+  background: var(--surface-2);
+  box-shadow: 0 8px 24px rgba(47, 141, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+.file-input-label.has-file {
+  border-color: #2f8dff;
+  background: rgba(47, 141, 255, 0.08);
+}
+
+#mediaInput {
+  display: none;
+}
+
+.upload-icon {
+  font-size: 32px;
+  color: #2f8dff;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.file-input-label:hover .upload-icon {
+  transform: translateY(-4px);
+}
+
+.file-input-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.file-input-subtext {
+  font-size: 12px;
+  color: var(--muted);
+  position: relative;
+  z-index: 1;
+}
+
+/* Textarea */
+.caption-textarea {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+  transition: all 0.3s ease;
+  min-height: 100px;
+}
+
+.caption-textarea:focus {
+  outline: none;
+  border-color: #2f8dff;
+  box-shadow: 0 0 0 3px rgba(47, 141, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.caption-textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* Submit Button */
+.submit-button {
+  width: 100%;
+  padding: 13px 20px;
+  background: linear-gradient(135deg, #2f8dff 0%, #0066cc 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(47, 141, 255, 0.2);
+}
+
+.submit-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+  transition: left 0.4s ease;
+}
+
+.submit-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(47, 141, 255, 0.3);
+}
+
+.submit-button:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: 0 4px 12px rgba(47, 141, 255, 0.1);
+}
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Preview Section */
+.preview-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: all 0.3s ease;
+}
+
+.preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  gap: 12px;
+  min-height: 300px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.preview-placeholder::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(47, 141, 255, 0.04) 100%);
+  pointer-events: none;
+}
+
+.preview-placeholder-icon {
+  font-size: 48px;
+  opacity: 0.4;
+  transition: transform 0.3s ease;
+}
+
+.preview-placeholder:hover .preview-placeholder-icon {
+  transform: scale(1.05);
+}
+
+.preview-image,
+.preview-video {
+  width: 100%;
+  border-radius: 10px;
+  background: #000;
+  object-fit: cover;
+  animation: fadeIn 0.4s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  opacity: 0;
+  animation: fadeIn 0.4s ease 0.15s forwards;
+}
+
+.preview-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.preview-info-item:last-child {
+  border-bottom: none;
+}
+
+.preview-info-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.preview-info-value {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.remove-file-btn {
+  flex: 1;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.remove-file-btn:hover {
+  background: rgba(255, 79, 109, 0.08);
+  border-color: var(--danger);
+  transform: translateY(-1px);
+}
+
+/* Messages */
+.message-box {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+  animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-left: 3px solid transparent;
+}
+
+.message-box.error {
+  background: rgba(255, 79, 109, 0.1);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.message-box.info {
+  background: rgba(47, 141, 255, 0.1);
+  color: #2f8dff;
+  border-color: #2f8dff;
+}
+
+.message-box.success {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+  border-color: #4caf50;
+}
+
+/* Progress Bar */
+#progressWrap {
+  display: none;
+  animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.progress-bar-wrapper {
+  height: 4px;
+  background: var(--surface);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+#progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, #2f8dff 0%, #0066cc 100%);
+  width: 0%;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(47, 141, 255, 0.4);
+}
+
+.progress-text {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.progress-percentage {
+  color: #2f8dff;
+  font-weight: 700;
+}
+</style>
+
+<div class="upload-page-wrapper">
+  <div class="upload-header">
+    <h1>Create New Post</h1>
+    <p>Share your best moments with the community</p>
+  </div>
+
+  {% if error %}
+    <div class="message-box error" style="display: block;">
+      <strong>Error:</strong> {{ error }}
+    </div>
+  {% endif %}
+
+  <div class="upload-main-container">
+    <!-- Left Section: Form -->
+    <div class="upload-form-section">
+      <form method="POST" enctype="multipart/form-data" id="simpleUploadForm">
+        {% csrf_token %}
+
+        <!-- Type Selection (Instagram-style tabs) -->
+        <div class="form-group">
+          <span class="form-label">Upload as</span>
+          <div class="type-selector">
+            <div class="type-option">
+              <input type="radio" id="typePost" name="type" value="post" checked>
+              <label for="typePost" class="tab-btn">
+                <span class="type-icon">🖼️</span>
+                <span>Post</span>
+              </label>
+            </div>
+            <div class="type-option">
+              <input type="radio" id="typeReel" name="type" value="reel">
+              <label for="typeReel" class="tab-btn">
+                <span class="type-icon">🎬</span>
+                <span>Reel</span>
+              </label>
+            </div>
+          </div>
+          <small style="color: var(--muted);">Reels are videos under 60 seconds; longer videos become posts.</small>
+        </div>
+
+        <!-- File Upload -->
+        <div class="form-group">
+          <span class="form-label">Select Media</span>
+          <div class="file-input-wrapper">
+            <label for="mediaInput" class="file-input-label" id="fileInputLabel">
+              <i class="bi bi-cloud-arrow-up upload-icon"></i>
+              <span class="file-input-text">Click or drag to upload</span>
+              <span class="file-input-subtext">PNG, JPG, GIF</span>
+            </label>
+            <input type="file" name="media" id="mediaInput" accept="image/*,video/*" required>
+          </div>
+        </div>
+
+        <!-- Message Box -->
+        <div id="message" class="message-box"></div>
+
+        <!-- Progress Bar -->
+        <div id="progressWrap" class="progress-container">
+          <div class="progress-bar-wrapper">
+            <div id="progressBar"></div>
+          </div>
+          <div class="progress-text">
+            <span>Uploading...</span>
+            <span class="progress-percentage"><span id="progressText">0</span>%</span>
+          </div>
+        </div>
+
+        <!-- Caption -->
+        <div class="form-group">
+          <span class="form-label">Caption (Optional)</span>
+          <textarea name="caption" placeholder="Tell your story... Add hashtags, mentions, or links" rows="3" class="caption-textarea"></textarea>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="submit-button" id="uploadBtn">
+          <span class="submit-btn-icon">
+            <i class="bi bi-cloud-arrow-up"></i>
+          </span>
+          <span class="submit-btn-text">Upload</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Right Section: Preview -->
+    <div class="preview-section">
+      <div>
+        <span class="form-label">Preview</span>
+        <div class="preview-placeholder" id="previewContainer">
+          <div class="preview-placeholder-icon">📁</div>
+          <span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>
+        </div>
+      </div>
+
+      <div class="preview-info" id="previewInfo" style="display: none;">
+        <div class="preview-info-item">
+          <span class="preview-info-label">📄 Name</span>
+          <span class="preview-info-value" id="previewName" title="">-</span>
+        </div>
+        <div class="preview-info-item">
+          <span class="preview-info-label">💾 Size</span>
+          <span class="preview-info-value" id="previewSize">-</span>
+        </div>
+        <div class="preview-info-item">
+          <span class="preview-info-label">📦 Type</span>
+          <span class="preview-info-value" id="previewType">-</span>
+        </div>
+        <div class="preview-info-item" id="previewDurationItem" style="display: none;">
+          <span class="preview-info-label">⏱️ Duration</span>
+          <span class="preview-info-value" id="previewDuration">-</span>
+        </div>
+        <div class="preview-actions">
+          <button type="button" class="remove-file-btn" id="removeFileBtn">
+            <i class="bi bi-trash"></i> Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Firebase removed - using Cloudinary instead -->
+
+<script>
+// Safe localStorage access (handles Tracking Prevention blocks)
+const safeStorage = {
+  getItem(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  },
+  setItem(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      // Silent fail.
+    }
+  },
+};
+
+(function () {
+  const form = document.getElementById('simpleUploadForm');
+  const media = document.getElementById('mediaInput');
+  const radios = document.querySelectorAll('input[name="type"]');
+  const msg = document.getElementById('message');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const submitBtnText = document.querySelector('.submit-btn-text');
+  const submitBtnIcon = document.querySelector('.submit-btn-icon');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const fileInputLabel = document.getElementById('fileInputLabel');
+  const previewContainer = document.getElementById('previewContainer');
+  const previewInfo = document.getElementById('previewInfo');
+  const previewType = document.getElementById('previewType');
+  const removeFileBtn = document.getElementById('removeFileBtn');
+
+  const CHUNK_SIZE = {{ upload_chunk_size|default:5242880 }};
+  const PARALLEL_UPLOADS = 4;
+  const MAX_RETRIES = 3;
+  const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|m4v|avi|mkv|ogv|3gp|3gpp)$/i;
+
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  function formatDuration(seconds) {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hrs > 0) {
+      return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  }
+
+  function showMessage(text, type = 'info', duration = 0) {
+    msg.className = `message-box ${type}`;
+    msg.textContent = text;
+    msg.style.display = 'block';
+    if (duration > 0) {
+      setTimeout(() => { msg.style.display = 'none'; }, duration);
+    }
+  }
+
+  function setAccept() {
+    const t = document.querySelector('input[name="type"]:checked').value;
+    media.accept = t === 'post' ? 'image/*,video/*' : 'video/*';
+    const subtext = document.querySelector('.file-input-subtext');
+    if (subtext) {
+      subtext.textContent = t === 'post' ? 'PNG, JPG, GIF, MP4, WebM, MOV, AVI' : 'MP4, WebM, MOV, AVI';
+    }
+    msg.style.display = 'none';
+  }
+
+  function clearPreview() {
+    previewContainer.innerHTML = '<div class="preview-placeholder-icon">📁</div><span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>';
+    previewInfo.style.display = 'none';
+    if (previewType) {
+      previewType.textContent = '-';
+    }
+    fileInputLabel.classList.remove('has-file');
+  }
+
+  function isVideoFile(file) {
+    return (file.type && file.type.startsWith('video/')) || VIDEO_EXTENSIONS.test(file.name || '');
+  }
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+  }
+
+  function setBusy(state) {
+    if (state) {
+      uploadBtn.disabled = true;
+      submitBtnIcon.innerHTML = '<span class="spinner"></span>';
+      submitBtnText.textContent = 'Uploading...';
+      progressWrap.style.display = 'flex';
+    } else {
+      uploadBtn.disabled = false;
+      submitBtnIcon.innerHTML = '<i class="bi bi-cloud-arrow-up"></i>';
+      submitBtnText.textContent = 'Upload';
+      progressWrap.style.display = 'none';
+    }
+  }
+
+  function updateProgressBar(percent) {
+    const value = Math.min(100, Math.max(0, Math.round(percent)));
+    progressBar.style.width = `${value}%`;
+    progressText.textContent = value;
+  }
+
+  async function uploadInChunks(file, postType, caption) {
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const filename = file.name || 'upload';
+    let uploadedBytes = 0;
+
+    const uploadChunk = async (i) => {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const blob = file.slice(start, end);
+      const formData = new FormData();
+      formData.append('upload_id', uploadId);
+      formData.append('chunk_index', String(i));
+      formData.append('total_chunks', String(totalChunks));
+      formData.append('filename', filename);
+      formData.append('chunk', blob);
+
+      let attempt = 0;
+      while (attempt < MAX_RETRIES) {
+        attempt += 1;
+        const res = await fetch('/upload/chunk/', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCookie('csrftoken') },
+          body: formData,
+        });
+        if (res.ok) break;
+        if (attempt >= MAX_RETRIES) throw new Error('Chunk upload failed');
+        await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+      }
+
+      uploadedBytes += blob.size;
+      updateProgressBar((uploadedBytes / file.size) * 100);
+    };
+
+    const queue = Array.from({ length: totalChunks }, (_, i) => i);
+    const workers = new Array(Math.min(PARALLEL_UPLOADS, totalChunks)).fill(null).map(async () => {
+      while (queue.length) {
+        const idx = queue.shift();
+        if (idx === undefined) break;
+        await uploadChunk(idx);
+      }
+    });
+    await Promise.all(workers);
+
+    const doneForm = new FormData();
+    doneForm.append('upload_id', uploadId);
+    doneForm.append('total_chunks', String(totalChunks));
+    doneForm.append('filename', filename);
+    doneForm.append('mime_type', file.type || '');
+    doneForm.append('type', postType);
+    doneForm.append('caption', caption);
+
+    const completeRes = await fetch('/upload/chunk/complete/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      body: doneForm,
+    });
+
+    updateProgressBar(100);
+
+    if (!completeRes.ok) {
+      const text = await completeRes.text();
+      throw new Error(`Upload complete failed (${completeRes.status}) ${text}`);
+    }
+
+    const data = await completeRes.json();
+    if (data.redirect) {
+      window.location.href = data.redirect;
+      return;
+    }
+    throw new Error('Upload complete response invalid.');
+  }
+
+  radios.forEach((r) => r.addEventListener('change', setAccept));
+  setAccept();
+
+  fileInputLabel.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    fileInputLabel.style.borderColor = '#2f8dff';
+    fileInputLabel.style.background = 'rgba(47, 141, 255, 0.1)';
+  });
+
+  fileInputLabel.addEventListener('dragleave', () => {
+    fileInputLabel.style.borderColor = '';
+    fileInputLabel.style.background = '';
+  });
+
+  fileInputLabel.addEventListener('drop', (e) => {
+    e.preventDefault();
+    fileInputLabel.style.borderColor = '';
+    fileInputLabel.style.background = '';
+    if (e.dataTransfer.files.length) {
+      media.files = e.dataTransfer.files;
+      media.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+
+  media.addEventListener('change', async () => {
+    msg.style.display = 'none';
+    const f = media.files && media.files[0];
+    if (!f) {
+      clearPreview();
+      return;
+    }
+
+    previewInfo.style.display = 'block';
+    fileInputLabel.classList.add('has-file');
+    document.getElementById('previewName').textContent = f.name;
+    document.getElementById('previewSize').textContent = formatFileSize(f.size);
+    if (previewType) {
+      previewType.textContent = f.type || 'Unknown';
+    }
+
+    if (f.type && f.type.startsWith('image/')) {
+      const url = URL.createObjectURL(f);
+      previewContainer.innerHTML = `<img src="${url}" class="preview-image" alt="Preview">`;
+      document.getElementById('previewDurationItem').style.display = 'none';
+    } else if (isVideoFile(f)) {
+      const url = URL.createObjectURL(f);
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.src = url;
+      v.onloadedmetadata = () => {
+        const secs = v.duration || 0;
+        document.getElementById('previewDurationItem').style.display = 'flex';
+        document.getElementById('previewDuration').textContent = formatDuration(secs);
+        if (secs > 60) {
+          const postRadio = document.querySelector('input[name="type"][value="post"]');
+          if (postRadio) {
+            postRadio.checked = true;
+            setAccept();
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
           }
         }
+<<<<<<< HEAD
       };
 
       previewContainer.innerHTML = `<video controls class="preview-video" style="animation: fadeIn 0.4s ease;"><source src="${url}"></video>`;
@@ -1188,3 +2285,47 @@
 {% endblock %}
 
 
+=======
+      };
+      previewContainer.innerHTML = `<video controls class="preview-video"><source src="${url}"></video>`;
+    }
+  });
+
+  removeFileBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    media.value = '';
+    clearPreview();
+    document.getElementById('previewDurationItem').style.display = 'none';
+  });
+
+  form.addEventListener('submit', async (e) => {
+    const file = media.files && media.files[0];
+    if (!file) return;
+
+    const postType = document.querySelector('input[name="type"]:checked').value;
+    const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
+
+    if (isVideoFile(file)) {
+      e.preventDefault();
+      setBusy(true);
+      updateProgressBar(0);
+      progressWrap.style.display = 'flex';
+      try {
+        await uploadInChunks(file, postType, caption);
+        showMessage('✅ Video uploaded successfully!', 'success');
+      } catch (err) {
+        console.error('Upload error:', err);
+        showMessage('❌ Upload failed. Please try again.', 'error');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // Standard form submission for non-video uploads.
+  });
+})();
+</script>
+
+{% endblock %}
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0

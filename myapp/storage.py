@@ -47,6 +47,17 @@ class LocalMediaStorage(FileSystemStorage):
 
 if MediaCloudinaryStorage:
 
+<<<<<<< HEAD
+=======
+    class _ImageCloudinaryStorage(MediaCloudinaryStorage):
+        RESOURCE_TYPE = "image"
+
+
+    class _VideoCloudinaryStorage(MediaCloudinaryStorage):
+        RESOURCE_TYPE = "video"
+
+
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
     class MediaCloudinaryAutoStorage(MediaCloudinaryStorage):
         """
         Cloudinary storage that routes images/videos to the correct resource_type.

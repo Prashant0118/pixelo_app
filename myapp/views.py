@@ -580,7 +580,12 @@ def _upload_page_context(error=None):
         "cloudinary_upload_preset": upload_preset,
         "cloudinary_widget_enabled": bool(upload_preset and direct_upload_enabled),
         "allow_unsigned_upload": getattr(settings, "ALLOW_UNSIGNED_UPLOAD", False),
-        "chunk_upload_enabled": bool(getattr(settings, "ALLOW_CHUNK_UPLOAD", False)),
+        "firebase_api_key": getattr(settings, "FIREBASE_API_KEY", ""),
+        "firebase_auth_domain": getattr(settings, "FIREBASE_AUTH_DOMAIN", ""),
+        "firebase_project_id": getattr(settings, "FIREBASE_PROJECT_ID", ""),
+        "firebase_storage_bucket": getattr(settings, "FIREBASE_STORAGE_BUCKET", ""),
+        "firebase_app_id": getattr(settings, "FIREBASE_APP_ID", ""),
+        "firebase_measurement_id": getattr(settings, "FIREBASE_MEASUREMENT_ID", ""),
         "direct_upload_min_bytes": getattr(settings, "DIRECT_UPLOAD_MIN_BYTES", 0),
         "max_direct_upload_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
         "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),
@@ -1206,7 +1211,7 @@ def reels(request):
         selected_category = "All"
 
     social_priority_ids = _social_priority_user_ids(request.user)
-    reels_qs = Post.objects.filter(type="reel", media__isnull=False).select_related("user").prefetch_related(
+    reels_qs = Post.objects.filter(type="reel").select_related("user").prefetch_related(
         "likes", "comments__user"
     )
     if profile_username:
@@ -2131,12 +2136,22 @@ def upload(request):
             name = getattr(media, "name", "") or ""
             ext = os.path.splitext(name)[1].lower()
             video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
+            image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff"}
 
             is_video_upload = _is_video_file(name, content_type) or (ext in video_exts)
 
-            # Enforce: Posts must be images. Reels must be videos.
-            if post_type == "post" and is_video_upload:
-                return render(request, "upload.html", _upload_page_context("Post uploads must be images. Choose 'Reel' to upload videos."))
+            # Normalize missing/odd image extensions so storage backends can
+            # correctly identify image resources.
+            if not is_video_upload:
+                guessed_img_ext = mimetypes.guess_extension(content_type) if content_type else ""
+                if guessed_img_ext == ".jpe":
+                    guessed_img_ext = ".jpg"
+                if not ext or ext not in image_exts:
+                    if guessed_img_ext in image_exts:
+                        base = name[:-len(ext)] if ext else name
+                        media.name = f"{base or 'upload'}{guessed_img_ext}"
+                        name = getattr(media, "name", "") or ""
+                        ext = os.path.splitext(name)[1].lower()
 
             if post_type == "reel" and not is_video_upload:
                 guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
@@ -2201,12 +2216,12 @@ def upload(request):
                 detail = str(exc)
                 if detail and len(detail) < 200:
                     if "Invalid image file" in detail or "BadRequest" in detail:
-                        err_text = "Upload failed: Cloudinary rejected the file. Ensure videos use proper video format (mp4, webm, mov, etc.) and upload as Reel or Post. "
+                        err_text = "Upload failed: video upload may require Cloudinary resource_type=auto and reel type. "
                     err_text = f"{err_text} - {detail}"
             except Exception:
                 pass
             print(f"[upload] {err_text}")
-            return render(request, "upload.html", _upload_page_context(err_text))
+            return render(request, "upload.html", _upload_page_context(err_text), status=400)
 
         # Success: Post created
         if _media_debug_enabled():
@@ -2331,6 +2346,7 @@ def upload_chunk_complete(request):
     upload_id = (request.POST.get("upload_id") or "").strip()
     total_chunks = request.POST.get("total_chunks")
     filename = request.POST.get("filename") or "upload"
+    mime_type = (request.POST.get("mime_type") or "").strip().lower()
     post_type = (request.POST.get("type") or "post").strip().lower()
     caption = (request.POST.get("caption") or "").strip()
 
@@ -2364,6 +2380,24 @@ def upload_chunk_complete(request):
         return JsonResponse({"error": "Upload not found."}, status=400)
 
     safe_name = _safe_filename(filename)
+    base_name, ext = os.path.splitext(safe_name)
+
+    # Preserve video extension for chunked uploads so storage backends can
+    # correctly route resource_type (e.g. Cloudinary image vs video).
+    video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
+    guessed_ext = (mimetypes.guess_extension(mime_type) or "").lower() if mime_type else ""
+    if mime_type.startswith("video/"):
+        if guessed_ext not in video_exts:
+            guessed_ext = ".mp4"
+        if ext.lower() not in video_exts:
+            safe_name = f"{base_name or 'upload'}{guessed_ext}"
+    elif mime_type.startswith("image/"):
+        image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff"}
+        if guessed_ext == ".jpe":
+            guessed_ext = ".jpg"
+        if guessed_ext in image_exts and ext.lower() not in image_exts:
+            safe_name = f"{base_name or 'upload'}{guessed_ext}"
+
     assembled_name = f"{int(time.time())}_{upload_id}_{safe_name}"
 
     temp_handle = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(assembled_name)[1])
@@ -2415,12 +2449,20 @@ def upload_chunk_complete(request):
     except Exception:
         pass
 
-    # Validate post/reel type matches file kind
+    # Validate reel type matches file kind
+    is_video_upload = False
     try:
         name = filename or ""
         ext = os.path.splitext(name)[1].lower()
         video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
         is_video_upload = _is_video_file(name) or (ext in video_exts)
+
+        if post_type == "post" and is_video_upload:
+            try:
+                os.remove(assembled_abs)
+            except Exception:
+                pass
+            return JsonResponse({"error": "Post uploads must be images. Choose 'Reel' to upload videos."}, status=400)
 
         if post_type == "reel" and not is_video_upload:
             try:
@@ -2434,6 +2476,12 @@ def upload_chunk_complete(request):
     try:
         with open(assembled_abs, "rb") as f:
             django_file = File(f, name=assembled_name)
+            # Cloudinary storage relies on content_type for robust media type detection.
+            inferred_content_type = mime_type or (mimetypes.guess_type(assembled_name)[0] or "application/octet-stream")
+            try:
+                django_file.content_type = inferred_content_type
+            except Exception:
+                pass
             post = Post.objects.create(user=request.user, media=django_file, caption=caption, type=post_type)
 
             # Server-side duration check: enforce <=60s as reels, >60s as posts.
@@ -2451,12 +2499,13 @@ def upload_chunk_complete(request):
 
     except Exception as exc:
         err_text = f"Upload failed: {exc.__class__.__name__}"
+        status_code = 500
         try:
             detail = str(exc)
             if detail:
                 err_text = f"{err_text} - {detail}"
                 if "Invalid image file" in detail or "BadRequest" in detail:
-                    err_text = "Upload failed: Ensure video is in correct format (mp4, webm, mov, etc.) and upload as Reel or Post. " + err_text
+                    err_text = "Upload failed: video upload requires Cloudinary resource_type=auto and reel type. " + err_text
         except Exception:
             pass
         if _media_debug_enabled():
@@ -2464,7 +2513,7 @@ def upload_chunk_complete(request):
                 "[media-debug][upload_chunk_complete] create failed",
                 {"upload_id": upload_id, "error": f"{exc.__class__.__name__}: {exc}"},
             )
-        return JsonResponse({"error": err_text}, status=500)
+        return JsonResponse({"error": err_text}, status=status_code)
     finally:
         try:
             os.remove(assembled_abs)
@@ -2574,6 +2623,49 @@ def cloudinary_complete_upload(request):
 
 @login_required
 @require_POST
+@login_required
+@require_POST
+def firebase_complete_upload(request):
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    download_url = (payload.get("download_url") or "").strip()
+    post_type = (payload.get("post_type") or "post").strip().lower()
+    caption = (payload.get("caption") or "").strip()
+
+    if post_type not in ("post", "reel"):
+        post_type = "post"
+
+    if not download_url:
+        return JsonResponse({"error": "Missing download URL."}, status=400)
+
+    if not download_url.startswith(("https://firebasestorage.googleapis.com/", "https://storage.googleapis.com/")):
+        return JsonResponse({"error": "Invalid download URL."}, status=400)
+
+    try:
+        post = Post.objects.create(
+            user=request.user,
+            caption=caption,
+            type=post_type,
+        )
+        post.media.name = download_url
+        post.save(update_fields=["media"])
+    except Exception as exc:
+        err_text = f"Upload failed: {exc.__class__.__name__}"
+        try:
+            detail = str(exc)
+            if detail:
+                err_text = f"{err_text} - {detail}"
+        except Exception:
+            pass
+        print(f"[firebase_complete_upload] {err_text}")
+        return JsonResponse({"error": err_text}, status=500)
+
+    return JsonResponse({"ok": True, "redirect": reverse("home")})
+
+
 @login_required
 def upload_story(request):
     if request.method == "POST":
@@ -2706,12 +2798,11 @@ def _user_avatar_url(user):
     except Exception:
         profile = None
 
-    if profile and getattr(profile, "image", None) and getattr(profile.image, "name", ""):
-        if profile.image.name not in ("default.jpg", "default.png"):
-            try:
-                return profile.image.url
-            except ValueError:
-                pass
+    if profile:
+        try:
+            return profile.avatar_url
+        except Exception:
+            pass
 
     display_name = user.get_full_name().strip() or user.username or "User"
     initials = "".join([part[0] for part in display_name.split() if part][:2]).upper() or "U"

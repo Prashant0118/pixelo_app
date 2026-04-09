@@ -2,9 +2,7 @@
 set -o errexit
 
 python manage.py migrate --noinput
-
-
-
+python manage.py collectstatic --noinput --no-post-process 2>/dev/null || true
 
 
 # Create superuser safely using env variables

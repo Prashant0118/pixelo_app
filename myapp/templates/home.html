@@ -70,15 +70,20 @@
 <div ondblclick="doubleLike({{ post.id }})">
     
     {% if post.media %}
+<<<<<<< HEAD
         {% with media_src=post.media_url|default:post.media.url %}
+=======
+        {% with media_url=post.media_url %}
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
         <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
             
-            {% if post.type == 'reel' or post.is_video %}
+            {% if media_url and (post.type == 'reel' or post.is_video) %}
                 <video class="w-100 feed-media feed-video-media {% if post.type == 'reel' %}feed-reel-video{% endif %}"
                        data-post-id="{{ post.id }}"
                        controls
                        playsinline
                        preload="metadata"
+<<<<<<< HEAD
                        {% if post.type == "reel" %}muted autoplay loop{% endif %}>
                     {% with media_name=post.media_name %}
                     <source src="{{ media_src }}"
@@ -92,12 +97,26 @@
                         {% endif %}>
                     <source src="{{ post.media.url }}" type="video/mp4">
                     {% endwith %}
+=======
+                       src="{{ media_url }}"
+                       {% if post.type == "reel" %}muted autoplay loop{% endif %}>
+                    
+                    <source src="{{ media_url }}" type="video/mp4">
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
                 </video>
 
+            {% elif media_url %}
+                <img src="{{ media_url }}" class="img-fluid w-100 feed-media">
             {% else %}
+<<<<<<< HEAD
                 <img src="{{ media_src }}"
                      class="img-fluid w-100 feed-media"
                      onerror="this.onerror=null;this.src='{{ post.media.url|escapejs }}';">
+=======
+                <div class="post-empty">
+                    <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
+                </div>
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
             {% endif %}
 
         </div>

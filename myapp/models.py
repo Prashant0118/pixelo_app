@@ -92,10 +92,33 @@ def _can_build_cloudinary_urls():
     )
 
 
+def _extract_embedded_absolute_url(value):
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return raw
+
+    idx_http = raw.find("http://")
+    idx_https = raw.find("https://")
+    candidates = [i for i in (idx_http, idx_https) if i >= 0]
+    if not candidates:
+        return ""
+
+    start = min(candidates)
+    prefix = raw[:start]
+    if "media/" in prefix or "/media/" in prefix:
+        return raw[start:]
+    return ""
+
+
 def _normalize_media_name(name):
     if not name:
         return ""
-    raw = str(name)
+    raw = str(name).strip()
+    embedded_url = _extract_embedded_absolute_url(raw)
+    if embedded_url:
+        return embedded_url
     if raw.startswith("/media/"):
         raw = raw[len("/media/"):]
     elif raw.startswith("media/"):
@@ -104,10 +127,17 @@ def _normalize_media_name(name):
 
 
 def _storage_url(field, name):
+    embedded_name_url = _extract_embedded_absolute_url(name)
+    if embedded_name_url:
+        return _ensure_https_url(embedded_name_url)
+
     try:
         url = field.storage.url(name)
         if not url:
             return ""
+        embedded_storage_url = _extract_embedded_absolute_url(url)
+        if embedded_storage_url:
+            return _ensure_https_url(embedded_storage_url)
         # Some storage backends can return a plain filename; normalize to MEDIA_URL.
         if not (url.startswith("http://") or url.startswith("https://") or url.startswith("/")):
             base = getattr(settings, "MEDIA_URL", "/media/")
@@ -530,6 +560,7 @@ class Post(models.Model):
             return ""
 
         try:
+<<<<<<< HEAD
             raw_url = self.media.url
             if raw_url:
                 normalized_url = _ensure_https_url(raw_url)
@@ -557,6 +588,39 @@ class Post(models.Model):
             if self.is_video:
                 return _cloudinary_video_url(storage_url)
             return storage_url
+=======
+            if self.media and getattr(self.media, "name", ""):
+                name = _normalize_media_name(self.media.name or "")
+                if name.startswith("http://") or name.startswith("https://"):
+                    if self.type == "reel" or self.is_video or _looks_like_video_name(name):
+                        return _ensure_https_url(_cloudinary_video_url(name))
+                    return _ensure_https_url(name)
+
+                # Prefer the storage-provided URL first. This avoids generating
+                # invalid Cloudinary URLs for files that are stored locally.
+                try:
+                    url = _storage_url(self.media, name) if name else self.media.url
+                except Exception:
+                    url = ""
+
+                if url:
+                    if self.type == "reel" or self.is_video or _looks_like_video_path(url) or _looks_like_video_name(name):
+                        return _cloudinary_video_url(url)
+                    return url
+
+                if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
+                    resource_type = "video" if (self.type == "reel" or self.is_video or _looks_like_video_name(name)) else "image"
+                    cloudinary_url = _cloudinary_url_for(name, resource_type)
+                    if cloudinary_url:
+                        if resource_type == "video" or _looks_like_video_path(cloudinary_url):
+                            return _cloudinary_video_url(cloudinary_url)
+                        return cloudinary_url
+
+                url = _storage_url(self.media, name) if name else self.media.url
+                if self.type == "reel" or self.is_video or _looks_like_video_path(url) or _looks_like_video_name(name):
+                    return _cloudinary_video_url(url)
+                return url
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
         except Exception:
             return ""
 

@@ -402,6 +402,10 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "Tr
 SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "True").lower() in ("1", "true", "yes", "on")
 SECURE_REFERRER_POLICY = "same-origin"
 
+# Allow CDN resources for CSS, fonts, and scripts (for Tracking Prevention compatibility)
+# This prevents "Tracking Prevention blocked access to storage" errors
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
+
 LOGIN_URL = '/login/'
 
 CHANNEL_LAYERS = {

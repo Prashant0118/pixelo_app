@@ -30,5 +30,12 @@ urlpatterns = [
     path('', include('myapp.urls')),
 ]
 
+<<<<<<< HEAD
 if settings.DEBUG or getattr(settings, "SERVE_MEDIA", False):
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+=======
+if settings.DEBUG or getattr(settings, "SERVE_MEDIA", False):
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
