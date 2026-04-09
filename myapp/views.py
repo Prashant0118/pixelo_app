@@ -326,7 +326,16 @@ def _score_reel_for_user(reel, category_scores, creator_scores, liked_ids):
     for category in _categories_for_text(reel.caption or ""):
         score += category_scores.get(category, 0)
 
-    age_hours = max(1, (timezone.now() - reel.created_at).total_seconds() / 3600)
+    created_at = getattr(reel, "created_at", None)
+    if created_at is None:
+        age_hours = 24
+    else:
+        try:
+            if timezone.is_naive(created_at):
+                created_at = timezone.make_aware(created_at, timezone.get_current_timezone())
+            age_hours = max(1, (timezone.now() - created_at).total_seconds() / 3600)
+        except Exception:
+            age_hours = 24
     score += 36 / age_hours
     return score
 
@@ -571,6 +580,12 @@ def _upload_page_context(error=None):
         "cloudinary_upload_preset": upload_preset,
         "cloudinary_widget_enabled": bool(upload_preset and direct_upload_enabled),
         "allow_unsigned_upload": getattr(settings, "ALLOW_UNSIGNED_UPLOAD", False),
+        "firebase_api_key": getattr(settings, "FIREBASE_API_KEY", ""),
+        "firebase_auth_domain": getattr(settings, "FIREBASE_AUTH_DOMAIN", ""),
+        "firebase_project_id": getattr(settings, "FIREBASE_PROJECT_ID", ""),
+        "firebase_storage_bucket": getattr(settings, "FIREBASE_STORAGE_BUCKET", ""),
+        "firebase_app_id": getattr(settings, "FIREBASE_APP_ID", ""),
+        "firebase_measurement_id": getattr(settings, "FIREBASE_MEASUREMENT_ID", ""),
         "direct_upload_min_bytes": getattr(settings, "DIRECT_UPLOAD_MIN_BYTES", 0),
         "max_direct_upload_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
         "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),
@@ -931,7 +946,7 @@ def home(request):
             default=Value(1),
             output_field=IntegerField(),
         )
-    )
+    ).filter(type='post')
     if selected_category == "Trending":
         posts = (
             posts_qs.annotate(
@@ -1196,7 +1211,7 @@ def reels(request):
         selected_category = "All"
 
     social_priority_ids = _social_priority_user_ids(request.user)
-    reels_qs = Post.objects.filter(type="reel").select_related("user", "user__profile").prefetch_related(
+    reels_qs = Post.objects.filter(type="reel").select_related("user").prefetch_related(
         "likes", "comments__user"
     )
     if profile_username:
@@ -2200,10 +2215,8 @@ def upload(request):
             try:
                 detail = str(exc)
                 if detail and len(detail) < 200:
-                    if "Invalid image file" in detail:
-                        err_text = "Upload failed: unsupported or corrupted image file. Please upload JPG, PNG, WEBP, or GIF."
-                    elif "BadRequest" in detail:
-                        err_text = "Upload failed: media validation failed on storage provider."
+                    if "Invalid image file" in detail or "BadRequest" in detail:
+                        err_text = "Upload failed: video upload may require Cloudinary resource_type=auto and reel type. "
                     err_text = f"{err_text} - {detail}"
             except Exception:
                 pass
@@ -2442,11 +2455,14 @@ def upload_chunk_complete(request):
         name = filename or ""
         ext = os.path.splitext(name)[1].lower()
         video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
-        is_video_upload = (
-            (mime_type.startswith("video/"))
-            or _is_video_file(name, mime_type)
-            or (ext in video_exts)
-        )
+        is_video_upload = _is_video_file(name) or (ext in video_exts)
+
+        if post_type == "post" and is_video_upload:
+            try:
+                os.remove(assembled_abs)
+            except Exception:
+                pass
+            return JsonResponse({"error": "Post uploads must be images. Choose 'Reel' to upload videos."}, status=400)
 
         if post_type == "reel" and not is_video_upload:
             try:
@@ -2468,13 +2484,15 @@ def upload_chunk_complete(request):
                 pass
             post = Post.objects.create(user=request.user, media=django_file, caption=caption, type=post_type)
 
-            # Server-side duration check: always try to detect video duration for reels
-            if post and post.type == "reel" and post.is_video:
+            # Server-side duration check: enforce <=60s as reels, >60s as posts.
+            if post and post.is_video:
                 try:
                     duration = _ffprobe_duration_seconds(post.media.path)
-                    if duration and duration > 60:
-                        post.type = "post"
-                        post.save(update_fields=["type"])
+                    if duration:
+                        target_type = "reel" if duration <= 60 else "post"
+                        if post.type != target_type:
+                            post.type = target_type
+                            post.save(update_fields=["type"])
                 except Exception as e:
                     # Non-fatal: log and continue
                     print(f"[upload_chunk_complete] duration check failed: {e}")
@@ -2486,11 +2504,8 @@ def upload_chunk_complete(request):
             detail = str(exc)
             if detail:
                 err_text = f"{err_text} - {detail}"
-                if "Invalid image file" in detail:
-                    err_text = "Upload failed: unsupported or corrupted image file. Please upload JPG, PNG, WEBP, or GIF."
-                    status_code = 400
-                elif "BadRequest" in detail:
-                    status_code = 400
+                if "Invalid image file" in detail or "BadRequest" in detail:
+                    err_text = "Upload failed: video upload requires Cloudinary resource_type=auto and reel type. " + err_text
         except Exception:
             pass
         if _media_debug_enabled():
@@ -2548,6 +2563,7 @@ def cloudinary_signature(request):
     params.pop("file", None)
     params.pop("api_key", None)
     params.pop("signature", None)
+    params.pop("resource_type", None)
 
     timestamp = params.get("timestamp") or int(time.time())
     params["timestamp"] = timestamp
@@ -2606,6 +2622,50 @@ def cloudinary_complete_upload(request):
 
 
 @login_required
+@require_POST
+@login_required
+@require_POST
+def firebase_complete_upload(request):
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    download_url = (payload.get("download_url") or "").strip()
+    post_type = (payload.get("post_type") or "post").strip().lower()
+    caption = (payload.get("caption") or "").strip()
+
+    if post_type not in ("post", "reel"):
+        post_type = "post"
+
+    if not download_url:
+        return JsonResponse({"error": "Missing download URL."}, status=400)
+
+    if not download_url.startswith(("https://firebasestorage.googleapis.com/", "https://storage.googleapis.com/")):
+        return JsonResponse({"error": "Invalid download URL."}, status=400)
+
+    try:
+        post = Post.objects.create(
+            user=request.user,
+            caption=caption,
+            type=post_type,
+        )
+        post.media.name = download_url
+        post.save(update_fields=["media"])
+    except Exception as exc:
+        err_text = f"Upload failed: {exc.__class__.__name__}"
+        try:
+            detail = str(exc)
+            if detail:
+                err_text = f"{err_text} - {detail}"
+        except Exception:
+            pass
+        print(f"[firebase_complete_upload] {err_text}")
+        return JsonResponse({"error": err_text}, status=500)
+
+    return JsonResponse({"ok": True, "redirect": reverse("home")})
+
+
 @login_required
 def upload_story(request):
     if request.method == "POST":

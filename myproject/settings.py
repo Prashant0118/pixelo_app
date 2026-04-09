@@ -138,8 +138,6 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
         "API_KEY": CLOUDINARY_API_KEY,
         "API_SECRET": CLOUDINARY_API_SECRET,
         "SECURE": True,
-        # Use auto resource type so videos no longer fail as invalid image file
-        "RESOURCE_TYPE": "auto",
     }
     if CLOUDINARY_UPLOAD_PRESET:
         CLOUDINARY_STORAGE["UPLOAD_PRESET"] = CLOUDINARY_UPLOAD_PRESET
@@ -163,6 +161,7 @@ if CAN_USE_CLOUDINARY:
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'myapp.middleware.ClientDisconnectMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -269,6 +268,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default storage backend (overridden by STORAGES when configured).
 # Keep it aligned with CAN_USE_CLOUDINARY to avoid misconfigured uploads.
+# Use MediaCloudinaryAutoStorage to properly route videos with resource_type="video"
 DEFAULT_FILE_STORAGE = (
     "myapp.storage.MediaCloudinaryAutoStorage"
     if CAN_USE_CLOUDINARY
@@ -277,11 +277,13 @@ DEFAULT_FILE_STORAGE = (
 
 # Allow serving media files directly from Django in production when needed.
 # Use with care on hosted environments; prefer Cloudinary for durability.
-SERVE_MEDIA = os.getenv("SERVE_MEDIA", "").lower() in ("1", "true", "yes", "on")
-# Always allow local media serving in DEBUG (dev), unless Cloudinary is active.
-SERVE_MEDIA = SERVE_MEDIA or DEBUG
-if CAN_USE_CLOUDINARY:
-    SERVE_MEDIA = False
+_raw_serve_media = (os.getenv("SERVE_MEDIA", "") or "").strip().lower()
+if _raw_serve_media:
+    SERVE_MEDIA = _raw_serve_media in ("1", "true", "yes", "on")
+else:
+    # Auto-enable media serving when Cloudinary is not configured so uploads
+    # remain visible on hosted environments like Render.
+    SERVE_MEDIA = DEBUG or (not CAN_USE_CLOUDINARY)
 
 # Upload limits (bytes). Raise to allow long videos; override via env as needed.
 # FILE_UPLOAD_MAX_MEMORY_SIZE: Peak memory usage per file during upload

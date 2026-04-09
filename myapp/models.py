@@ -186,6 +186,15 @@ class Profile(models.Model):
         if self.image and self.image.name:
             if self.image.name not in ("default.jpg", "default.png"):
                 try:
+                    # If image name is already a URL (e.g., Cloudinary), trust it.
+                    if str(self.image.name).startswith(("http://", "https://")):
+                        return _ensure_https_url(str(self.image.name))
+
+                    # For Cloudinary storage, avoid exists() checks that can fail.
+                    storage_name = self.image.storage.__class__.__name__.lower()
+                    if "cloudinary" in storage_name:
+                        return self.image.url
+
                     # Avoid storage.exists() because Cloudinary "auto" delivery URLs
                     # can 400 on HEAD requests. Just return the URL if available.
                     name = _normalize_media_name(self.image.name)
@@ -310,14 +319,9 @@ class Story(models.Model):
             if not (self.media and getattr(self.media, "name", "")):
                 return ""
             name = _normalize_media_name(self.media.name)
-            if not getattr(settings, "CAN_USE_CLOUDINARY", False) and not _can_build_cloudinary_urls():
-                try:
-                    storage = self.media.storage
-                    if hasattr(storage, "exists") and not storage.exists(name):
-                        _log_missing_media("story.media", name)
-                        return ""
-                except Exception:
-                    pass
+            if name and not self.media.storage.exists(name):
+                _log_missing_media("story.media", name)
+                return ""
             if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
                 resource_type = "video" if self.media_type == "video" else "image"
                 url = _cloudinary_url_for(name, resource_type)
@@ -534,6 +538,8 @@ class Post(models.Model):
 
     caption = models.TextField(blank=True)
 
+    duration = models.FloatField(null=True, blank=True)  # Duration in seconds for videos
+
     type = models.CharField(
         max_length=10,
         choices=TYPE_CHOICES,
@@ -546,7 +552,42 @@ class Post(models.Model):
 
     @property
     def media_url(self):
+        if not (self.media and getattr(self.media, "name", "")):
+            return ""
+
+        name = getattr(self.media, "name", "")
+        if name and not self.media.storage.exists(name):
+            return ""
+
         try:
+            raw_url = self.media.url
+            if raw_url:
+                normalized_url = _ensure_https_url(raw_url)
+                if self.is_video:
+                    return _cloudinary_video_url(normalized_url)
+                return normalized_url
+        except Exception:
+            pass
+
+        try:
+            name = _normalize_media_name(self.media.name or "")
+            if not name:
+                return ""
+            if name.startswith("http://") or name.startswith("https://"):
+                normalized_url = _ensure_https_url(name)
+                if self.is_video:
+                    return _cloudinary_video_url(normalized_url)
+                return normalized_url
+            if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
+                resource_type = "video" if self.is_video else "image"
+                cloudinary_url = _cloudinary_url_for(name, resource_type)
+                if cloudinary_url:
+                    return cloudinary_url
+            storage_url = _ensure_https_url(_storage_url(self.media, name))
+            if self.is_video:
+                return _cloudinary_video_url(storage_url)
+            return storage_url
+
             if self.media and getattr(self.media, "name", ""):
                 name = _normalize_media_name(self.media.name or "")
                 if name.startswith("http://") or name.startswith("https://"):
@@ -580,7 +621,6 @@ class Post(models.Model):
                 return url
         except Exception:
             return ""
-        return ""
 
     @property
     def media_name(self):

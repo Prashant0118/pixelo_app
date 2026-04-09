@@ -12,6 +12,20 @@
     -webkit-overflow-scrolling: touch;
 }
 
+/* Reels-only view: hide app chrome on all screen sizes */
+body.reels-page .top-navbar,
+body.reels-page .mobile-bottom,
+body.reels-page .sidebar,
+body.reels-page .right-panel {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    pointer-events: none !important;
+}
+
 .reels-back-btn {
     position: fixed;
     top: calc(10px + env(safe-area-inset-top));
@@ -34,6 +48,7 @@
 .reel-item {
     position: relative;
     height: var(--reels-vh);
+    min-height: var(--reels-vh);
     scroll-snap-align: start;
     scroll-snap-stop: always;
     overflow: hidden;
@@ -80,12 +95,13 @@
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 18px 14px;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
     display: flex;
     justify-content: space-between;
     align-items: end;
     gap: 10px;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+    z-index: 3;
 }
 
 .reel-meta {
@@ -140,13 +156,15 @@
 .reel-actions {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
+    margin-bottom: 6px;
+    z-index: 4;
 }
 
 .reel-action-btn {
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    background: rgba(12, 18, 30, 0.52);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(8, 12, 20, 0.75);
     color: #fff;
     display: flex;
     flex-direction: column;
@@ -156,10 +174,21 @@
     font-size: 12px;
     cursor: pointer;
     border-radius: 14px;
-    padding: 7px 10px;
-    min-width: 60px;
+    padding: 8px 10px;
+    min-width: 80px;
     transition: background 0.2s ease, border-color 0.2s ease;
+<<<<<<< HEAD
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+    white-space: nowrap;
+}
+
+.reel-action-btn span {
+    line-height: 1.2;
+    font-weight: 600;
+    font-size: 12px;
+=======
     position: relative;
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
 }
 
 .reel-action-btn i {
@@ -488,8 +517,14 @@
     font-weight: 600;
     margin-bottom: 2px;
 }
+<<<<<<< HEAD
 
 
+@media (max-width: 992px) {
+=======
+
+
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
 body.reels-page .feed {
     width: 100%;
     max-width: 100%;
@@ -517,6 +552,33 @@ body.reels-page .main-layout {
     height: var(--reels-vh);
 }
 
+/* Reels-only view: hide all app chrome */
+body.reels-page .top-navbar,
+body.reels-page .mobile-bottom,
+body.reels-page .sidebar,
+body.reels-page .right-panel {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    pointer-events: none !important;
+}
+
+    /* Hide app chrome on mobile so reels use the full viewport */
+    body.reels-page .top-navbar,
+    body.reels-page .mobile-bottom {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        pointer-events: none !important;
+    }
+}
+
 /* Force reels to render above app chrome (top/bottom nav) on mobile */
 body.reels-page .reels-feed {
     position: fixed;
@@ -527,12 +589,105 @@ body.reels-page .reels-feed {
     z-index: 1100;
 }
 
+/* Reels page must not inherit feed card sizing from home.css */
+body.reels-page .feed-media-frame,
+body.reels-page .feed-media-frame.is-reel,
+body.reels-page .feed-media-frame.is-post {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    display: block !important;
+    overflow: hidden !important;
+    background: #000 !important;
+}
+
+body.reels-page .reel-item {
+    height: var(--reels-vh) !important;
+    min-height: var(--reels-vh) !important;
+    max-height: var(--reels-vh) !important;
+    flex: 0 0 var(--reels-vh) !important;
+}
+
+@media (max-width: 992px) {
+    body.reels-page .reel-media-wrap,
+    body.reels-page .reel-media {
+        width: 100% !important;
+        height: 100% !important;
+    }
+}
+
 @media (min-width: 993px) {
     /* Desktop: center reels like Shorts */
+    body.reels-page {
+        background: #000;
+    }
+
+    body.reels-page .main-layout {
+        max-width: 100%;
+        background: #000;
+    }
+
+    body.reels-page .feed {
+        width: 100%;
+        max-width: none;
+        background: #000;
+        border-left: none;
+        border-right: none;
+    }
+
+    body.reels-page .content-area {
+        padding: 0;
+        background: #000;
+    }
+
+    /* Keep left navigation, but make side panels blend into black */
+    body.reels-page .sidebar,
+    body.reels-page .right-panel {
+        background: #000;
+        border-color: transparent;
+    }
+
+    /* Hide side panels on reels to keep focus */
+    body.reels-page .sidebar,
+    body.reels-page .right-panel {
+        display: none !important;
+    }
+
+    body.reels-page .sidebar .logo,
+    body.reels-page .sidebar .nav-link,
+    body.reels-page .sidebar .nav-link i {
+        color: #ffffff;
+    }
+
+    body.reels-page .sidebar .nav-link:hover,
+    body.reels-page .sidebar .nav-link:hover i {
+        color: #ffffff;
+        opacity: 0.9;
+    }
+
     body.reels-page .reels-feed {
-        display: block;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         padding: 0;
         scroll-snap-type: y mandatory;
+        background: #000;
+        position: relative;
+    }
+
+    body.reels-page .reels-feed::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+            radial-gradient(60% 80% at 20% 30%, rgba(70, 90, 140, 0.22), transparent 70%),
+            radial-gradient(55% 75% at 85% 65%, rgba(140, 90, 70, 0.18), transparent 72%),
+            linear-gradient(180deg, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.9));
+        filter: blur(10px) saturate(1.1);
     }
 
     body.reels-page .reel-item,
@@ -543,11 +698,14 @@ body.reels-page .reels-feed {
 
     body.reels-page .reel-item {
         height: var(--reels-vh);
-        scroll-snap-align: start;
+        scroll-snap-align: center;
         scroll-snap-stop: always;
         display: flex;
         align-items: center;
         justify-content: center;
+        width: 100%;
+        position: relative;
+        z-index: 1;
     }
 
     body.reels-page .reel-media {
@@ -557,8 +715,13 @@ body.reels-page .reels-feed {
     }
 
     body.reels-page .reel-media-wrap {
-        width: min(420px, 100%);
-        height: 100%;
+        height: min(90vh, 760px);
+        aspect-ratio: 9 / 16;
+        width: auto;
+        max-width: min(420px, 92vw);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
     }
 }
 

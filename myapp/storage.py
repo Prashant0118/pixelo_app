@@ -1,4 +1,5 @@
 import os
+import mimetypes
 from django.core.files.storage import FileSystemStorage
 
 try:
@@ -6,16 +7,48 @@ try:
 except Exception:  # pragma: no cover - fallback when cloudinary storage isn't installed
     MediaCloudinaryStorage = None
 
-_VIDEO_EXTS = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".3gp", ".3gpp", ".ogv"}
+_VIDEO_EXTS = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".3gp", ".3gpp", ".ogv", ".flv", ".wmv", ".m3u8", ".ts", ".mts"}
+_VIDEO_MIMETYPES = {
+    "video/mp4", "video/webm", "video/quicktime", "video/x-msvideo",
+    "video/x-matroska", "video/3gpp", "video/ogg", "video/x-flv",
+    "video/x-ms-wmv", "application/x-mpegURL", "video/mp2t"
+}
 
 
 def _is_video_name(name):
-    ext = os.path.splitext(name or "")[1].lower()
-    return ext in _VIDEO_EXTS
+    """Check if a file is a video based on extension, MIME type, or name heuristics."""
+    if not name:
+        return False
+    
+    # Check extension first (fastest)
+    ext = os.path.splitext(str(name))[1].lower()
+    if ext in _VIDEO_EXTS:
+        return True
+    
+    # Fallback to MIME type detection
+    guessed_type, _ = mimetypes.guess_type(str(name))
+    if guessed_type and guessed_type.lower() in _VIDEO_MIMETYPES:
+        return True
+    
+    # Heuristic for uploads without extensions (e.g. WhatsApp_Video_*).
+    raw = os.path.basename(str(name)).lower()
+    if not os.path.splitext(raw)[1]:  # No extension
+        return "video" in raw
+    
+    return False
+
+
+class LocalMediaStorage(FileSystemStorage):
+    """
+    Local storage for media files.
+    """
+    pass
 
 
 if MediaCloudinaryStorage:
 
+<<<<<<< HEAD
+=======
     class _ImageCloudinaryStorage(MediaCloudinaryStorage):
         RESOURCE_TYPE = "image"
 
@@ -24,6 +57,7 @@ if MediaCloudinaryStorage:
         RESOURCE_TYPE = "video"
 
 
+>>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
     class MediaCloudinaryAutoStorage(MediaCloudinaryStorage):
         """
         Cloudinary storage that routes images/videos to the correct resource_type.
@@ -32,23 +66,58 @@ if MediaCloudinaryStorage:
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self._image_storage = _ImageCloudinaryStorage()
-            self._video_storage = _VideoCloudinaryStorage()
+            # Initialize upload_options if not present
+            if not hasattr(self, 'upload_options'):
+                self.upload_options = {}
 
-        def _select_storage(self, name):
-            return self._video_storage if _is_video_name(name) else self._image_storage
+        def get_folder_name(self, name):
+            """Extract folder from name (everything before the last slash)"""
+            return os.path.dirname(name) or ""
+
+        def get_file_name(self, name):
+            """Extract filename from name (everything after the last slash)"""
+            return os.path.basename(name)
 
         def _save(self, name, content):
-            return self._select_storage(name)._save(name, content)
+            # Get the folder and file_name like the parent does
+            folder = self.get_folder_name(name)
+            file_name = self.get_file_name(name)
+            
+            # Create options with correct resource_type
+            resource_type = "video" if _is_video_name(name) else "image"
+            options = {
+                'resource_type': resource_type,
+                'public_id': file_name,
+                'folder': folder,
+            }
+            
+            # Add upload_options if they exist
+            if hasattr(self, 'upload_options') and self.upload_options:
+                options.update(self.upload_options)
+            
+            # Upload the file directly
+            import cloudinary.uploader
+            response = cloudinary.uploader.upload(content, **options)
+            
+            # Return the public_id
+            return response['public_id']
 
         def url(self, name):
-            return self._select_storage(name).url(name)
-
-        def exists(self, name):
-            return self._select_storage(name).exists(name)
-
-        def delete(self, name):
-            return self._select_storage(name).delete(name)
+            """Generate URL with correct resource_type"""
+            resource_type = "video" if _is_video_name(name) else "image"
+            try:
+                import cloudinary
+                from cloudinary.utils import cloudinary_url
+                # name is the public_id stored by _save
+                url, _options = cloudinary_url(
+                    name,
+                    resource_type=resource_type,
+                    secure=True,
+                )
+                return url
+            except Exception:
+                # Fallback to parent implementation
+                return super().url(name)
 
 else:
 
