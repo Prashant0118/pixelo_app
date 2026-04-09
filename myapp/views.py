@@ -909,6 +909,15 @@ def home(request):
             "is_profile_feed": True,
             "profile_user": profile_user,
         }
+        _ensure_profiles_for_user_ids(
+            {request.user.id, profile_user.id}
+            | {post.user_id for post in posts}
+            | set(
+                Comment.objects.filter(post__in=posts)
+                .values_list("user_id", flat=True)
+            )
+            | set(_shareable_followers(request.user).values_list("id", flat=True))
+        )
         return render(request, 'home.html', context)
 
     category_ranked = _ordered_reel_categories_for_user(request.user)
@@ -1029,6 +1038,17 @@ def home(request):
     posts = list(posts)
     for post in posts:
         post.story_id = first_story_id_by_user.get(post.user_id)
+
+    _ensure_profiles_for_user_ids(
+        {request.user.id}
+        | {post.user_id for post in posts}
+        | set(
+            Comment.objects.filter(post_id__in=[post.id for post in posts])
+            .values_list("user_id", flat=True)
+        )
+        | set(visible_user_ids)
+        | set(_shareable_followers(request.user).values_list("id", flat=True))
+    )
 
     if _media_debug_enabled():
         for post in posts[:10]:
