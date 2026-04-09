@@ -177,18 +177,15 @@ body.reels-page .right-panel {
     padding: 8px 10px;
     min-width: 80px;
     transition: background 0.2s ease, border-color 0.2s ease;
-<<<<<<< HEAD
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
     white-space: nowrap;
+    position: relative;
 }
 
 .reel-action-btn span {
     line-height: 1.2;
     font-weight: 600;
     font-size: 12px;
-=======
-    position: relative;
->>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
 }
 
 .reel-action-btn i {
@@ -517,14 +514,9 @@ body.reels-page .right-panel {
     font-weight: 600;
     margin-bottom: 2px;
 }
-<<<<<<< HEAD
 
 
 @media (max-width: 992px) {
-=======
-
-
->>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
 body.reels-page .feed {
     width: 100%;
     max-width: 100%;

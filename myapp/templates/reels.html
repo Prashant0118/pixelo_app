@@ -37,11 +37,6 @@
 }
 </style>
 {% endblock %}
-{% block content %}
-<div class="reels-feed" id="reelsFeed">
-{% for reel in reels %}
-<div class="reel-item">
-<div class="reel-media-wrap" ondblclick="handleDoubleTapLike({{ reel.id }})">
 {% block body_attrs %} class="reels-page"{% endblock %}
 
 {% block content %}
@@ -180,62 +175,6 @@
             <p>No reels available yet.</p>
         </div>
     {% endif %}
-<<<<<<< HEAD
-=======
-
-    <!-- Overlay -->
-    <div class="reel-overlay">
-        <div class="reel-meta">
-            <a href="{% url 'profile' reel.user.username %}" class="reel-user">
-                <span class="reel-user-avatar-wrap">
-                    <img src="{{ reel.user.profile.avatar_url }}"
-                         alt="{{ reel.user.username }}"
-                         class="reel-user-avatar"
-                         loading="lazy">
-                </span>
-                <span>@{{ reel.user.username }}</span>
-            </a>
-            <p class="reel-caption">{{ reel.caption }}</p>
-        </div>
-
-        <div class="reel-actions">
-            <button class="reel-action-btn" onclick="likeReel({{ reel.id }})">
-                <i id="reel-like-icon-{{ reel.id }}"
-                   class="bi {% if reel.id in liked_post_ids %}bi-heart-fill liked{% else %}bi-heart{% endif %}"></i>
-                <span id="reel-like-count-{{ reel.id }}">{{ reel.likes.count }}</span>
-            </button>
-
-            <button class="reel-action-btn" onclick="toggleComments({{ reel.id }})">
-                <i class="bi bi-chat"></i>
-                <span id="reel-comment-count-{{ reel.id }}">{{ reel.comments.count }}</span>
-            </button>
-
-            <button class="reel-action-btn" onclick="openShareModal({{ reel.id }})">
-                <i class="bi bi-send"></i>
-                <span>Share</span>
-            </button>
-
-            <button class="reel-action-btn" 
-                    title="Support this creator"
-                    data-creator-username="{{ reel.user.username|escapejs }}"
-                    data-creator-upi="{{ reel.user.profile.upi_id|escapejs }}"
-                    onclick="directPayCreator('{{ reel.user.username|escapejs }}', '{{ reel.user.profile.upi_id|escapejs }}')">
-                <i class="bi bi-currency-rupee"></i>
-                <span>Pay</span>
-                {% if reel.user.profile.upi_id %}<span class="upi-available" title="UPI available">✓</span>{% endif %}
-            </button>
-        </div>
-    </div>
-
-    <!-- Like Animation -->
-    <div class="heart-burst" id="heart-burst-{{ reel.id }}">
-        <i class="bi bi-heart-fill"></i>
-    </div>
-
->>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
-</div>
-</div>
-{% endfor %}
 </div>
 
 <div class="share-modal d-none" id="shareModal" onclick="closeShareModal(event)">

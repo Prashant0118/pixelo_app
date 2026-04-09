@@ -47,7 +47,6 @@ class LocalMediaStorage(FileSystemStorage):
 
 if MediaCloudinaryStorage:
 
-
     class _ImageCloudinaryStorage(MediaCloudinaryStorage):
         RESOURCE_TYPE = "image"
 

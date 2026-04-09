@@ -4,8 +4,6 @@
 <head>
     <title>Pixelo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
-
     <!-- Bootstrap -->
     <link href="{% static 'css/vendor/bootstrap.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/vendor/bootstrap-icons.css' %}" rel="stylesheet">
@@ -108,7 +106,7 @@
     <aside class="right-panel d-none d-lg-block">
         <div class="p-4">
             <h6>{{ request.user.username }}</h6>
-            <p class="text-muted small">Welcome back 👋</p>
+            <p class="text-muted small">Welcome back</p>
             <hr>
 
             <h6>Suggestions</h6>
@@ -145,80 +143,6 @@
 </div>
 
 <script>
-<<<<<<< HEAD
-=======
-// ============== Tracking Prevention & Storage Fix ==============
-// This prevents "Tracking Prevention blocked access to storage" errors
-// by wrapping all localStorage/sessionStorage access in try-catch blocks
-
-window.__storageAccess = {
-  _methods: ['localStorage', 'sessionStorage'],
-  
-  init() {
-    // Test and wrap storage access
-    this._methods.forEach(storageName => {
-      try {
-        const storage = window[storageName];
-        const testKey = '__test__';
-        storage.setItem(testKey, '1');
-        storage.removeItem(testKey);
-        
-        // Monkey-patch to prevent Tracking Prevention errors leaking
-        const originalSetItem = storage.setItem;
-        const originalGetItem = storage.getItem;
-        const originalRemoveItem = storage.removeItem;
-        
-        storage.setItem = function(key, value) {
-          try {
-            return originalSetItem.call(storage, key, value);
-          } catch (e) {
-            // Silently fail for Tracking Prevention blocks
-            return null;
-          }
-        };
-        
-        storage.getItem = function(key) {
-          try {
-            return originalGetItem.call(storage, key);
-          } catch (e) {
-            return null;
-          }
-        };
-        
-        storage.removeItem = function(key) {
-          try {
-            return originalRemoveItem.call(storage, key);
-          } catch (e) {
-            return null;
-          }
-        };
-      } catch (e) {
-        // Storage is blocked, that's okay
-        console.log(`⚠️ ${storageName} unavailable (possibly due to Tracking Prevention). App will work normally.`);
-      }
-    });
-  }
-};
-
-// Initialize storage safety wrapper on page load
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => window.__storageAccess.init());
-} else {
-  window.__storageAccess.init();
-}
-
-// ============== CDN Resource Check ==============
-// Verify CDN resources loaded successfully
-window.addEventListener('load', () => {
-  // Check if Bootstrap CSS loaded
-  if (!window.getComputedStyle(document.body).fontFamily) {
-    console.warn('⚠️ CSS resources may not have loaded due to Tracking Prevention. Using fallback styles.');
-  }
-});
-</script>
-
-<script>
->>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
 (() => {
   const fallback = "{% static 'images/default.png' %}";
 
