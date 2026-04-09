@@ -2121,8 +2121,22 @@ def upload(request):
             name = getattr(media, "name", "") or ""
             ext = os.path.splitext(name)[1].lower()
             video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
+            image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff"}
 
             is_video_upload = _is_video_file(name, content_type) or (ext in video_exts)
+
+            # Normalize missing/odd image extensions so storage backends can
+            # correctly identify image resources.
+            if not is_video_upload:
+                guessed_img_ext = mimetypes.guess_extension(content_type) if content_type else ""
+                if guessed_img_ext == ".jpe":
+                    guessed_img_ext = ".jpg"
+                if not ext or ext not in image_exts:
+                    if guessed_img_ext in image_exts:
+                        base = name[:-len(ext)] if ext else name
+                        media.name = f"{base or 'upload'}{guessed_img_ext}"
+                        name = getattr(media, "name", "") or ""
+                        ext = os.path.splitext(name)[1].lower()
 
             if post_type == "reel" and not is_video_upload:
                 guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
@@ -2186,13 +2200,15 @@ def upload(request):
             try:
                 detail = str(exc)
                 if detail and len(detail) < 200:
-                    if "Invalid image file" in detail or "BadRequest" in detail:
-                        err_text = "Upload failed: video upload may require Cloudinary resource_type=auto and reel type. "
+                    if "Invalid image file" in detail:
+                        err_text = "Upload failed: unsupported or corrupted image file. Please upload JPG, PNG, WEBP, or GIF."
+                    elif "BadRequest" in detail:
+                        err_text = "Upload failed: media validation failed on storage provider."
                     err_text = f"{err_text} - {detail}"
             except Exception:
                 pass
             print(f"[upload] {err_text}")
-            return render(request, "upload.html", _upload_page_context(err_text))
+            return render(request, "upload.html", _upload_page_context(err_text), status=400)
 
         # Success: Post created
         if _media_debug_enabled():
@@ -2362,6 +2378,12 @@ def upload_chunk_complete(request):
             guessed_ext = ".mp4"
         if ext.lower() not in video_exts:
             safe_name = f"{base_name or 'upload'}{guessed_ext}"
+    elif mime_type.startswith("image/"):
+        image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff"}
+        if guessed_ext == ".jpe":
+            guessed_ext = ".jpg"
+        if guessed_ext in image_exts and ext.lower() not in image_exts:
+            safe_name = f"{base_name or 'upload'}{guessed_ext}"
 
     assembled_name = f"{int(time.time())}_{upload_id}_{safe_name}"
 
@@ -2459,12 +2481,16 @@ def upload_chunk_complete(request):
 
     except Exception as exc:
         err_text = f"Upload failed: {exc.__class__.__name__}"
+        status_code = 500
         try:
             detail = str(exc)
             if detail:
                 err_text = f"{err_text} - {detail}"
                 if "Invalid image file" in detail:
-                    err_text = "Upload failed: media type mismatch during cloud upload (video detected as image). " + err_text
+                    err_text = "Upload failed: unsupported or corrupted image file. Please upload JPG, PNG, WEBP, or GIF."
+                    status_code = 400
+                elif "BadRequest" in detail:
+                    status_code = 400
         except Exception:
             pass
         if _media_debug_enabled():
@@ -2472,7 +2498,7 @@ def upload_chunk_complete(request):
                 "[media-debug][upload_chunk_complete] create failed",
                 {"upload_id": upload_id, "error": f"{exc.__class__.__name__}: {exc}"},
             )
-        return JsonResponse({"error": err_text}, status=500)
+        return JsonResponse({"error": err_text}, status=status_code)
     finally:
         try:
             os.remove(assembled_abs)
