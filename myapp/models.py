@@ -560,7 +560,6 @@ class Post(models.Model):
             return ""
 
         try:
-<<<<<<< HEAD
             raw_url = self.media.url
             if raw_url:
                 normalized_url = _ensure_https_url(raw_url)
@@ -588,7 +587,7 @@ class Post(models.Model):
             if self.is_video:
                 return _cloudinary_video_url(storage_url)
             return storage_url
-=======
+
             if self.media and getattr(self.media, "name", ""):
                 name = _normalize_media_name(self.media.name or "")
                 if name.startswith("http://") or name.startswith("https://"):
@@ -620,7 +619,6 @@ class Post(models.Model):
                 if self.type == "reel" or self.is_video or _looks_like_video_path(url) or _looks_like_video_name(name):
                     return _cloudinary_video_url(url)
                 return url
->>>>>>> 4067258aed84966b87778a9d51360e0e38a6f1d0
         except Exception:
             return ""
 

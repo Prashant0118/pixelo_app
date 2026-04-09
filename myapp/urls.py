@@ -38,7 +38,6 @@ urlpatterns = [
     path('edit-profile/', views.edit_profile, name='edit_profile'),
     path('payment-settings/', views.payment_settings, name='payment_settings'),
     path('edit-bio/', views.edit_bio, name='edit_bio'),
-    
     path('unfollow/<str:username>/', views.unfollow, name='unfollow'),
     path("follow/<str:username>/", views.send_follow_request, name="follow"),
     path("followers/<str:username>/", views.followers_list, name="followers_list"),
