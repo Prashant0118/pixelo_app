@@ -94,15 +94,14 @@
                     <source src="{{ post.media.url }}" type="video/mp4">
                     {% endwith %}
                 </video>
-
-                                {% else %}
+                {% else %}
                 <img src="{{ media_src }}" class="img-fluid w-100 feed-media">
-            {% endif %}
-                                {% else %}
-                                    <div class="post-empty">
-                                        <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
-                                    </div>
-                                {% endif %}
+                {% endif %}
+                {% else %}
+                <div class="post-empty">
+                    <img src="{% static 'images/default.png' %}" alt="placeholder" class="post-media-placeholder">
+                </div>
+                {% endif %}
 
         </div>
         {% endwith %}
