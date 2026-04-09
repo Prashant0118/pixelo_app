@@ -92,10 +92,33 @@ def _can_build_cloudinary_urls():
     )
 
 
+def _extract_embedded_absolute_url(value):
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return raw
+
+    idx_http = raw.find("http://")
+    idx_https = raw.find("https://")
+    candidates = [i for i in (idx_http, idx_https) if i >= 0]
+    if not candidates:
+        return ""
+
+    start = min(candidates)
+    prefix = raw[:start]
+    if "media/" in prefix or "/media/" in prefix:
+        return raw[start:]
+    return ""
+
+
 def _normalize_media_name(name):
     if not name:
         return ""
-    raw = str(name)
+    raw = str(name).strip()
+    embedded_url = _extract_embedded_absolute_url(raw)
+    if embedded_url:
+        return embedded_url
     if raw.startswith("/media/"):
         raw = raw[len("/media/"):]
     elif raw.startswith("media/"):
@@ -104,10 +127,17 @@ def _normalize_media_name(name):
 
 
 def _storage_url(field, name):
+    embedded_name_url = _extract_embedded_absolute_url(name)
+    if embedded_name_url:
+        return _ensure_https_url(embedded_name_url)
+
     try:
         url = field.storage.url(name)
         if not url:
             return ""
+        embedded_storage_url = _extract_embedded_absolute_url(url)
+        if embedded_storage_url:
+            return _ensure_https_url(embedded_storage_url)
         # Some storage backends can return a plain filename; normalize to MEDIA_URL.
         if not (url.startswith("http://") or url.startswith("https://") or url.startswith("/")):
             base = getattr(settings, "MEDIA_URL", "/media/")

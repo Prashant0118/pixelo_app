@@ -2699,12 +2699,11 @@ def _user_avatar_url(user):
     except Exception:
         profile = None
 
-    if profile and getattr(profile, "image", None) and getattr(profile.image, "name", ""):
-        if profile.image.name not in ("default.jpg", "default.png"):
-            try:
-                return profile.image.url
-            except ValueError:
-                pass
+    if profile:
+        try:
+            return profile.avatar_url
+        except Exception:
+            pass
 
     display_name = user.get_full_name().strip() or user.username or "User"
     initials = "".join([part[0] for part in display_name.split() if part][:2]).upper() or "U"
