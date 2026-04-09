@@ -70,7 +70,7 @@
 <div ondblclick="doubleLike({{ post.id }})">
     
     {% if post.media %}
-        {% with media_src=post.media_url|default:post.media.url %}
+        {% with media_src=post.media_url %}
         <div class="feed-media-frame {% if post.type == 'reel' %}is-reel{% else %}is-post{% endif %}">
             
             {% if media_src %}
@@ -91,7 +91,6 @@
                         {% elif media_name|slice:'-4:' == '.avi' %}type="video/x-msvideo"
                         {% elif media_name|slice:'-4:' == '.3gp' or media_name|slice:'-5:' == '.3gpp' %}type="video/3gpp"
                         {% endif %}>
-                    <source src="{{ post.media.url }}" type="video/mp4">
                     {% endwith %}
                 </video>
                 {% else %}
