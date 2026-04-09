@@ -2124,10 +2124,6 @@ def upload(request):
 
             is_video_upload = _is_video_file(name, content_type) or (ext in video_exts)
 
-            # Enforce: Posts must be images. Reels must be videos.
-            if post_type == "post" and is_video_upload:
-                return render(request, "upload.html", _upload_page_context("Post uploads must be images. Choose 'Reel' to upload videos."))
-
             if post_type == "reel" and not is_video_upload:
                 guessed, _ = mimetypes.guess_type(getattr(media, "name", ""))
                 if not (guessed and guessed.startswith("video/")):
@@ -2321,6 +2317,7 @@ def upload_chunk_complete(request):
     upload_id = (request.POST.get("upload_id") or "").strip()
     total_chunks = request.POST.get("total_chunks")
     filename = request.POST.get("filename") or "upload"
+    mime_type = (request.POST.get("mime_type") or "").strip().lower()
     post_type = (request.POST.get("type") or "post").strip().lower()
     caption = (request.POST.get("caption") or "").strip()
 
@@ -2354,6 +2351,18 @@ def upload_chunk_complete(request):
         return JsonResponse({"error": "Upload not found."}, status=400)
 
     safe_name = _safe_filename(filename)
+    base_name, ext = os.path.splitext(safe_name)
+
+    # Preserve video extension for chunked uploads so storage backends can
+    # correctly route resource_type (e.g. Cloudinary image vs video).
+    video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
+    guessed_ext = (mimetypes.guess_extension(mime_type) or "").lower() if mime_type else ""
+    if mime_type.startswith("video/"):
+        if guessed_ext not in video_exts:
+            guessed_ext = ".mp4"
+        if ext.lower() not in video_exts:
+            safe_name = f"{base_name or 'upload'}{guessed_ext}"
+
     assembled_name = f"{int(time.time())}_{upload_id}_{safe_name}"
 
     temp_handle = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(assembled_name)[1])
@@ -2405,19 +2414,17 @@ def upload_chunk_complete(request):
     except Exception:
         pass
 
-    # Validate post/reel type matches file kind
+    # Validate reel type matches file kind
+    is_video_upload = False
     try:
         name = filename or ""
         ext = os.path.splitext(name)[1].lower()
         video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
-        is_video_upload = _is_video_file(name) or (ext in video_exts)
-
-        if post_type == "post" and is_video_upload:
-            try:
-                os.remove(assembled_abs)
-            except Exception:
-                pass
-            return JsonResponse({"error": "Post uploads must be images. Choose 'Reel' to upload videos."}, status=400)
+        is_video_upload = (
+            (mime_type.startswith("video/"))
+            or _is_video_file(name, mime_type)
+            or (ext in video_exts)
+        )
 
         if post_type == "reel" and not is_video_upload:
             try:
@@ -2431,6 +2438,12 @@ def upload_chunk_complete(request):
     try:
         with open(assembled_abs, "rb") as f:
             django_file = File(f, name=assembled_name)
+            # Cloudinary storage relies on content_type for robust media type detection.
+            inferred_content_type = mime_type or (mimetypes.guess_type(assembled_name)[0] or "application/octet-stream")
+            try:
+                django_file.content_type = inferred_content_type
+            except Exception:
+                pass
             post = Post.objects.create(user=request.user, media=django_file, caption=caption, type=post_type)
 
             # Server-side duration check: always try to detect video duration for reels
@@ -2450,8 +2463,8 @@ def upload_chunk_complete(request):
             detail = str(exc)
             if detail:
                 err_text = f"{err_text} - {detail}"
-                if "Invalid image file" in detail or "BadRequest" in detail:
-                    err_text = "Upload failed: video upload requires Cloudinary resource_type=auto and reel type. " + err_text
+                if "Invalid image file" in detail:
+                    err_text = "Upload failed: media type mismatch during cloud upload (video detected as image). " + err_text
         except Exception:
             pass
         if _media_debug_enabled():

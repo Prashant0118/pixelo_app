@@ -549,32 +549,31 @@ class Post(models.Model):
         try:
             if self.media and getattr(self.media, "name", ""):
                 name = _normalize_media_name(self.media.name or "")
-                if not getattr(settings, "CAN_USE_CLOUDINARY", False) and not _can_build_cloudinary_urls():
-                    try:
-                        storage = self.media.storage
-                        if hasattr(storage, "exists") and not storage.exists(name):
-                            _log_missing_media("post.media", name)
-                            return ""
-                    except Exception:
-                        pass
-                if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
-                    resource_type = "video" if (self.type == "reel" or self.is_video or _looks_like_video_name(name)) else "image"
-                    url = _cloudinary_url_for(name, resource_type)
-                    if url:
-                        return url
-                    # Fallback to the storage-provided URL and normalize if needed.
-                    try:
-                        url = _storage_url(self.media, name) if name else self.media.url
-                    except Exception:
-                        url = ""
-                    if url:
-                        if resource_type == "video" or _looks_like_video_path(url):
-                            return _cloudinary_video_url(url)
-                        return url
                 if name.startswith("http://") or name.startswith("https://"):
                     if self.type == "reel" or self.is_video or _looks_like_video_name(name):
                         return _ensure_https_url(_cloudinary_video_url(name))
                     return _ensure_https_url(name)
+
+                # Prefer the storage-provided URL first. This avoids generating
+                # invalid Cloudinary URLs for files that are stored locally.
+                try:
+                    url = _storage_url(self.media, name) if name else self.media.url
+                except Exception:
+                    url = ""
+
+                if url:
+                    if self.type == "reel" or self.is_video or _looks_like_video_path(url) or _looks_like_video_name(name):
+                        return _cloudinary_video_url(url)
+                    return url
+
+                if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
+                    resource_type = "video" if (self.type == "reel" or self.is_video or _looks_like_video_name(name)) else "image"
+                    cloudinary_url = _cloudinary_url_for(name, resource_type)
+                    if cloudinary_url:
+                        if resource_type == "video" or _looks_like_video_path(cloudinary_url):
+                            return _cloudinary_video_url(cloudinary_url)
+                        return cloudinary_url
+
                 url = _storage_url(self.media, name) if name else self.media.url
                 if self.type == "reel" or self.is_video or _looks_like_video_path(url) or _looks_like_video_name(name):
                     return _cloudinary_video_url(url)

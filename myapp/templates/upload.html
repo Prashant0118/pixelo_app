@@ -912,10 +912,10 @@ const safeStorage = {
 
   function setAccept() {
     const t = document.querySelector('input[name="type"]:checked').value;
-    media.accept = t === 'post' ? 'image/*' : 'video/*';
+    media.accept = t === 'post' ? 'image/*,video/*' : 'video/*';
     const subtext = document.querySelector('.file-input-subtext');
     if (subtext) {
-      subtext.textContent = t === 'post' ? 'PNG, JPG, GIF' : 'MP4, WebM, MOV, AVI';
+      subtext.textContent = t === 'post' ? 'PNG, JPG, GIF, MP4, WebM, MOV, AVI' : 'MP4, WebM, MOV, AVI';
     }
     msg.style.display = 'none';
   }
@@ -1008,6 +1008,7 @@ const safeStorage = {
     doneForm.append('upload_id', uploadId);
     doneForm.append('total_chunks', String(totalChunks));
     doneForm.append('filename', filename);
+    doneForm.append('mime_type', file.type || '');
     doneForm.append('type', postType);
     doneForm.append('caption', caption);
 
