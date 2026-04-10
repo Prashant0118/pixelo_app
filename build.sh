@@ -14,5 +14,4 @@ if [ ! -d "staticfiles/css" ]; then
     find myapp/static -type f -exec install -D "{}" "staticfiles/{}" \; 2>/dev/null || true
 fi
 
-echo "==> Build: Running database migrations..."
-python manage.py migrate --noinput
+echo "==> Build: Skipping database migrations (run at startup/release instead)."

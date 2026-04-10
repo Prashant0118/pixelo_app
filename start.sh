@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
 set -o errexit
 
-python manage.py migrate --noinput
+echo "==> Startup: Running migrations with retry..."
+max_attempts=5
+attempt=1
+until python manage.py migrate --noinput; do
+  if [ "$attempt" -ge "$max_attempts" ]; then
+    echo "Migration failed after ${max_attempts} attempts."
+    exit 1
+  fi
+  echo "Migration attempt ${attempt} failed. Retrying in 5s..."
+  attempt=$((attempt + 1))
+  sleep 5
+done
 python manage.py collectstatic --noinput --no-post-process 2>/dev/null || true
 
 
