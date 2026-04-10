@@ -175,6 +175,23 @@ def _looks_like_video_name(name):
     return "video" in raw
 
 
+def _local_media_url_if_exists(name):
+    """Return a local MEDIA_URL for a stored name when the file exists on disk."""
+    normalized = _normalize_media_name(name)
+    if not normalized or normalized.startswith(("http://", "https://")):
+        return ""
+    media_root = getattr(settings, "MEDIA_ROOT", "") or ""
+    if not media_root:
+        return ""
+    local_path = os.path.join(media_root, normalized)
+    if not os.path.exists(local_path):
+        return ""
+    base = getattr(settings, "MEDIA_URL", "/media/") or "/media/"
+    if not base.endswith("/"):
+        base = f"{base}/"
+    return f"{base}{normalized.lstrip('/')}"
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(upload_to="profile_pics/", default="default.jpg")
@@ -568,6 +585,12 @@ class Post(models.Model):
             # If DB already stores an absolute URL, return it directly.
             if name.startswith("http://") or name.startswith("https://"):
                 resolved = _ensure_https_url(name)
+                return _cloudinary_video_url(resolved) if is_video else resolved
+
+            # Prefer local file when present (helps with legacy media after cloud migration).
+            local_url = _local_media_url_if_exists(name)
+            if local_url:
+                resolved = _ensure_https_url(local_url)
                 return _cloudinary_video_url(resolved) if is_video else resolved
 
             # For local storage only, hide broken files that no longer exist.
