@@ -597,6 +597,19 @@ class Post(models.Model):
                 resolved = f"{base}{name.lstrip('/')}"
 
             resolved = _ensure_https_url(resolved or "")
+
+            # Never return a bare filename/public_id to templates; that creates
+            # relative browser requests like /reels/<name> and results in 404s.
+            if resolved and not (
+                resolved.startswith("http://")
+                or resolved.startswith("https://")
+                or resolved.startswith("/")
+            ):
+                base = getattr(settings, "MEDIA_URL", "/media/") or "/media/"
+                if not base.endswith("/"):
+                    base = f"{base}/"
+                resolved = f"{base}{resolved.lstrip('/')}"
+
             if is_video and resolved:
                 return _cloudinary_video_url(resolved)
             return resolved

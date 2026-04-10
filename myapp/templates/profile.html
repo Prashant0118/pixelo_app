@@ -112,7 +112,7 @@
         {% for post in posts %}
         <article class="post-tile">
             <a href="{% url 'home' %}?user={{ profile_user.username|urlencode }}#post-{{ post.id }}" class="d-block h-100 w-100">
-                {% with media_url=post.media_url raw_media_url=post.media.url media_name=post.media_name %}
+                {% with media_url=post.media_url media_name=post.media_name %}
                 {% if media_url %}
                     {% if post.type == 'reel' or post.is_video %}
                         <video muted playsinline preload="metadata">
@@ -128,14 +128,6 @@
                         </video>
                     {% else %}
                         <img src="{{ media_url }}" alt="post">
-                    {% endif %}
-                {% elif raw_media_url %}
-                    {% if post.type == 'reel' or post.is_video %}
-                        <video muted playsinline preload="metadata">
-                            <source src="{{ raw_media_url }}">
-                        </video>
-                    {% else %}
-                        <img src="{{ raw_media_url }}" alt="post">
                     {% endif %}
                 {% else %}
                     <div class="post-empty">No media</div>
