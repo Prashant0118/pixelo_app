@@ -159,7 +159,9 @@ body.reels-page .right-panel {
     gap: 12px;
     align-items: center;
     margin-bottom: 6px;
+    position: relative;
     z-index: 4;
+    pointer-events: auto;
 }
 
 .reel-action-btn {
@@ -180,6 +182,7 @@ body.reels-page .right-panel {
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
     white-space: nowrap;
     position: relative;
+    pointer-events: auto;
 }
 
 .reel-action-btn span {

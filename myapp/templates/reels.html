@@ -118,23 +118,23 @@
                     </div>
 
                     <div class="reel-actions">
-                        <button class="reel-action-btn" onclick="likeReel({{ reel.id }})">
+                        <button type="button" class="reel-action-btn" onclick="likeReel({{ reel.id }})">
                             <i id="reel-like-icon-{{ reel.id }}"
                                class="bi {% if reel.id in liked_post_ids %}bi-heart-fill liked{% else %}bi-heart{% endif %}"></i>
                             <span id="reel-like-count-{{ reel.id }}">{{ reel.likes.count }}</span>
                         </button>
 
-                        <button class="reel-action-btn" onclick="toggleComments({{ reel.id }})">
+                        <button type="button" class="reel-action-btn" onclick="toggleComments({{ reel.id }})">
                             <i class="bi bi-chat"></i>
                             <span id="reel-comment-count-{{ reel.id }}">{{ reel.comments.count }}</span>
                         </button>
 
-                        <button class="reel-action-btn" onclick="openShareModal({{ reel.id }})">
+                        <button type="button" class="reel-action-btn" onclick="openShareModal({{ reel.id }})">
                             <i class="bi bi-send"></i>
                             <span>Share</span>
                         </button>
 
-                        <button class="reel-action-btn"
+                        <button type="button" class="reel-action-btn"
                                 onclick="directPayCreator('{{ reel.user.username|escapejs }}', '{{ reel.user.profile.upi_id|escapejs }}')">
                             <i class="bi bi-currency-rupee"></i>
                             <span>Pay</span>
@@ -221,6 +221,7 @@
 </div>
 {% endblock %}
 
+{% block extra_js %}
 <script>
 let activeSharePostId = null;
 let activePayUpiId = "";
@@ -680,3 +681,4 @@ document.addEventListener("keydown", () => {
     });
 }, { once: true });
 </script>
+{% endblock %}
