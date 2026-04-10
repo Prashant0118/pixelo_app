@@ -138,8 +138,12 @@ def _storage_url(field, name):
         embedded_storage_url = _extract_embedded_absolute_url(url)
         if embedded_storage_url:
             return _ensure_https_url(embedded_storage_url)
-        # Some storage backends can return a plain filename; normalize to MEDIA_URL.
+        # Some storage backends can return a plain filename.
+        # In Cloudinary mode this usually indicates an unresolved/broken name,
+        # so avoid returning it as a browser URL (would trigger 404 requests).
         if not (url.startswith("http://") or url.startswith("https://") or url.startswith("/")):
+            if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
+                return ""
             base = getattr(settings, "MEDIA_URL", "/media/")
             if not base.endswith("/"):
                 base = f"{base}/"
@@ -558,6 +562,7 @@ class Post(models.Model):
         raw_name = str(getattr(self.media, "name", "") or "")
         name = _normalize_media_name(raw_name)
         is_video = bool(self.type == "reel" or self.is_video or _looks_like_video_name(name))
+        using_cloudinary = bool(getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls())
 
         try:
             # If DB already stores an absolute URL, return it directly.
@@ -566,7 +571,6 @@ class Post(models.Model):
                 return _cloudinary_video_url(resolved) if is_video else resolved
 
             # For local storage only, hide broken files that no longer exist.
-            using_cloudinary = bool(getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls())
             if not using_cloudinary and name:
                 try:
                     storage = self.media.storage
@@ -589,14 +593,26 @@ class Post(models.Model):
                 resource_type = "video" if is_video else "image"
                 resolved = _cloudinary_url_for(name, resource_type)
 
-            # Final fallback: expose local media path when a relative name exists.
-            if not resolved and name and not (name.startswith("http://") or name.startswith("https://")):
+            # Final fallback: expose local media path only for non-cloud storage.
+            if not resolved and name and not using_cloudinary and not (name.startswith("http://") or name.startswith("https://")):
                 base = getattr(settings, "MEDIA_URL", "/media/") or "/media/"
                 if not base.endswith("/"):
                     base = f"{base}/"
                 resolved = f"{base}{name.lstrip('/')}"
 
             resolved = _ensure_https_url(resolved or "")
+
+            # In cloud mode, try one last Cloudinary build if the resolved value
+            # still looks like a plain name/public_id.
+            if resolved and using_cloudinary and not (
+                resolved.startswith("http://")
+                or resolved.startswith("https://")
+                or resolved.startswith("/")
+            ):
+                resource_type = "video" if is_video else "image"
+                rebuilt = _cloudinary_url_for(_normalize_media_name(resolved), resource_type)
+                if rebuilt:
+                    resolved = rebuilt
 
             # Never return a bare filename/public_id to templates; that creates
             # relative browser requests like /reels/<name> and results in 404s.
