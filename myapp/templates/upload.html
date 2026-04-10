@@ -821,6 +821,10 @@ input[type="text"], input[type="file"], textarea {
           <span class="preview-info-label">­ƒÆ¥ Size</span>
           <span class="preview-info-value" id="previewSize">-</span>
         </div>
+        <div class="preview-info-item">
+          <span class="preview-info-label">Type</span>
+          <span class="preview-info-value" id="previewType">-</span>
+        </div>
         <div class="preview-info-item" id="previewDurationItem" style="display: none;">
           <span class="preview-info-label">ÔÅ▒´©Å Duration</span>
           <span class="preview-info-value" id="previewDuration">-</span>
@@ -872,6 +876,11 @@ const safeStorage = {
   const previewContainer = document.getElementById('previewContainer');
   const previewInfo = document.getElementById('previewInfo');
   const removeFileBtn = document.getElementById('removeFileBtn');
+  const previewNameEl = document.getElementById('previewName');
+  const previewSizeEl = document.getElementById('previewSize');
+  const previewTypeEl = document.getElementById('previewType');
+  const previewDurationItemEl = document.getElementById('previewDurationItem');
+  const previewDurationEl = document.getElementById('previewDuration');
 
   const CHUNK_SIZE = {{ upload_chunk_size|default:5242880 }};
   const PARALLEL_UPLOADS = 4;
@@ -919,6 +928,9 @@ const safeStorage = {
     previewContainer.innerHTML = '<div class="preview-placeholder-icon">­ƒôü</div><span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>';
     previewInfo.style.display = 'none';
     fileInputLabel.classList.remove('has-file');
+    if (previewTypeEl) previewTypeEl.textContent = '-';
+    if (previewDurationItemEl) previewDurationItemEl.style.display = 'none';
+    if (previewDurationEl) previewDurationEl.textContent = '-';
   }
 
   function isVideoFile(file) {
@@ -1058,14 +1070,14 @@ const safeStorage = {
 
     previewInfo.style.display = 'block';
     fileInputLabel.classList.add('has-file');
-    document.getElementById('previewName').textContent = f.name;
-    document.getElementById('previewSize').textContent = formatFileSize(f.size);
-    document.getElementById('previewType').textContent = f.type || 'Unknown';
+    if (previewNameEl) previewNameEl.textContent = f.name;
+    if (previewSizeEl) previewSizeEl.textContent = formatFileSize(f.size);
+    if (previewTypeEl) previewTypeEl.textContent = f.type || 'Unknown';
 
     if (f.type && f.type.startsWith('image/')) {
       const url = URL.createObjectURL(f);
       previewContainer.innerHTML = `<img src="${url}" class="preview-image" alt="Preview">`;
-      document.getElementById('previewDurationItem').style.display = 'none';
+      if (previewDurationItemEl) previewDurationItemEl.style.display = 'none';
     } else if (isVideoFile(f)) {
       const url = URL.createObjectURL(f);
       const v = document.createElement('video');
@@ -1073,8 +1085,8 @@ const safeStorage = {
       v.src = url;
       v.onloadedmetadata = () => {
         const secs = v.duration || 0;
-        document.getElementById('previewDurationItem').style.display = 'flex';
-        document.getElementById('previewDuration').textContent = formatDuration(secs);
+        if (previewDurationItemEl) previewDurationItemEl.style.display = 'flex';
+        if (previewDurationEl) previewDurationEl.textContent = formatDuration(secs);
         if (secs > 60) {
           const postRadio = document.querySelector('input[name="type"][value="post"]');
           if (postRadio) {
@@ -1092,7 +1104,7 @@ const safeStorage = {
     e.preventDefault();
     media.value = '';
     clearPreview();
-    document.getElementById('previewDurationItem').style.display = 'none';
+    if (previewDurationItemEl) previewDurationItemEl.style.display = 'none';
   });
 
   form.addEventListener('submit', async (e) => {
