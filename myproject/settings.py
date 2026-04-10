@@ -24,6 +24,29 @@ import importlib.util
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
+
+def _load_local_env(base_dir):
+    """Load KEY=VALUE pairs from .env without overriding real env vars."""
+    env_path = Path(base_dir) / ".env"
+    if not env_path.exists():
+        return
+    try:
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+    except Exception:
+        # Fail soft on local env parsing.
+        pass
+
+
+_load_local_env(BASE_DIR)
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
