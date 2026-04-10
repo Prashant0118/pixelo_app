@@ -593,16 +593,6 @@ class Post(models.Model):
                 resolved = _ensure_https_url(local_url)
                 return _cloudinary_video_url(resolved) if is_video else resolved
 
-            # For local storage only, hide broken files that no longer exist.
-            if not using_cloudinary and name:
-                try:
-                    storage = self.media.storage
-                    if hasattr(storage, "exists") and not storage.exists(name):
-                        _log_missing_media("post.media", name)
-                        return ""
-                except Exception:
-                    pass
-
             # Prefer storage URL resolution first (works for both local and cloud backends).
             resolved = _storage_url(self.media, name) if name else ""
             if not resolved:
