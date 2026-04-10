@@ -23,4 +23,6 @@ services:
       - key: CLOUDINARY_URL
         sync: false
       - key: RUN_MEDIA_MIGRATION
-        value: "0"
+        value: "1"
+      - key: RUN_MEDIA_PATH_FIX
+        value: "1"
