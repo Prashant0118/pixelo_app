@@ -955,7 +955,7 @@ def home(request):
             default=Value(1),
             output_field=IntegerField(),
         )
-    ).filter(type='post')
+    )
     if selected_category == "Trending":
         posts = (
             posts_qs.annotate(
@@ -1133,7 +1133,7 @@ def notifications(request):
 @login_required
 def profile(request, username):
     profile_user = get_object_or_404(User, username=username)
-    posts = Post.objects.filter(user=profile_user, type="post").order_by("-created_at")
+    posts = Post.objects.filter(user=profile_user).order_by("-created_at")
     reels = Post.objects.filter(user=profile_user, type="reel").order_by("-created_at")
     highlighted_stories = Story.objects.filter(
         user=profile_user,
