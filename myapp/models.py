@@ -589,6 +589,13 @@ class Post(models.Model):
                 resource_type = "video" if is_video else "image"
                 resolved = _cloudinary_url_for(name, resource_type)
 
+            # Final fallback: expose local media path when a relative name exists.
+            if not resolved and name and not (name.startswith("http://") or name.startswith("https://")):
+                base = getattr(settings, "MEDIA_URL", "/media/") or "/media/"
+                if not base.endswith("/"):
+                    base = f"{base}/"
+                resolved = f"{base}{name.lstrip('/')}"
+
             resolved = _ensure_https_url(resolved or "")
             if is_video and resolved:
                 return _cloudinary_video_url(resolved)
