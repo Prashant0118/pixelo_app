@@ -147,6 +147,17 @@
 <script>
 (() => {
   const fallback = "{% static 'images/default.png' %}";
+    const applyImgFallback = (img) => {
+        if (img.dataset.fallbackApplied) return;
+        img.dataset.fallbackApplied = "1";
+        img.src = img.dataset.fallback || fallback;
+    };
+
+    const applyVideoFallback = (vid) => {
+        if (vid.dataset.fallbackApplied) return;
+        vid.dataset.fallbackApplied = "1";
+        vid.setAttribute("poster", vid.dataset.fallback || fallback);
+    };
 
   document.querySelectorAll("img").forEach((img) => {
     if (!img.getAttribute("loading")) {
@@ -155,22 +166,20 @@
     if (!img.getAttribute("decoding")) {
       img.setAttribute("decoding", "async");
     }
-    img.addEventListener("error", () => {
-      if (img.dataset.fallbackApplied) return;
-      img.dataset.fallbackApplied = "1";
-      img.src = img.dataset.fallback || fallback;
-    });
+        img.addEventListener("error", () => applyImgFallback(img));
+        if (img.complete && img.naturalWidth === 0) {
+            applyImgFallback(img);
+        }
   });
 
   document.querySelectorAll("video").forEach((vid) => {
     if (!vid.getAttribute("preload")) {
       vid.setAttribute("preload", "metadata");
     }
-    vid.addEventListener("error", () => {
-      if (vid.dataset.fallbackApplied) return;
-      vid.dataset.fallbackApplied = "1";
-      vid.setAttribute("poster", vid.dataset.fallback || fallback);
-    });
+        vid.addEventListener("error", () => applyVideoFallback(vid));
+        if (vid.error) {
+            applyVideoFallback(vid);
+        }
   });
 })();
 </script>

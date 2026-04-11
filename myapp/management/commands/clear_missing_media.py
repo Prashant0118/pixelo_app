@@ -102,6 +102,8 @@ class Command(BaseCommand):
                     except Exception:
                         rendered_url = ""
 
+                exists = True
+
                 if clear_invalid_names and _looks_invalid_stored_name(name):
                     exists = False
                 elif check_remote and rendered_url.startswith(("http://", "https://")):
@@ -119,6 +121,8 @@ class Command(BaseCommand):
                         exists = media_field.storage.exists(name)
                     except Exception:
                         exists = False
+
+                if not exists:
                     if dry_run:
                         self.stdout.write(f"[dry-run] Clear {model.__name__}#{obj.pk} {field}: {name}")
                     else:
