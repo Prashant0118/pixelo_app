@@ -26,3 +26,7 @@ services:
         value: "1"
       - key: RUN_MEDIA_PATH_FIX
         value: "1"
+      - key: RUN_CLEAR_MISSING_MEDIA
+        value: "1"
+      - key: RUN_CLEAR_MISSING_MEDIA_REMOTE
+        value: "1"

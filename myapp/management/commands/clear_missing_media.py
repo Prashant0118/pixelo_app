@@ -28,6 +28,21 @@ def _remote_url_exists(url):
     except Exception:
         return False
 
+
+def _looks_invalid_stored_name(name):
+    raw = (name or "").strip()
+    if not raw:
+        return True
+    lowered = raw.lower()
+    if lowered in DEFAULT_NAMES:
+        return False
+    if raw.startswith(("http://", "https://", "/media/", "media/")):
+        return False
+    # Valid uploads in this project are folder-based names (posts/, stories/, etc).
+    if "/" not in raw:
+        return True
+    return False
+
 class Command(BaseCommand):
     help = "Clear media fields for files that do not exist in storage."
 
@@ -35,11 +50,13 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true", help="Show what would be done without saving.")
         parser.add_argument("--model", choices=["post", "story", "message", "profile"], help="Limit to specific model.")
         parser.add_argument("--check-remote", action="store_true", help="Also test remote URLs with a HEAD request.")
+        parser.add_argument("--clear-invalid-names", action="store_true", help="Clear malformed stored names (e.g. bare filename/public_id).")
 
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
         model_filter = options["model"]
         check_remote = options["check_remote"]
+        clear_invalid_names = options["clear_invalid_names"]
 
         models_to_check = []
         if model_filter:
@@ -85,7 +102,9 @@ class Command(BaseCommand):
                     except Exception:
                         rendered_url = ""
 
-                if check_remote and rendered_url.startswith(("http://", "https://")):
+                if clear_invalid_names and _looks_invalid_stored_name(name):
+                    exists = False
+                elif check_remote and rendered_url.startswith(("http://", "https://")):
                     exists = _remote_url_exists(rendered_url)
                 elif _looks_remote(name):
                     if not check_remote:
