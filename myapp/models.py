@@ -30,11 +30,9 @@ def _log_missing_media(context, name):
 def _cloudinary_video_url(url):
     if not url:
         return ""
-    # Always use HTTPS for Cloudinary resources to avoid mixed content warnings
+    # Keep Cloudinary resource type/path unchanged; only normalize protocol.
     if "res.cloudinary.com" in url:
         url = url.replace("http://res.cloudinary.com", "https://res.cloudinary.com", 1)
-        if "/image/upload/" in url:
-            url = url.replace("/image/upload/", "/video/upload/", 1)
         return url
     return url
 
@@ -61,6 +59,8 @@ def _cloudinary_public_id_from_name(name):
 
 def _cloudinary_url_for(name, resource_type):
     if not name:
+        return ""
+    if not _is_likely_stored_name(name):
         return ""
     try:
         import cloudinary
@@ -126,6 +126,25 @@ def _normalize_media_name(name):
     return raw.lstrip("/")
 
 
+def _is_safe_media_url(url):
+    raw = (url or "").strip()
+    if not raw:
+        return False
+    return raw.startswith(("http://", "https://", "/", "data:image/"))
+
+
+def _is_likely_stored_name(name):
+    raw = _normalize_media_name(name)
+    if not raw:
+        return False
+    if raw.startswith(("http://", "https://")):
+        return True
+    if "/" in raw:
+        return True
+    ext = os.path.splitext(raw)[1].lower()
+    return bool(ext)
+
+
 def _storage_url(field, name):
     embedded_name_url = _extract_embedded_absolute_url(name)
     if embedded_name_url:
@@ -144,10 +163,26 @@ def _storage_url(field, name):
         if not (url.startswith("http://") or url.startswith("https://") or url.startswith("/")):
             if getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
                 return ""
+            try:
+                storage = field.storage
+                if hasattr(storage, "exists") and not storage.exists(name):
+                    _log_missing_media("storage.url", name)
+                    return ""
+            except Exception:
+                pass
             base = getattr(settings, "MEDIA_URL", "/media/")
             if not base.endswith("/"):
                 base = f"{base}/"
             return f"{base}{url}"
+
+        if url.startswith("/") and not (url.startswith("//") or "res.cloudinary.com" in url):
+            try:
+                storage = field.storage
+                if hasattr(storage, "exists") and not storage.exists(name):
+                    _log_missing_media("storage.url", name)
+                    return ""
+            except Exception:
+                pass
         return url
     except Exception:
         return ""
@@ -209,12 +244,14 @@ class Profile(models.Model):
                 try:
                     # If image name is already a URL (e.g., Cloudinary), trust it.
                     if str(self.image.name).startswith(("http://", "https://")):
-                        return _ensure_https_url(str(self.image.name))
+                        url = _ensure_https_url(str(self.image.name))
+                        return url if _is_safe_media_url(url) else ""
 
                     # For Cloudinary storage, avoid exists() checks that can fail.
                     storage_name = self.image.storage.__class__.__name__.lower()
                     if "cloudinary" in storage_name:
-                        return self.image.url
+                        url = _ensure_https_url(self.image.url)
+                        return url if _is_safe_media_url(url) else ""
 
                     # Avoid storage.exists() because Cloudinary "auto" delivery URLs
                     # can 400 on HEAD requests. Just return the URL if available.
@@ -224,7 +261,8 @@ class Profile(models.Model):
                             storage = self.image.storage
                             if hasattr(storage, "exists"):
                                 if storage.exists(name):
-                                    return _storage_url(self.image, name)
+                                    url = _ensure_https_url(_storage_url(self.image, name))
+                                    return url if _is_safe_media_url(url) else ""
                                 _log_missing_media("profile.image", name)
                                 # Missing file: fall back to generated avatar
                                 raise FileNotFoundError
@@ -233,10 +271,12 @@ class Profile(models.Model):
                     storage = self.image.storage
                     if hasattr(storage, "exists"):
                         if storage.exists(self.image.name):
-                            return self.image.url
+                            url = _ensure_https_url(self.image.url)
+                            return url if _is_safe_media_url(url) else ""
                         _log_missing_media("profile.image", self.image.name)
                         raise FileNotFoundError
-                    return self.image.url
+                    url = _ensure_https_url(self.image.url)
+                    return url if _is_safe_media_url(url) else ""
                 except ValueError:
                     pass
                 except FileNotFoundError:
@@ -312,11 +352,13 @@ class Story(models.Model):
                     try:
                         storage = self.image.storage
                         if hasattr(storage, "exists") and storage.exists(name):
-                            return _storage_url(self.image, name)
+                            url = _ensure_https_url(_storage_url(self.image, name))
+                            return url if _is_safe_media_url(url) else ""
                         _log_missing_media("story.image", name)
                     except Exception:
                         pass
-                return self.image.url
+                url = _ensure_https_url(self.image.url)
+                return url if _is_safe_media_url(url) else ""
             except Exception:
                 pass
         if self.media:
@@ -326,11 +368,13 @@ class Story(models.Model):
                     try:
                         storage = self.media.storage
                         if hasattr(storage, "exists") and storage.exists(name):
-                            return _storage_url(self.media, name)
+                            url = _ensure_https_url(_storage_url(self.media, name))
+                            return url if _is_safe_media_url(url) else ""
                         _log_missing_media("story.media", name)
                     except Exception:
                         pass
-                return self.media.url
+                url = _ensure_https_url(self.media.url)
+                return url if _is_safe_media_url(url) else ""
             except Exception:
                 pass
         return ""
@@ -350,12 +394,15 @@ class Story(models.Model):
                     return url
             if name.startswith("http://") or name.startswith("https://"):
                 if self.media_type == "video":
-                    return _ensure_https_url(_cloudinary_video_url(name))
-                return _ensure_https_url(name)
+                    url = _ensure_https_url(_cloudinary_video_url(name))
+                else:
+                    url = _ensure_https_url(name)
+                return url if _is_safe_media_url(url) else ""
             url = _storage_url(self.media, name) if name else self.media.url
             if self.media_type == "video":
-                return _cloudinary_video_url(url)
-            return url
+                url = _cloudinary_video_url(url)
+            url = _ensure_https_url(url)
+            return url if _is_safe_media_url(url) else ""
         except Exception:
             return ""
         return ""
@@ -485,8 +532,10 @@ class Message(models.Model):
                         return url
                 if name.startswith("http://") or name.startswith("https://"):
                     if self.media_type in ("video", "audio"):
-                        return _ensure_https_url(_cloudinary_video_url(name))
-                    return _ensure_https_url(name)
+                        url = _ensure_https_url(_cloudinary_video_url(name))
+                    else:
+                        url = _ensure_https_url(name)
+                    return url if _is_safe_media_url(url) else ""
                 if not getattr(settings, "CAN_USE_CLOUDINARY", False):
                     try:
                         storage = self.media.storage
@@ -497,8 +546,9 @@ class Message(models.Model):
                         pass
                 url = _storage_url(self.media, name) if name else self.media.url
                 if self.media_type in ("video", "audio"):
-                    return _cloudinary_video_url(url)
-                return url
+                    url = _cloudinary_video_url(url)
+                url = _ensure_https_url(url)
+                return url if _is_safe_media_url(url) else ""
         except Exception:
             return ""
         return ""
@@ -608,10 +658,7 @@ class Post(models.Model):
 
             # Final fallback: expose local media path only for non-cloud storage.
             if not resolved and name and not using_cloudinary and not (name.startswith("http://") or name.startswith("https://")):
-                base = getattr(settings, "MEDIA_URL", "/media/") or "/media/"
-                if not base.endswith("/"):
-                    base = f"{base}/"
-                resolved = f"{base}{name.lstrip('/')}"
+                resolved = _local_media_url_if_exists(name)
 
             resolved = _ensure_https_url(resolved or "")
 
@@ -638,6 +685,9 @@ class Post(models.Model):
                 if not base.endswith("/"):
                     base = f"{base}/"
                 resolved = f"{base}{resolved.lstrip('/')}"
+
+            if resolved and not _is_safe_media_url(resolved):
+                return ""
 
             if is_video and resolved:
                 return _cloudinary_video_url(resolved)
