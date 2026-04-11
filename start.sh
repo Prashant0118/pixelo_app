@@ -42,9 +42,9 @@ fi
 
 # Optional: clear stale/broken media references so templates don't emit 404 URLs
 if [ "${RUN_CLEAR_MISSING_MEDIA}" = "1" ]; then
-  clear_args="--clear-invalid-names"
+  clear_args=""
   if [ "${RUN_CLEAR_MISSING_MEDIA_REMOTE}" = "1" ]; then
-    clear_args="$clear_args --check-remote"
+    clear_args="--check-remote"
   fi
   python manage.py clear_missing_media $clear_args
 fi
