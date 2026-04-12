@@ -489,6 +489,51 @@ if (categoryScrollWrap && categoryRightBtn) {
 
 const feedVideos = Array.from(document.querySelectorAll(".feed-video-media")).filter(v => v instanceof HTMLVideoElement && v !== null && v !== undefined);
 if (feedVideos.length) {
+    const normalizeCloudinaryVideoUrl = (url) => {
+        if (!url || typeof url !== "string") return "";
+        let next = url;
+        if (next.includes("http://res.cloudinary.com")) {
+            next = next.replace("http://res.cloudinary.com", "https://res.cloudinary.com");
+        }
+        if (next.includes("res.cloudinary.com")) {
+            if (next.includes("/image/upload/")) {
+                next = next.replace("/image/upload/", "/video/upload/");
+            } else if (next.includes("/raw/upload/")) {
+                next = next.replace("/raw/upload/", "/video/upload/");
+            }
+        }
+        return next;
+    };
+
+    const patchVideoSource = (video, forceRetry = false) => {
+        if (!video) return false;
+        const source = video.querySelector("source");
+        const current = source?.getAttribute("src") || video.getAttribute("src") || "";
+        const normalized = normalizeCloudinaryVideoUrl(current);
+        if (!normalized) return false;
+        if (!forceRetry && normalized === current) return false;
+        if (source) {
+            source.setAttribute("src", normalized);
+        } else {
+            video.setAttribute("src", normalized);
+        }
+        return true;
+    };
+
+    feedVideos.forEach((video) => {
+        if (patchVideoSource(video, false)) {
+            video.load();
+        }
+        video.addEventListener("error", () => {
+            if (video.dataset.cloudinaryVideoRetry === "1") return;
+            if (patchVideoSource(video, true)) {
+                video.dataset.cloudinaryVideoRetry = "1";
+                video.load();
+                video.play().catch(() => {});
+            }
+        });
+    });
+
     let userHasInteracted = false;
     let awaitingFeedUnmute = false;
     const WATCH_THRESHOLD = 0.6;

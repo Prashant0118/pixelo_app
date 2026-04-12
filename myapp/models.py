@@ -30,9 +30,13 @@ def _log_missing_media(context, name):
 def _cloudinary_video_url(url):
     if not url:
         return ""
-    # Keep Cloudinary resource type/path unchanged; only normalize protocol.
+    # Normalize Cloudinary video URLs to the video endpoint.
     if "res.cloudinary.com" in url:
         url = url.replace("http://res.cloudinary.com", "https://res.cloudinary.com", 1)
+        if "/image/upload/" in url:
+            url = url.replace("/image/upload/", "/video/upload/", 1)
+        elif "/raw/upload/" in url:
+            url = url.replace("/raw/upload/", "/video/upload/", 1)
         return url
     return url
 
@@ -202,7 +206,12 @@ def _looks_like_video_name(name):
     if not name:
         return False
     raw = os.path.basename(str(name)).lower()
-    if os.path.splitext(raw)[1]:
+    ext = os.path.splitext(raw)[1].lower()
+    if ext in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}:
+        return True
+    # Some Cloudinary public_ids contain dots in timestamps (e.g. 23.10.15)
+    # that os.path.splitext can misinterpret as a file extension.
+    if ext in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif", ".heic"}:
         return False
     # Heuristic for uploads without extensions (e.g. WhatsApp_Video_*).
     return "video" in raw
