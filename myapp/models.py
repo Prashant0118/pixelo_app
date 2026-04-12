@@ -529,55 +529,58 @@ class Message(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     is_seen = models.BooleanField(default=False)
 
-    @property
-    def media_url(self):
+@property
+def media_url(self):
+    try:
+        # ✅ Check if media exists
+        if not self.media:
+            return ""
+
+        name = getattr(self.media, "name", "")
+        if not name:
+            return ""
+
+        # ✅ Already full URL (Cloudinary or external)
+        if name.startswith("http://") or name.startswith("https://"):
+            return name
+
+        # ✅ Detect storage type
+        storage = getattr(self.media, "storage", None)
+        storage_name = storage.__class__.__name__.lower() if storage else ""
+
+        # ✅ Cloudinary handling
+        if "cloudinary" in storage_name or getattr(settings, "CAN_USE_CLOUDINARY", False):
+            try:
+                return self.media.url
+            except Exception:
+                return ""
+
+        # ✅ Local storage handling
         try:
-            if self.media and getattr(self.media, "name", ""):
-                name = (self.media.name or "")
-                storage_name = self.media.storage.__class__.__name__.lower()
-                if "cloudinary" in storage_name or getattr(settings, "CAN_USE_CLOUDINARY", False) or _can_build_cloudinary_urls():
-                    resource_type = "video" if self.media_type in ("video", "audio") else "image"
-                    url = _cloudinary_url_for(name, resource_type)
-                    if url:
-                        return _ensure_https_url(url)
-                if not getattr(settings, "CAN_USE_CLOUDINARY", False) and not _can_build_cloudinary_urls() and "cloudinary" not in storage_name:
-                    try:
-                        if not (name.startswith("http://") or name.startswith("https://")):
-                            storage = self.media.storage
-                            if hasattr(storage, "exists") and not storage.exists(name):
-                                _log_missing_media("message.media", name)
-                                return ""
-                    except Exception:
-                        pass
-                if name.startswith("http://") or name.startswith("https://"):
-                    if self.media_type in ("video", "audio"):
-                        url = _ensure_https_url(_cloudinary_video_url(name))
-                    else:
-                        url = _ensure_https_url(name)
-                    return url if _is_safe_media_url(url) else ""
-                if not getattr(settings, "CAN_USE_CLOUDINARY", False) and "cloudinary" not in storage_name:
-                    try:
-                        storage = self.media.storage
-                        if hasattr(storage, "exists") and not storage.exists(name):
-                            _log_missing_media("message.media", name)
-                            return ""
-                    except Exception:
-                        pass
-                url = _storage_url(self.media, name) if name else self.media.url
-                if self.media_type in ("video", "audio"):
-                    url = _cloudinary_video_url(url)
-                url = _ensure_https_url(url)
-                return url if _is_safe_media_url(url) else ""
+            if hasattr(storage, "exists") and not storage.exists(name):
+                return ""
+        except Exception:
+            pass
+
+        try:
+            return self.media.url
         except Exception:
             return ""
+
+    except Exception as e:
+        print(f"[media_url error]: {e}")
         return ""
 
-    @property
-    def media_name(self):
-        try:
-            return (self.media.name or "").lower()
-        except Exception:
-            return ""
+
+@property
+def media_name(self):
+    try:
+        if self.media and getattr(self.media, "name", ""):
+            return self.media.name.lower()
+    except Exception:
+        pass
+
+    return ""
 
 
 class ChatLock(models.Model):

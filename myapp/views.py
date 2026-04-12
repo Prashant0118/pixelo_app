@@ -2270,8 +2270,6 @@ def upload(request):
 
 @login_required
 @require_POST
-@login_required
-@require_POST
 def upload_chunk(request):
     upload_id = (request.POST.get("upload_id") or "").strip()
     chunk_index = request.POST.get("chunk_index")
@@ -2357,16 +2355,19 @@ def upload_chunk(request):
 
     return JsonResponse({"ok": True})
 
+import cloudinary.uploader
+import os, tempfile, time
+from django.http import JsonResponse
+from django.urls import reverse
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 
-@login_required
-@require_POST
 @login_required
 @require_POST
 def upload_chunk_complete(request):
     upload_id = (request.POST.get("upload_id") or "").strip()
     total_chunks = request.POST.get("total_chunks")
     filename = request.POST.get("filename") or "upload"
-    mime_type = (request.POST.get("mime_type") or "").strip().lower()
     post_type = (request.POST.get("type") or "post").strip().lower()
     caption = (request.POST.get("caption") or "").strip()
 
@@ -2374,190 +2375,84 @@ def upload_chunk_complete(request):
         post_type = "post"
 
     if not upload_id:
-        if _media_debug_enabled():
-            print("[media-debug][upload_chunk_complete] missing upload_id")
         return JsonResponse({"error": "Missing upload id."}, status=400)
 
     try:
         total = int(total_chunks)
         if total <= 0:
             raise ValueError
-    except Exception:
-        if _media_debug_enabled():
-            print(
-                "[media-debug][upload_chunk_complete] invalid total",
-                {"upload_id": upload_id, "total_chunks": total_chunks},
-            )
+    except:
         return JsonResponse({"error": "Invalid total chunks."}, status=400)
 
     target_dir = _chunk_dir(upload_id)
     if not os.path.isdir(target_dir):
-        if _media_debug_enabled():
-            print(
-                "[media-debug][upload_chunk_complete] upload not found",
-                {"upload_id": upload_id, "target_dir": target_dir},
-            )
         return JsonResponse({"error": "Upload not found."}, status=400)
 
     safe_name = _safe_filename(filename)
-    base_name, ext = os.path.splitext(safe_name)
-
-    # Preserve video extension for chunked uploads so storage backends can
-    # correctly route resource_type (e.g. Cloudinary image vs video).
-    video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
-    guessed_ext = (mimetypes.guess_extension(mime_type) or "").lower() if mime_type else ""
-    if mime_type.startswith("video/"):
-        if guessed_ext not in video_exts:
-            guessed_ext = ".mp4"
-        if ext.lower() not in video_exts:
-            safe_name = f"{base_name or 'upload'}{guessed_ext}"
-    elif mime_type.startswith("image/"):
-        image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff"}
-        if guessed_ext == ".jpe":
-            guessed_ext = ".jpg"
-        if guessed_ext in image_exts and ext.lower() not in image_exts:
-            safe_name = f"{base_name or 'upload'}{guessed_ext}"
-
     assembled_name = f"{int(time.time())}_{upload_id}_{safe_name}"
 
-    temp_handle = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(assembled_name)[1])
-    assembled_abs = temp_handle.name
-    temp_handle.close()
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    assembled_abs = temp_file.name
+    temp_file.close()
 
+    # 🔹 Merge chunks
     try:
         with open(assembled_abs, "wb") as out:
             for idx in range(total):
                 chunk_path = os.path.join(target_dir, f"chunk_{idx:06d}")
                 if not os.path.exists(chunk_path):
-                    if _media_debug_enabled():
-                        print(
-                            "[media-debug][upload_chunk_complete] missing chunk",
-                            {"upload_id": upload_id, "missing": idx, "target_dir": target_dir},
-                        )
-                    return JsonResponse({"error": f"Missing chunk {idx}."}, status=400)
+                    return JsonResponse({"error": f"Missing chunk {idx}"}, status=400)
+
                 with open(chunk_path, "rb") as src:
-                    while True:
-                        buf = src.read(8 * 1024 * 1024)
-                        if not buf:
-                            break
-                        out.write(buf)
-    except Exception:
-        if _media_debug_enabled():
-            print(
-                "[media-debug][upload_chunk_complete] assemble failed",
-                {"upload_id": upload_id, "target_dir": target_dir},
-            )
-        return JsonResponse({"error": "Failed to assemble upload."}, status=500)
+                    out.write(src.read())
 
-    # Enforce size guard
-    try:
-        if post_type == "reel":
-            max_bytes = int(getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0) or 0)
-        else:
-            max_bytes = int(getattr(settings, "MAX_POST_UPLOAD_BYTES", 0) or 0)
-        if max_bytes and os.path.getsize(assembled_abs) > max_bytes:
-            try:
-                os.remove(assembled_abs)
-            except Exception:
-                pass
-            if _media_debug_enabled():
-                print(
-                    "[media-debug][upload_chunk_complete] too large",
-                    {"upload_id": upload_id, "max_bytes": max_bytes, "post_type": post_type},
-                )
-            return JsonResponse({"error": "File too large."}, status=400)
-    except Exception:
-        pass
+    except Exception as e:
+        return JsonResponse({"error": f"Assemble failed: {str(e)}"}, status=500)
 
-    # Validate reel type matches file kind
-    is_video_upload = False
-    try:
-        name = filename or ""
-        ext = os.path.splitext(name)[1].lower()
-        video_exts = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv", ".3gp", ".3gpp"}
-        is_video_upload = _is_video_file(name) or (ext in video_exts)
-
-        if post_type == "post" and is_video_upload:
-            try:
-                os.remove(assembled_abs)
-            except Exception:
-                pass
-            return JsonResponse({"error": "Post uploads must be images. Choose 'Reel' to upload videos."}, status=400)
-
-        if post_type == "reel" and not is_video_upload:
-            try:
-                os.remove(assembled_abs)
-            except Exception:
-                pass
-            return JsonResponse({"error": "Reel uploads must be videos."}, status=400)
-    except Exception:
-        pass
-
+    # 🔥 Cloudinary Upload
     try:
         with open(assembled_abs, "rb") as f:
-            django_file = File(f, name=assembled_name)
-            # Cloudinary storage relies on content_type for robust media type detection.
-            inferred_content_type = mime_type or (mimetypes.guess_type(assembled_name)[0] or "application/octet-stream")
-            try:
-                django_file.content_type = inferred_content_type
-            except Exception:
-                pass
-            post = Post.objects.create(user=request.user, media=django_file, caption=caption, type=post_type)
 
-            # Server-side duration check: enforce <=60s as reels, >60s as posts.
-            if post and post.is_video:
-                try:
-                    duration = _ffprobe_duration_seconds(post.media.path)
-                    if duration:
-                        target_type = "reel" if duration <= 60 else "post"
-                        if post.type != target_type:
-                            post.type = target_type
-                            post.save(update_fields=["type"])
-                except Exception as e:
-                    # Non-fatal: log and continue
-                    print(f"[upload_chunk_complete] duration check failed: {e}")
-
-    except Exception as exc:
-        err_text = f"Upload failed: {exc.__class__.__name__}"
-        status_code = 500
-        try:
-            detail = str(exc)
-            if detail:
-                err_text = f"{err_text} - {detail}"
-                if "Invalid image file" in detail or "BadRequest" in detail:
-                    err_text = "Upload failed: video upload requires Cloudinary resource_type=auto and reel type. " + err_text
-        except Exception:
-            pass
-        if _media_debug_enabled():
-            print(
-                "[media-debug][upload_chunk_complete] create failed",
-                {"upload_id": upload_id, "error": f"{exc.__class__.__name__}: {exc}"},
+            result = cloudinary.uploader.upload(
+                f,
+                resource_type="auto",   # 🔥 MOST IMPORTANT
+                folder="posts"
             )
-        return JsonResponse({"error": err_text}, status=status_code)
+
+            media_url = result.get("secure_url")
+
+            if not media_url:
+                return JsonResponse({"error": "Cloudinary upload failed"}, status=500)
+
+            post = Post.objects.create(
+                user=request.user,
+                media_url=media_url,
+                caption=caption,
+                type=post_type
+            )
+
+    except Exception as e:
+        return JsonResponse({"error": f"Upload failed: {str(e)}"}, status=500)
+
     finally:
+        # cleanup temp file
         try:
             os.remove(assembled_abs)
-        except Exception:
+        except:
             pass
-        # Cleanup temp chunks
+
+        # cleanup chunks
         try:
-            for fname in os.listdir(target_dir):
-                try:
-                    os.remove(os.path.join(target_dir, fname))
-                except Exception:
-                    pass
+            for f in os.listdir(target_dir):
+                os.remove(os.path.join(target_dir, f))
             os.rmdir(target_dir)
-        except Exception:
+        except:
             pass
 
-    if _media_debug_enabled():
-        print(
-            "[media-debug][upload_chunk_complete] done",
-            {"upload_id": upload_id, "post_id": getattr(post, "id", None)},
-        )
-
-    return JsonResponse({"ok": True, "redirect": reverse("home")})
-
+    return JsonResponse({
+        "ok": True,
+        "redirect": reverse("home")
+    })
 
 @login_required
 @require_POST
