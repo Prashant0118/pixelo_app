@@ -512,7 +512,6 @@ class StorySeen(models.Model):
 
     class Meta:
         unique_together = ("viewer", "story")
-
 class Message(models.Model):
     MESSAGE_TYPE_CHOICES = (
         ("text", "Text"),
@@ -529,59 +528,49 @@ class Message(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     is_seen = models.BooleanField(default=False)
 
-@property
-def media_url(self):
-    try:
-        # ✅ Check if media exists
-        if not self.media:
-            return ""
-
-        name = getattr(self.media, "name", "")
-        if not name:
-            return ""
-
-        # ✅ Already full URL (Cloudinary or external)
-        if name.startswith("http://") or name.startswith("https://"):
-            return name
-
-        # ✅ Detect storage type
-        storage = getattr(self.media, "storage", None)
-        storage_name = storage.__class__.__name__.lower() if storage else ""
-
-        # ✅ Cloudinary handling
-        if "cloudinary" in storage_name or getattr(settings, "CAN_USE_CLOUDINARY", False):
-            try:
-                return self.media.url
-            except Exception:
-                return ""
-
-        # ✅ Local storage handling
+    # ✅ ANDAR hona chahiye
+    @property
+    def media_url(self):
         try:
-            if hasattr(storage, "exists") and not storage.exists(name):
+            if not self.media:
                 return ""
+
+            name = getattr(self.media, "name", "")
+            if not name:
+                return ""
+
+            if name.startswith("http://") or name.startswith("https://"):
+                return name
+
+            storage = getattr(self.media, "storage", None)
+            storage_name = storage.__class__.__name__.lower() if storage else ""
+
+            if "cloudinary" in storage_name or getattr(settings, "CAN_USE_CLOUDINARY", False):
+                try:
+                    return self.media.url
+                except Exception:
+                    return ""
+
+            try:
+                if hasattr(storage, "exists") and not storage.exists(name):
+                    return ""
+            except Exception:
+                pass
+
+            return self.media.url
+
+        except Exception as e:
+            print(f"[media_url error]: {e}")
+            return ""
+
+    @property
+    def media_name(self):
+        try:
+            if self.media and getattr(self.media, "name", ""):
+                return self.media.name.lower()
         except Exception:
             pass
-
-        try:
-            return self.media.url
-        except Exception:
-            return ""
-
-    except Exception as e:
-        print(f"[media_url error]: {e}")
         return ""
-
-
-@property
-def media_name(self):
-    try:
-        if self.media and getattr(self.media, "name", ""):
-            return self.media.name.lower()
-    except Exception:
-        pass
-
-    return ""
-
 
 class ChatLock(models.Model):
     owner = models.ForeignKey(User, related_name="chat_locks", on_delete=models.CASCADE)
