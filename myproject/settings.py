@@ -310,28 +310,28 @@ else:
 
 # Upload limits (bytes). Raise to allow long videos; override via env as needed.
 # FILE_UPLOAD_MAX_MEMORY_SIZE: Peak memory usage per file during upload
-# - 500MB allows handling large video files efficiently on hosted platforms
+# - 1000MB allows handling large video files efficiently on hosted platforms
 # - Files larger than this will be streamed to disk (slower but conserves memory)
 FILE_UPLOAD_MAX_MEMORY_SIZE = int(
-    os.getenv("FILE_UPLOAD_MAX_MEMORY_SIZE", str(500 * 1024 * 1024))
+    os.getenv("FILE_UPLOAD_MAX_MEMORY_SIZE", str(1000 * 1024 * 1024))
 )
 # DATA_UPLOAD_MAX_MEMORY_SIZE: Total POST data (all files + fields) limit
 # Raised to support very large uploads when using the server as a proxy.
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(
-    os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", str(50 * 1024 * 1024 * 1024))
+    os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", str(200 * 1024 * 1024 * 1024))
 )
 
 # App-level upload guards (bytes). Keep these <= platform limits to avoid 502s/timeouts.
 MAX_REEL_UPLOAD_BYTES = int(
-    os.getenv("MAX_REEL_UPLOAD_BYTES", str(50 * 1024 * 1024))
+    os.getenv("MAX_REEL_UPLOAD_BYTES", str(1000 * 1024 * 1024))
 )
 MAX_POST_UPLOAD_BYTES = int(
-    os.getenv("MAX_POST_UPLOAD_BYTES", str(50 * 1024 * 1024 * 1024))
+    os.getenv("MAX_POST_UPLOAD_BYTES", str(500 * 1024 * 1024))
 )
 # Chunk size for large uploads (bytes). Optimize for speed vs memory/proxy timeouts.
 # 5MB chunks are optimal for most network conditions and provide good throughput.
 UPLOAD_CHUNK_SIZE = int(
-    os.getenv("UPLOAD_CHUNK_SIZE", str(5 * 1024 * 1024))
+    os.getenv("UPLOAD_CHUNK_SIZE", str(2 * 1024 * 1024))
 )
 # Only attempt server-side duration checks for reasonably sized files (up to 500MB).
 # Extended to help detect long videos that should be converted to posts.
