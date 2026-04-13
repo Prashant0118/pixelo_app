@@ -40,6 +40,11 @@ if [ "${RUN_MEDIA_MIGRATION}" = "1" ]; then
   python manage.py migrate_reel_media --all-posts
 fi
 
+# Optional: sync any remaining local media to Cloudinary storage
+if [ "${RUN_CLOUDINARY_SYNC}" = "1" ]; then
+  python manage.py upload_to_cloudinary
+fi
+
 # Optional: clear stale/broken media references so templates don't emit 404 URLs
 if [ "${RUN_CLEAR_MISSING_MEDIA}" = "1" ]; then
   clear_args=""

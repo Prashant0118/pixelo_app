@@ -16,6 +16,7 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         limit = options["limit"]
         model_filter = options["model"]
+        default_names = {"default.jpg", "default.png"}
 
         models_to_check = []
         if model_filter:
@@ -56,10 +57,19 @@ class Command(BaseCommand):
                 name = media_field.name
                 if not name:
                     continue
+                if os.path.basename(name) in default_names:
+                    continue
 
                 # Check if it's already a Cloudinary URL
                 if "res.cloudinary.com" in name:
                     continue
+
+                # Skip if already present in storage
+                try:
+                    if media_field.storage.exists(name):
+                        continue
+                except Exception:
+                    pass
 
                 # Check if local file exists
                 local_path = os.path.join(settings.MEDIA_ROOT, name)
