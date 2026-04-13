@@ -122,7 +122,7 @@
                         {% if message.sender == request.user %}
                         <button type="button" class="msg-delete-text-btn" data-id="{{ message.id }}" aria-label="Delete message">Delete</button>
                         {% endif %}
-                        {% if message.media %}
+                        {% if message.media_url %}
                             {% if message.media_type == "image" %}
                             <img class="msg-media" src="{{ message.media_url }}" alt="chat image">
                             {% elif message.media_type == "video" %}

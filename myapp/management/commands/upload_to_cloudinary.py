@@ -38,6 +38,13 @@ class Command(BaseCommand):
         processed = 0
         uploaded = 0
 
+        upload_prefixes = {
+            (Post, "media"): "posts/",
+            (Story, "media"): "stories/media/",
+            (Message, "media"): "chat_media/",
+            (Profile, "image"): "profile_pics/",
+        }
+
         for model, field in models_to_check:
             qs = model.objects.exclude(**{f"{field}__isnull": True}).exclude(**{field: ""})
             if limit and processed >= limit:
@@ -66,9 +73,14 @@ class Command(BaseCommand):
                     continue
 
                 try:
+                    # Avoid duplicating upload_to prefixes (posts/posts, etc.)
+                    prefix = upload_prefixes.get((model, field), "")
+                    clean_name = name
+                    if prefix and name.startswith(prefix):
+                        clean_name = name[len(prefix):]
                     # Open the file and save it, which will upload to Cloudinary
                     with open(local_path, 'rb') as f:
-                        media_field.save(name, File(f), save=True)
+                        media_field.save(clean_name, File(f), save=True)
                     uploaded += 1
                     self.stdout.write(f"Uploaded {model.__name__}#{obj.pk}: {name}")
                 except Exception as e:
