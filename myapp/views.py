@@ -2356,6 +2356,16 @@ from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 
+
+def _cloudinary_upload_ready():
+    return bool(
+        getattr(settings, "CAN_USE_CLOUDINARY", False)
+        and getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+        and getattr(settings, "CLOUDINARY_API_KEY", "")
+        and getattr(settings, "CLOUDINARY_API_SECRET", "")
+    )
+
+
 @login_required
 @require_POST
 def upload_chunk_complete(request):
@@ -2403,31 +2413,40 @@ def upload_chunk_complete(request):
     except Exception as e:
         return JsonResponse({"error": f"Assemble failed: {str(e)}"}, status=500)
 
-    # 🔥 Cloudinary Upload
+    upload_error = None
     try:
-        with open(assembled_abs, "rb") as f:
+        post = Post.objects.create(
+            user=request.user,
+            caption=caption,
+            type=post_type,
+        )
 
-            result = cloudinary.uploader.upload(
-                f,
-                resource_type="auto",   # 🔥 MOST IMPORTANT
-                folder="posts"
-            )
+        if _cloudinary_upload_ready():
+            try:
+                with open(assembled_abs, "rb") as f:
+                    result = cloudinary.uploader.upload(
+                        f,
+                        resource_type="auto",
+                        folder="posts",
+                    )
+                media_url = (result or {}).get("secure_url")
+                if not media_url:
+                    raise ValueError("Cloudinary upload failed")
+                post.media.name = media_url
+                post.save(update_fields=["media"])
+            except Exception as exc:
+                upload_error = str(exc)
 
-            media_url = result.get("secure_url")
-
-            if not media_url:
-                return JsonResponse({"error": "Cloudinary upload failed"}, status=500)
-
-            post = Post.objects.create(
-                user=request.user,
-                caption=caption,
-                type=post_type
-            )
-            post.media.name = media_url
-            post.save(update_fields=["media"])
+        if not getattr(post.media, "name", ""):
+            with open(assembled_abs, "rb") as f:
+                post.media.save(safe_name, File(f), save=False)
+            post.save()
 
     except Exception as e:
-        return JsonResponse({"error": f"Upload failed: {str(e)}"}, status=500)
+        err_text = f"Upload failed: {str(e)}"
+        if upload_error:
+            err_text = f"{err_text} (Cloudinary fallback: {upload_error})"
+        return JsonResponse({"error": err_text}, status=500)
 
     finally:
         # cleanup temp file

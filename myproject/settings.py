@@ -21,6 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 import os
 import importlib.util
+from urllib.parse import urlparse
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
@@ -147,9 +148,37 @@ CLOUDINARY_API_KEY = (os.getenv("CLOUDINARY_API_KEY") or "").strip()
 CLOUDINARY_API_SECRET = (os.getenv("CLOUDINARY_API_SECRET") or "").strip()
 CLOUDINARY_UPLOAD_PRESET = (os.getenv("CLOUDINARY_UPLOAD_PRESET") or "").strip()
 
+
+def _cloudinary_url_config(url):
+    if not url:
+        return {}
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return {}
+    if parsed.scheme != "cloudinary":
+        return {}
+    cloud_name = (parsed.hostname or "").strip()
+    api_key = (parsed.username or "").strip()
+    api_secret = (parsed.password or "").strip()
+    if not (cloud_name and api_key and api_secret):
+        return {}
+    return {
+        "cloud_name": cloud_name,
+        "api_key": api_key,
+        "api_secret": api_secret,
+    }
+
+
+_cloudinary_url_values = _cloudinary_url_config(CLOUDINARY_URL)
+if _cloudinary_url_values:
+    CLOUDINARY_CLOUD_NAME = CLOUDINARY_CLOUD_NAME or _cloudinary_url_values["cloud_name"]
+    CLOUDINARY_API_KEY = CLOUDINARY_API_KEY or _cloudinary_url_values["api_key"]
+    CLOUDINARY_API_SECRET = CLOUDINARY_API_SECRET or _cloudinary_url_values["api_secret"]
+
 # Cloudinary is enabled when credentials are available.
 CAN_USE_CLOUDINARY = bool(
-    CLOUDINARY_URL or (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
+    CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET
 )
 
 # Cloudinary storage configuration
