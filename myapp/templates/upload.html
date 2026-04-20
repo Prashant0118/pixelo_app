@@ -976,6 +976,7 @@ const safeStorage = {
     if (!DIRECT_UPLOAD_ENABLED || !isVideoFile(file)) return false;
     if (DIRECT_UPLOAD_MIN_BYTES && file.size < DIRECT_UPLOAD_MIN_BYTES) return false;
     if (MAX_DIRECT_UPLOAD_BYTES && file.size > MAX_DIRECT_UPLOAD_BYTES) return false;
+    if (file.size > CLOUDINARY_SIMPLE_UPLOAD_LIMIT) return false;
     return Boolean(CLOUDINARY_CLOUD_NAME);
   }
 

@@ -1356,8 +1356,8 @@ def post_watch_ping(request, post_id):
 
 def register(request):
     if request.method == 'POST':
-        email = (request.POST.get('email', '') or '').strip()
-        username = (request.POST.get('username', '') or '').strip()
+        email = (request.POST.get('email', '') or '').strip().lower()
+        username = (request.POST.get('username', '') or '').strip().lower()
         password1 = request.POST.get('password1', '')
         password2 = request.POST.get('password2', '')
 
@@ -1373,8 +1373,9 @@ def register(request):
         if User.objects.filter(email__iexact=email).exists():
             return render(request, 'register.html', {'error': 'Email already registered'})
 
-        User.objects.create_user(username=username, email=email, password=password1)
-        return redirect('login')
+        user = User.objects.create_user(username=username, email=email, password=password1)
+        login(request, user)
+        return redirect('home')
 
     return render(request, 'register.html')
 
@@ -2426,12 +2427,23 @@ def upload_chunk_complete(request):
 
         if _cloudinary_upload_ready():
             try:
-                with open(assembled_abs, "rb") as f:
-                    result = cloudinary.uploader.upload(
-                        f,
-                        resource_type="auto",
-                        folder="posts",
+                assembled_size = os.path.getsize(assembled_abs)
+                upload_kwargs = {
+                    "resource_type": "auto",
+                    "folder": "posts",
+                }
+                if assembled_size > 100 * 1024 * 1024:
+                    result = cloudinary.uploader.upload_large(
+                        assembled_abs,
+                        chunk_size=20 * 1024 * 1024,
+                        **upload_kwargs,
                     )
+                else:
+                    with open(assembled_abs, "rb") as f:
+                        result = cloudinary.uploader.upload(
+                            f,
+                            **upload_kwargs,
+                        )
                 media_url = (result or {}).get("secure_url")
                 if not media_url:
                     raise ValueError("Cloudinary upload failed")

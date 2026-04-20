@@ -131,6 +131,22 @@ class AuthViewTests(TestCase):
         created = User.objects.get(username="spaceduser")
         self.assertEqual(created.email, "spaced@example.com")
 
+    def test_register_logs_user_in_immediately(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "NewUser",
+                "email": "NewUser@example.com",
+                "password1": self.password,
+                "password2": self.password,
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+        created = User.objects.get(username="newuser")
+        self.assertEqual(created.email, "newuser@example.com")
+
 
 class PostMediaUrlTests(TestCase):
     @override_settings(
@@ -186,6 +202,56 @@ class MediaServingTests(TestCase):
 
             media_response = self.client.get(post.media_url)
             self.assertEqual(media_response.status_code, 200)
+
+
+class ChunkCompleteUploadTests(TestCase):
+    def setUp(self):
+        self.password = "Testpass123!"
+        self.user = User.objects.create_user(username="chunkuser", password=self.password)
+        self.client.login(username="chunkuser", password=self.password)
+
+    @override_settings(
+        CAN_USE_CLOUDINARY=True,
+        CLOUDINARY_CLOUD_NAME="demo-cloud",
+        CLOUDINARY_API_KEY="demo-key",
+        CLOUDINARY_API_SECRET="demo-secret",
+    )
+    @patch("cloudinary.uploader.upload_large")
+    @patch("cloudinary.uploader.upload")
+    @patch("os.path.getsize", return_value=101 * 1024 * 1024)
+    def test_chunk_complete_uses_upload_large_for_large_files(self, mock_getsize, mock_upload, mock_upload_large):
+        mock_upload_large.return_value = {
+            "secure_url": "https://res.cloudinary.com/demo/video/upload/v1/posts/big.mp4",
+        }
+        upload_id = "large_chunk_upload"
+        chunk = SimpleUploadedFile("big.mp4", b"video-bytes", content_type="video/mp4")
+
+        chunk_response = self.client.post(
+            reverse("upload_chunk"),
+            {
+                "upload_id": upload_id,
+                "chunk_index": "0",
+                "total_chunks": "1",
+                "filename": "big.mp4",
+                "chunk": chunk,
+            },
+        )
+        self.assertEqual(chunk_response.status_code, 200)
+
+        complete_response = self.client.post(
+            reverse("upload_chunk_complete"),
+            {
+                "upload_id": upload_id,
+                "total_chunks": "1",
+                "filename": "big.mp4",
+                "type": "reel",
+                "caption": "Large video",
+            },
+        )
+
+        self.assertEqual(complete_response.status_code, 200)
+        mock_upload_large.assert_called_once()
+        mock_upload.assert_not_called()
 
 
 class CloudinaryStorageTests(TestCase):
