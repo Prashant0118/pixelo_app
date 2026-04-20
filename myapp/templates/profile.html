@@ -8,14 +8,14 @@
 {% block content %}
 <div class="ig-profile-wrap">
     <header class="ig-topbar">
-        <a href="{% url 'upload_story' %}" class="top-icon"><i class="fa-regular fa-square-plus"></i></a>
+        <a href="{% url 'upload_story' %}" class="top-icon"><i class="bi bi-plus-square"></i></a>
         <div class="top-center">
             <h6>{{ profile_user.username }}</h6>
         </div>
         <div class="top-right">
             {% if request.user == profile_user %}
-            <a href="{% url 'notifications' %}" class="top-icon"><i class="fa-regular fa-bell"></i></a>
-            <a href="{% url 'profile_menu' %}" class="top-icon"><i class="fa-solid fa-bars"></i></a>
+            <a href="{% url 'notifications' %}" class="top-icon"><i class="bi bi-bell"></i></a>
+            <a href="{% url 'profile_menu' %}" class="top-icon"><i class="bi bi-list"></i></a>
             {% endif %}
         </div>
     </header>
@@ -36,7 +36,7 @@
         <div class="stats-row">
             <div>
                 <strong>{{ posts_count }}</strong>
-                <span><i class="fa-regular fa-images"></i> Posts</span>
+                <span><i class="bi bi-images"></i> Posts</span>
             </div>
             <div>
                 <a href="{% url 'followers_list' profile_user.username %}">
@@ -101,10 +101,10 @@
 
     <section class="tab-row">
         <button type="button" class="active tab-btn" data-target="posts-grid" title="Posts">
-            <i class="fa-solid fa-table-cells"></i>
+            <i class="bi bi-grid-3x3-gap-fill"></i>
         </button>
         <button type="button" class="tab-btn" data-target="reels-grid" title="Reels">
-            <i class="fa-solid fa-clapperboard"></i>
+            <i class="bi bi-camera-reels-fill"></i>
         </button>
     </section>
 

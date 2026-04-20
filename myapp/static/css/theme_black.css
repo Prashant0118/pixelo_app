@@ -73,9 +73,6 @@ button {
 }
 
 i.bi,
-i.fa-solid,
-i.fa-regular,
-i.fa-brands,
 svg {
     color: var(--icon-muted) !important;
     fill: currentColor;
@@ -269,10 +266,7 @@ body.home-page .mobile-bottom a:nth-child(3) {
 }
 
 .chat-shell i,
-.chat-shell .bi,
-.chat-shell .fa-solid,
-.chat-shell .fa-regular,
-.chat-shell .fa-brands {
+.chat-shell .bi {
     color: #f0f3fa !important;
 }
 

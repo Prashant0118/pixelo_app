@@ -65,10 +65,7 @@ body {
     transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-i.bi,
-i.fa-solid,
-i.fa-regular,
-i.fa-brands {
+i.bi {
     line-height: 1;
     vertical-align: middle;
     -webkit-font-smoothing: antialiased;

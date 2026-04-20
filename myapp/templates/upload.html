@@ -886,6 +886,12 @@ const safeStorage = {
   const PARALLEL_UPLOADS = 4;
   const MAX_RETRIES = 3;
   const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|m4v|avi|mkv|ogv|3gp|3gpp)$/i;
+  const DIRECT_UPLOAD_ENABLED = {{ direct_upload_enabled|yesno:"true,false" }};
+  const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|escapejs }}";
+  const CLOUDINARY_UPLOAD_PRESET = "{{ cloudinary_upload_preset|escapejs }}";
+  const ALLOW_UNSIGNED_UPLOAD = {{ allow_unsigned_upload|yesno:"true,false" }};
+  const DIRECT_UPLOAD_MIN_BYTES = {{ direct_upload_min_bytes|default:0 }};
+  const MAX_DIRECT_UPLOAD_BYTES = {{ max_direct_upload_bytes|default:0 }};
 
   function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -962,6 +968,111 @@ const safeStorage = {
     const value = Math.min(100, Math.max(0, Math.round(percent)));
     progressBar.style.width = `${value}%`;
     progressText.textContent = value;
+  }
+
+  function shouldUseDirectVideoUpload(file) {
+    if (!DIRECT_UPLOAD_ENABLED || !isVideoFile(file)) return false;
+    if (DIRECT_UPLOAD_MIN_BYTES && file.size < DIRECT_UPLOAD_MIN_BYTES) return false;
+    if (MAX_DIRECT_UPLOAD_BYTES && file.size > MAX_DIRECT_UPLOAD_BYTES) return false;
+    return Boolean(CLOUDINARY_CLOUD_NAME);
+  }
+
+  async function fetchCloudinarySignature(params) {
+    const res = await fetch('/upload/cloudinary-signature/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Signature request failed (${res.status}) ${text}`);
+    }
+    return res.json();
+  }
+
+  function uploadFileToCloudinary(url, formData, file) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.responseType = 'json';
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable) return;
+        updateProgressBar((event.loaded / event.total) * 95);
+      };
+
+      xhr.onload = () => {
+        const payload = xhr.response || {};
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(payload);
+          return;
+        }
+        const detail = payload.error && payload.error.message ? payload.error.message : xhr.responseText;
+        reject(new Error(`Cloudinary upload failed (${xhr.status}) ${detail || file.name}`));
+      };
+
+      xhr.onerror = () => reject(new Error('Cloudinary upload request failed.'));
+      xhr.send(formData);
+    });
+  }
+
+  async function finalizeDirectUpload(secureUrl, postType, caption) {
+    const res = await fetch('/upload/cloudinary-complete/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify({
+        secure_url: secureUrl,
+        post_type: postType,
+        caption,
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Cloudinary finalize failed (${res.status}) ${text}`);
+    }
+    return res.json();
+  }
+
+  async function uploadDirectToCloudinary(file, postType, caption) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY_CLOUD_NAME)}/auto/upload`;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'posts');
+
+    if (ALLOW_UNSIGNED_UPLOAD && CLOUDINARY_UPLOAD_PRESET) {
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    } else {
+      const signatureData = await fetchCloudinarySignature({
+        folder: 'posts',
+        timestamp,
+      });
+      formData.append('api_key', signatureData.api_key);
+      formData.append('timestamp', String(signatureData.timestamp || timestamp));
+      formData.append('signature', signatureData.signature);
+    }
+
+    const uploadPayload = await uploadFileToCloudinary(cloudinaryUrl, formData, file);
+    const secureUrl = (uploadPayload && (uploadPayload.secure_url || uploadPayload.url)) || '';
+    if (!secureUrl) {
+      throw new Error('Cloudinary upload did not return a file URL.');
+    }
+
+    updateProgressBar(98);
+    const done = await finalizeDirectUpload(secureUrl, postType, caption);
+    updateProgressBar(100);
+
+    if (done.redirect) {
+      window.location.href = done.redirect;
+      return;
+    }
+    throw new Error('Upload complete response invalid.');
   }
 
   async function uploadInChunks(file, postType, caption) {
@@ -1120,7 +1231,11 @@ const safeStorage = {
       updateProgressBar(0);
       progressWrap.style.display = 'flex';
       try {
-        await uploadInChunks(file, postType, caption);
+        if (shouldUseDirectVideoUpload(file)) {
+          await uploadDirectToCloudinary(file, postType, caption);
+        } else {
+          await uploadInChunks(file, postType, caption);
+        }
         showMessage('Ô£à Video uploaded successfully!', 'success');
       } catch (err) {
         console.error('Upload error:', err);
