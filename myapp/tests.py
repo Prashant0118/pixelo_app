@@ -5,7 +5,11 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 import shutil
 import tempfile
+import unittest
+from unittest.mock import patch
 from myapp.models import Post
+from myapp.storage import MediaCloudinaryAutoStorage
+from myapp import storage as storage_module
 
 
 class UploadViewTests(TestCase):
@@ -182,3 +186,25 @@ class MediaServingTests(TestCase):
 
             media_response = self.client.get(post.media_url)
             self.assertEqual(media_response.status_code, 200)
+
+
+class CloudinaryStorageTests(TestCase):
+    @unittest.skipIf(
+        getattr(storage_module, "MediaCloudinaryStorage", None) is None,
+        "Cloudinary storage backend is not available in this test environment.",
+    )
+    @patch("cloudinary.uploader.upload")
+    def test_cloudinary_storage_returns_secure_url(self, mock_upload):
+        mock_upload.return_value = {
+            "public_id": "posts/download",
+            "secure_url": "https://res.cloudinary.com/demo/image/upload/v1/posts/download.jpg",
+        }
+        storage = MediaCloudinaryAutoStorage()
+        content = SimpleUploadedFile("download.jpg", b"img", content_type="image/jpeg")
+
+        saved_name = storage._save("posts/download.jpg", content)
+
+        self.assertEqual(
+            saved_name,
+            "https://res.cloudinary.com/demo/image/upload/v1/posts/download.jpg",
+        )

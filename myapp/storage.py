@@ -95,9 +95,11 @@ if MediaCloudinaryStorage:
             # Upload the file directly
             import cloudinary.uploader
             response = cloudinary.uploader.upload(content, **options)
-            
-            # Return the public_id
-            return response['public_id']
+
+            # Persist the canonical secure URL when available so templates and
+            # model helpers don't have to reconstruct a Cloudinary URL from a
+            # potentially normalized public_id/filename pair.
+            return response.get("secure_url") or response["public_id"]
 
         def url(self, name):
             """Generate URL with correct resource_type"""
