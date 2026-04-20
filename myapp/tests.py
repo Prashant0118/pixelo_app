@@ -77,3 +77,51 @@ class UploadViewTests(TestCase):
             post = self.user.posts.latest("id")
             self.assertEqual(post.type, "reel")
             self.assertTrue(post.media.name.startswith("posts/"))
+
+
+class AuthViewTests(TestCase):
+    def setUp(self):
+        self.password = "Testpass123!"
+        self.user = User.objects.create_user(
+            username="TestUser",
+            email="testuser@example.com",
+            password=self.password,
+        )
+
+    def test_login_accepts_username_case_insensitively(self):
+        response = self.client.post(
+            reverse("login"),
+            {
+                "username": "testuser",
+                "password": self.password,
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+
+    def test_login_accepts_email_case_insensitively(self):
+        response = self.client.post(
+            reverse("login"),
+            {
+                "username": "TESTUSER@example.com",
+                "password": self.password,
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+
+    def test_register_trims_username_and_email(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "  spaceduser  ",
+                "email": "  spaced@example.com  ",
+                "password1": self.password,
+                "password2": self.password,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        created = User.objects.get(username="spaceduser")
+        self.assertEqual(created.email, "spaced@example.com")

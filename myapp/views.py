@@ -1356,18 +1356,21 @@ def post_watch_ping(request, post_id):
 
 def register(request):
     if request.method == 'POST':
-        email = request.POST.get('email', '')
-        username = request.POST.get('username', '')
+        email = (request.POST.get('email', '') or '').strip()
+        username = (request.POST.get('username', '') or '').strip()
         password1 = request.POST.get('password1', '')
         password2 = request.POST.get('password2', '')
+
+        if not username or not email:
+            return render(request, 'register.html', {'error': 'Username and email are required'})
 
         if password1 != password2:
             return render(request, 'register.html', {'error': 'Passwords do not match'})
 
-        if User.objects.filter(username=username).exists():
+        if User.objects.filter(username__iexact=username).exists():
             return render(request, 'register.html', {'error': 'Username already exists'})
 
-        if User.objects.filter(email=email).exists():
+        if User.objects.filter(email__iexact=email).exists():
             return render(request, 'register.html', {'error': 'Email already registered'})
 
         User.objects.create_user(username=username, email=email, password=password1)
@@ -1383,16 +1386,16 @@ def user_login(request):
 
         user = None
         if identifier:
-            # First try username login
-            user = authenticate(request, username=identifier, password=password)
-            # If not found, try email login
-            if user is None and "@" in identifier:
-                try:
-                    matched = User.objects.filter(email__iexact=identifier).only("username").first()
-                except Exception:
-                    matched = None
-                if matched:
-                    user = authenticate(request, username=matched.username, password=password)
+            lookup = None
+            if "@" in identifier:
+                lookup = User.objects.filter(email__iexact=identifier).only("username").first()
+            else:
+                lookup = User.objects.filter(username__iexact=identifier).only("username").first()
+
+            # Use the canonical stored username so login works even if the user
+            # types different casing than they registered with.
+            auth_username = lookup.username if lookup else identifier
+            user = authenticate(request, username=auth_username, password=password)
 
         if user is not None:
             login(request, user)
