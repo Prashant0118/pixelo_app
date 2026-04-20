@@ -892,6 +892,8 @@ const safeStorage = {
   const ALLOW_UNSIGNED_UPLOAD = {{ allow_unsigned_upload|yesno:"true,false" }};
   const DIRECT_UPLOAD_MIN_BYTES = {{ direct_upload_min_bytes|default:0 }};
   const MAX_DIRECT_UPLOAD_BYTES = {{ max_direct_upload_bytes|default:0 }};
+  const CLOUDINARY_SIMPLE_UPLOAD_LIMIT = 100 * 1024 * 1024;
+  const CLOUDINARY_CHUNK_SIZE = 20 * 1024 * 1024;
 
   function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -977,6 +979,17 @@ const safeStorage = {
     return Boolean(CLOUDINARY_CLOUD_NAME);
   }
 
+  function cloudinaryResourceTypeForFile(file) {
+    if (isVideoFile(file)) return 'video';
+    if (file.type && file.type.startsWith('image/')) return 'image';
+    return 'auto';
+  }
+
+  function buildCloudinaryUploadUrl(file) {
+    const resourceType = cloudinaryResourceTypeForFile(file);
+    return `https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY_CLOUD_NAME)}/${resourceType}/upload`;
+  }
+
   async function fetchCloudinarySignature(params) {
     const res = await fetch('/upload/cloudinary-signature/', {
       method: 'POST',
@@ -1019,6 +1032,31 @@ const safeStorage = {
     });
   }
 
+  function uploadCloudinaryChunk(url, formData, headers) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.responseType = 'json';
+
+      Object.entries(headers || {}).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+
+      xhr.onload = () => {
+        const payload = xhr.response || {};
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(payload);
+          return;
+        }
+        const detail = payload.error && payload.error.message ? payload.error.message : xhr.responseText;
+        reject(new Error(`Cloudinary chunk upload failed (${xhr.status}) ${detail || 'chunk upload error'}`));
+      };
+
+      xhr.onerror = () => reject(new Error('Cloudinary chunk upload request failed.'));
+      xhr.send(formData);
+    });
+  }
+
   async function finalizeDirectUpload(secureUrl, postType, caption) {
     const res = await fetch('/upload/cloudinary-complete/', {
       method: 'POST',
@@ -1041,24 +1079,57 @@ const safeStorage = {
 
   async function uploadDirectToCloudinary(file, postType, caption) {
     const timestamp = Math.floor(Date.now() / 1000);
-    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY_CLOUD_NAME)}/auto/upload`;
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', 'posts');
+    const cloudinaryUrl = buildCloudinaryUploadUrl(file);
+    let uploadPayload = null;
 
-    if (ALLOW_UNSIGNED_UPLOAD && CLOUDINARY_UPLOAD_PRESET) {
-      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    const shouldUseChunkedUpload = file.size > CLOUDINARY_SIMPLE_UPLOAD_LIMIT;
+    if (shouldUseChunkedUpload) {
+      if (!(ALLOW_UNSIGNED_UPLOAD && CLOUDINARY_UPLOAD_PRESET)) {
+        throw new Error('Large upload requires an unsigned Cloudinary upload preset.');
+      }
+
+      const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+      let start = 0;
+      let lastPayload = null;
+
+      while (start < file.size) {
+        const endExclusive = Math.min(start + CLOUDINARY_CHUNK_SIZE, file.size);
+        const endInclusive = endExclusive - 1;
+        const chunk = file.slice(start, endExclusive);
+        const formData = new FormData();
+        formData.append('file', chunk);
+        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+        formData.append('folder', 'posts');
+
+        lastPayload = await uploadCloudinaryChunk(cloudinaryUrl, formData, {
+          'X-Unique-Upload-Id': uploadId,
+          'Content-Range': `bytes ${start}-${endInclusive}/${file.size}`,
+        });
+
+        start = endExclusive;
+        updateProgressBar((start / file.size) * 95);
+      }
+      uploadPayload = lastPayload;
     } else {
-      const signatureData = await fetchCloudinarySignature({
-        folder: 'posts',
-        timestamp,
-      });
-      formData.append('api_key', signatureData.api_key);
-      formData.append('timestamp', String(signatureData.timestamp || timestamp));
-      formData.append('signature', signatureData.signature);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'posts');
+
+      if (ALLOW_UNSIGNED_UPLOAD && CLOUDINARY_UPLOAD_PRESET) {
+        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      } else {
+        const signatureData = await fetchCloudinarySignature({
+          folder: 'posts',
+          timestamp,
+        });
+        formData.append('api_key', signatureData.api_key);
+        formData.append('timestamp', String(signatureData.timestamp || timestamp));
+        formData.append('signature', signatureData.signature);
+      }
+
+      uploadPayload = await uploadFileToCloudinary(cloudinaryUrl, formData, file);
     }
 
-    const uploadPayload = await uploadFileToCloudinary(cloudinaryUrl, formData, file);
     const secureUrl = (uploadPayload && (uploadPayload.secure_url || uploadPayload.url)) || '';
     if (!secureUrl) {
       throw new Error('Cloudinary upload did not return a file URL.');
