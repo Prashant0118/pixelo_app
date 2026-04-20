@@ -772,11 +772,10 @@ class Post(models.Model):
                 except Exception:
                     resolved = ""
 
-            # Fallback to generated Cloudinary URL when needed.
+            # Fallback to a generated Cloudinary URL when the stored value looks
+            # like a Cloudinary public_id. This keeps images visible even when
+            # storage.url()/exists() is unavailable or inconsistent in production.
             if not resolved and resolved_name and using_cloudinary:
-                if _should_verify_cloudinary(resource_type) and not _storage_exists(self.media, resolved_name):
-                    _log_missing_media("post.media", resolved_name)
-                    return ""
                 resolved = _cloudinary_url_for(resolved_name, resource_type)
 
             # Final fallback: expose local media path only for non-cloud storage.

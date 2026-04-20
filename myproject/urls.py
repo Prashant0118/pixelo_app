@@ -27,11 +27,11 @@ urlpatterns = [
     path('favicon.ico', RedirectView.as_view(url='/static/images/default.png', permanent=True)),
     path('saved-posts/', myapp_views.saved_posts, name='saved_posts'),
     path('liked-reels/', myapp_views.liked_reels, name='liked_reels'),
+    path('media/<path:path>', myapp_views.media_serve, name='media_serve'),
     path('', include('myapp.urls')),
 ]
 
-if settings.DEBUG or getattr(settings, "SERVE_MEDIA", False):
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 

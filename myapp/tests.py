@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 import shutil
 import tempfile
+from myapp.models import Post
 
 
 class UploadViewTests(TestCase):
@@ -125,3 +126,59 @@ class AuthViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         created = User.objects.get(username="spaceduser")
         self.assertEqual(created.email, "spaced@example.com")
+
+
+class PostMediaUrlTests(TestCase):
+    @override_settings(
+        CAN_USE_CLOUDINARY=True,
+        CLOUDINARY_CLOUD_NAME="demo-cloud",
+        CLOUDINARY_API_KEY="demo-key",
+        CLOUDINARY_API_SECRET="demo-secret",
+    )
+    def test_media_url_returns_local_media_path_when_available(self):
+        user = User.objects.create_user(username="mediauser", password="Testpass123!")
+        post = Post.objects.create(user=user, type="post")
+        post.media.name = "posts/sample-image.jpg"
+
+        media_url = post.media_url
+
+        self.assertEqual(media_url, "/media/posts/sample-image.jpg")
+
+
+class MediaServingTests(TestCase):
+    @override_settings(
+        CAN_USE_CLOUDINARY=False,
+        SERVE_MEDIA=True,
+        DEFAULT_FILE_STORAGE="django.core.files.storage.FileSystemStorage",
+        STORAGES={
+            "default": {
+                "BACKEND": "django.core.files.storage.FileSystemStorage",
+            },
+            "staticfiles": {
+                "BACKEND": "whitenoise.storage.StaticFilesStorage",
+            },
+        },
+    )
+    def test_uploaded_image_is_served_from_media_route(self):
+        user = User.objects.create_user(username="imguser", password="Testpass123!")
+        self.client.login(username="imguser", password="Testpass123!")
+        media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, media_root, ignore_errors=True)
+
+        with override_settings(MEDIA_ROOT=media_root, MEDIA_URL="/media/"):
+            image = SimpleUploadedFile("photo.jpg", b"fake-image-bytes", content_type="image/jpeg")
+            response = self.client.post(
+                reverse("upload"),
+                {
+                    "type": "post",
+                    "caption": "Image post",
+                    "media": image,
+                },
+            )
+
+            self.assertEqual(response.status_code, 302)
+            post = Post.objects.latest("id")
+            self.assertTrue(post.media_url.startswith("/media/posts/"))
+
+            media_response = self.client.get(post.media_url)
+            self.assertEqual(media_response.status_code, 200)
