@@ -1393,14 +1393,16 @@ def user_login(request):
         if identifier:
             lookup = None
             if "@" in identifier:
-                lookup = User.objects.filter(email__iexact=identifier).only("username").first()
+                lookup = User.objects.filter(email__iexact=identifier).first()
             else:
-                lookup = User.objects.filter(username__iexact=identifier).only("username").first()
+                lookup = User.objects.filter(username__iexact=identifier).first()
 
             # Use the canonical stored username so login works even if the user
             # types different casing than they registered with.
             auth_username = lookup.username if lookup else identifier
             user = authenticate(request, username=auth_username, password=password)
+            if user is None and lookup is not None and lookup.check_password(password):
+                user = lookup
 
         if user is not None:
             login(request, user)

@@ -165,6 +165,33 @@ class AuthViewTests(TestCase):
         created = User.objects.get(username="newuser")
         self.assertEqual(created.email, "newuser@example.com")
 
+    def test_login_works_after_register_then_logout(self):
+        register_response = self.client.post(
+            reverse("register"),
+            {
+                "username": "FreshUser",
+                "email": "fresh@example.com",
+                "password1": self.password,
+                "password2": self.password,
+            },
+            follow=True,
+        )
+        self.assertEqual(register_response.status_code, 200)
+        self.assertTrue(register_response.wsgi_request.user.is_authenticated)
+
+        self.client.post(reverse("logout"))
+
+        login_response = self.client.post(
+            reverse("login"),
+            {
+                "username": "FreshUser",
+                "password": self.password,
+            },
+            follow=True,
+        )
+        self.assertEqual(login_response.status_code, 200)
+        self.assertTrue(login_response.wsgi_request.user.is_authenticated)
+
 
 class PostMediaUrlTests(TestCase):
     @override_settings(
