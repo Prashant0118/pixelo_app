@@ -581,8 +581,10 @@ def _upload_page_context(error=None):
         "cloudinary_upload_preset": upload_preset,
         "cloudinary_widget_enabled": bool(upload_preset and direct_upload_enabled),
         "allow_unsigned_upload": getattr(settings, "ALLOW_UNSIGNED_UPLOAD", False),
+        "allow_server_video_fallback": getattr(settings, "ALLOW_SERVER_VIDEO_FALLBACK", False),
         "direct_upload_min_bytes": getattr(settings, "DIRECT_UPLOAD_MIN_BYTES", 0),
         "max_direct_upload_bytes": getattr(settings, "MAX_DIRECT_UPLOAD_BYTES", 0),
+        "cloudinary_video_max_bytes": getattr(settings, "CLOUDINARY_VIDEO_MAX_BYTES", 0),
         "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),
         "max_post_upload_bytes": getattr(settings, "MAX_POST_UPLOAD_BYTES", 0),
         "upload_chunk_size": getattr(settings, "UPLOAD_CHUNK_SIZE", 1024 * 1024),
@@ -2404,6 +2406,7 @@ def upload_chunk_complete(request):
     temp_file = tempfile.NamedTemporaryFile(delete=False)
     assembled_abs = temp_file.name
     temp_file.close()
+    assembled_size = 0
 
     # 🔹 Merge chunks
     try:
@@ -2415,9 +2418,40 @@ def upload_chunk_complete(request):
 
                 with open(chunk_path, "rb") as src:
                     shutil.copyfileobj(src, out, length=1024 * 1024)
+        assembled_size = os.path.getsize(assembled_abs)
 
     except Exception as e:
         return JsonResponse({"error": f"Assemble failed: {str(e)}"}, status=500)
+
+    try:
+        max_bytes = int(
+            getattr(
+                settings,
+                "MAX_REEL_UPLOAD_BYTES" if post_type == "reel" else "MAX_POST_UPLOAD_BYTES",
+                0,
+            ) or 0
+        )
+        if max_bytes and assembled_size > max_bytes:
+            return JsonResponse({"error": "File too large."}, status=400)
+    except Exception:
+        pass
+
+    if _cloudinary_upload_ready() and post_type == "reel":
+        try:
+            cloudinary_video_max = int(getattr(settings, "CLOUDINARY_VIDEO_MAX_BYTES", 0) or 0)
+        except Exception:
+            cloudinary_video_max = 0
+        if cloudinary_video_max and assembled_size > cloudinary_video_max:
+            limit_mb = max(1, cloudinary_video_max // (1024 * 1024))
+            return JsonResponse(
+                {
+                    "error": (
+                        f"Current cloud video limit is {limit_mb} MB. "
+                        "Please upgrade cloud storage settings before uploading longer videos."
+                    )
+                },
+                status=400,
+            )
 
     upload_error = None
     try:

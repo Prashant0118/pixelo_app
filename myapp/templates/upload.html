@@ -890,8 +890,12 @@ const safeStorage = {
   const CLOUDINARY_CLOUD_NAME = "{{ cloudinary_cloud_name|escapejs }}";
   const CLOUDINARY_UPLOAD_PRESET = "{{ cloudinary_upload_preset|escapejs }}";
   const ALLOW_UNSIGNED_UPLOAD = {{ allow_unsigned_upload|yesno:"true,false" }};
+  const ALLOW_SERVER_VIDEO_FALLBACK = {{ allow_server_video_fallback|yesno:"true,false" }};
   const DIRECT_UPLOAD_MIN_BYTES = {{ direct_upload_min_bytes|default:0 }};
   const MAX_DIRECT_UPLOAD_BYTES = {{ max_direct_upload_bytes|default:0 }};
+  const CLOUDINARY_VIDEO_MAX_BYTES = {{ cloudinary_video_max_bytes|default:0 }};
+  const MAX_REEL_UPLOAD_BYTES = {{ max_reel_upload_bytes|default:0 }};
+  const MAX_POST_UPLOAD_BYTES = {{ max_post_upload_bytes|default:0 }};
   const CLOUDINARY_SIMPLE_UPLOAD_LIMIT = 100 * 1024 * 1024;
   const CLOUDINARY_CHUNK_SIZE = 20 * 1024 * 1024;
 
@@ -901,6 +905,25 @@ const safeStorage = {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  function effectiveVideoUploadLimit(postType) {
+    const appLimit = postType === 'reel' ? MAX_REEL_UPLOAD_BYTES : MAX_POST_UPLOAD_BYTES;
+    if (!DIRECT_UPLOAD_ENABLED || !CLOUDINARY_VIDEO_MAX_BYTES) return appLimit;
+    if (!appLimit) return CLOUDINARY_VIDEO_MAX_BYTES;
+    return Math.min(appLimit, CLOUDINARY_VIDEO_MAX_BYTES);
+  }
+
+  function validateClientUpload(file, postType) {
+    if (!file) return '';
+    const appLimit = postType === 'reel' ? MAX_REEL_UPLOAD_BYTES : MAX_POST_UPLOAD_BYTES;
+    if (appLimit && file.size > appLimit) {
+      return `Selected file is too large. Maximum allowed is ${formatFileSize(appLimit)}.`;
+    }
+    if (isVideoFile(file) && DIRECT_UPLOAD_ENABLED && CLOUDINARY_VIDEO_MAX_BYTES && file.size > CLOUDINARY_VIDEO_MAX_BYTES) {
+      return `Current video upload limit is ${formatFileSize(CLOUDINARY_VIDEO_MAX_BYTES)}. Upgrade cloud upload plan/settings for longer videos.`;
+    }
+    return '';
   }
 
   function formatDuration(seconds) {
@@ -980,6 +1003,16 @@ const safeStorage = {
       return Boolean(ALLOW_UNSIGNED_UPLOAD && CLOUDINARY_UPLOAD_PRESET && CLOUDINARY_CLOUD_NAME);
     }
     return Boolean(CLOUDINARY_CLOUD_NAME);
+  }
+
+  function shouldFallbackToServerChunkUpload(error, file) {
+    if (!ALLOW_SERVER_VIDEO_FALLBACK) return false;
+    if (!file || !isVideoFile(file)) return false;
+    const message = String((error && error.message) || error || '').toLowerCase();
+    return (
+      message.includes('cloudinary chunk upload failed') ||
+      message.includes('cloudinary upload failed')
+    );
   }
 
   function cloudinaryResourceTypeForFile(file) {
@@ -1298,6 +1331,12 @@ const safeStorage = {
 
     const postType = document.querySelector('input[name="type"]:checked').value;
     const caption = (document.querySelector('textarea[name="caption"]').value || '').trim();
+    const validationError = validateClientUpload(file, postType);
+    if (validationError) {
+      e.preventDefault();
+      showMessage(validationError, 'error');
+      return;
+    }
 
     if (isVideoFile(file)) {
       e.preventDefault();
@@ -1306,7 +1345,17 @@ const safeStorage = {
       progressWrap.style.display = 'flex';
       try {
         if (shouldUseDirectVideoUpload(file)) {
-          await uploadDirectToCloudinary(file, postType, caption);
+          try {
+            await uploadDirectToCloudinary(file, postType, caption);
+          } catch (directUploadError) {
+            if (!shouldFallbackToServerChunkUpload(directUploadError, file)) {
+              throw directUploadError;
+            }
+            console.warn('Cloudinary rejected direct upload, retrying with server chunk upload.', directUploadError);
+            showMessage('Large video ko alternate upload mode se retry kiya ja raha hai...', 'info');
+            updateProgressBar(0);
+            await uploadInChunks(file, postType, caption);
+          }
         } else {
           await uploadInChunks(file, postType, caption);
         }

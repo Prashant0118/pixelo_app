@@ -37,6 +37,18 @@ class UploadViewTests(TestCase):
         self.assertContains(response, "const PARALLEL_UPLOADS = 1;")
 
     @override_settings(
+        CAN_USE_CLOUDINARY=True,
+        CLOUDINARY_CLOUD_NAME="demo-cloud",
+        CLOUDINARY_API_KEY="demo-key",
+        CLOUDINARY_API_SECRET="demo-secret",
+        CLOUDINARY_VIDEO_MAX_BYTES=100,
+    )
+    def test_upload_page_exposes_cloudinary_video_limit(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("upload"))
+        self.assertContains(response, "const CLOUDINARY_VIDEO_MAX_BYTES = 100;")
+
+    @override_settings(
         CAN_USE_CLOUDINARY=False,
         DEFAULT_FILE_STORAGE="django.core.files.storage.FileSystemStorage",
         STORAGES={
@@ -258,6 +270,43 @@ class ChunkCompleteUploadTests(TestCase):
         self.assertEqual(complete_response.status_code, 200)
         mock_upload_large.assert_called_once()
         mock_upload.assert_not_called()
+
+    @override_settings(
+        CAN_USE_CLOUDINARY=True,
+        CLOUDINARY_CLOUD_NAME="demo-cloud",
+        CLOUDINARY_API_KEY="demo-key",
+        CLOUDINARY_API_SECRET="demo-secret",
+        CLOUDINARY_VIDEO_MAX_BYTES=5,
+    )
+    def test_chunk_complete_rejects_video_above_cloudinary_limit(self):
+        upload_id = "cloudinary_limit_upload"
+        chunk = SimpleUploadedFile("big.mp4", b"video-bytes", content_type="video/mp4")
+
+        chunk_response = self.client.post(
+            reverse("upload_chunk"),
+            {
+                "upload_id": upload_id,
+                "chunk_index": "0",
+                "total_chunks": "1",
+                "filename": "big.mp4",
+                "chunk": chunk,
+            },
+        )
+        self.assertEqual(chunk_response.status_code, 200)
+
+        complete_response = self.client.post(
+            reverse("upload_chunk_complete"),
+            {
+                "upload_id": upload_id,
+                "total_chunks": "1",
+                "filename": "big.mp4",
+                "type": "reel",
+                "caption": "Too large for cloud plan",
+            },
+        )
+
+        self.assertEqual(complete_response.status_code, 400)
+        self.assertIn("Current cloud video limit", complete_response.json()["error"])
 
 
 class CloudinaryStorageTests(TestCase):
