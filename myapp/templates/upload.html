@@ -52,671 +52,386 @@ window.addEventListener('unhandledrejection', (event) => {
 
 <!-- Fallback styles in case CDN CSS fails due to Tracking Prevention -->
 <style>
-/* Minimal fallback styles */
-:root {
-  --bs-body-bg: #1a1a1a;
-  --bs-body-color: #e0e0e0;
-  --bs-primary: #2f8dff;
-}
-
-body {
-  background-color: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-}
-
-.btn, button {
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: 1px solid var(--bs-primary);
-  background: var(--bs-primary);
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-input[type="text"], input[type="file"], textarea {
-  width: 100%;
-  padding: 10px;
-  margin: 8px 0;
-  border: 1px solid #555;
-  border-radius: 6px;
-  background: #2a2a2a;
-  color: #e0e0e0;
-  box-sizing: border-box;
-}
-
-.container {
-  max-width: 600px;
-  margin: 20px auto;
-  padding: 20px;
-}
-
-.alert {
-  padding: 12px;
-  margin: 10px 0;
-  border-radius: 6px;
-}
-
-.alert-danger {
-  background: #4a2a2a;
-  color: #ff6b6b;
-  border: 1px solid #ff6b6b;
-}
-
-.alert-success {
-  background: #2a4a2a;
-  color: #51cf66;
-  border: 1px solid #51cf66;
-}
-
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid #f3f3f3;
-  border-top: 2px solid var(--bs-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* ========== Animations ========== */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+  :root {
+    --upload-bg: var(--bs-body-bg, #f4f7fb);
+    --upload-card: var(--surface, #ffffff);
+    --upload-card-soft: var(--surface-2, #f8fafc);
+    --upload-border: var(--border, #d6dde8);
+    --upload-text: var(--text-strong, #111827);
+    --upload-muted: var(--muted, #5b6575);
+    --upload-primary: #2563eb;
+    --upload-success: #15803d;
+    --upload-danger: #dc2626;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  body {
+    background: var(--upload-bg);
   }
-}
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
+  .upload-page-wrapper {
+    max-width: 980px;
+    margin: 28px auto 40px;
+    padding: 0 16px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .upload-header {
+    text-align: center;
+    margin-bottom: 22px;
   }
-}
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
+  .upload-header h1 {
+    margin: 0 0 8px;
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    color: var(--upload-text);
   }
-  50% {
-    opacity: 0.5;
+
+  .upload-header p {
+    margin: 0;
+    color: var(--upload-muted);
+    font-size: 0.95rem;
   }
-}
 
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.upload-page-wrapper {
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 0 16px;
-  animation: fadeIn 0.5s ease;
-}
-
-.upload-header {
-  margin-bottom: 40px;
-  text-align: center;
-  opacity: 0;
-  animation: fadeIn 0.6s ease 0.1s forwards;
-}
-
-.upload-header h1 {
-  font-size: 32px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  color: var(--text-strong);
-  letter-spacing: -0.5px;
-}
-
-.upload-header p {
-  color: var(--muted);
-  font-size: 14px;
-  margin: 0;
-  font-weight: 400;
-}
-
-.upload-main-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  align-items: start;
-  opacity: 0;
-  animation: fadeIn 0.6s ease 0.2s forwards;
-}
-
-@media (max-width: 768px) {
   .upload-main-container {
-    grid-template-columns: 1fr;
-    gap: 24px;
+    display: grid;
+    gap: 18px;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
   }
-}
 
-/* ========== Form Section ========== */
-.upload-form-section {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 28px;
-  transition: all 0.3s ease;
-}
+  .upload-form-section,
+  .preview-section {
+    background: var(--upload-card);
+    border: 1px solid var(--upload-border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 10px 26px rgba(16, 24, 40, 0.07);
+  }
 
-.form-group {
-  margin-bottom: 22px;
-}
+  .form-group {
+    margin-bottom: 18px;
+  }
 
-.form-group:last-child {
-  margin-bottom: 0;
-}
+  .form-label {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--upload-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 
-.form-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--muted);
-  margin-bottom: 12px;
-  transition: color 0.3s ease;
-}
+  .form-group small {
+    margin-top: 8px;
+    display: block;
+    color: var(--upload-muted);
+    font-size: 0.8rem;
+  }
 
-/* Type Selection */
-.type-selector {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-}
+  .type-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
 
-.type-option {
-  flex: 1;
-}
+  .type-option input[type="radio"] {
+    display: none;
+  }
 
-.type-option input[type="radio"] {
-  display: none;
-}
+  .type-option label {
+    width: 100%;
+    border: 1px solid var(--upload-border);
+    border-radius: 10px;
+    background: var(--upload-card-soft);
+    color: var(--upload-text);
+    min-height: 56px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  }
 
-.type-option label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px 12px;
-  background: var(--surface-2);
-  border: 2px solid var(--border);
-  border-radius: 50px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-  min-height: 70px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-}
+  .type-option label:hover {
+    border-color: var(--upload-primary);
+  }
 
-.form-group small {
-  display: block;
-  margin-top: 8px;
-  color: var(--muted);
-  font-size: 12px;
-}
+  .type-option input[type="radio"]:checked + label {
+    background: #e8f0ff;
+    border-color: var(--upload-primary);
+    color: #1e40af;
+  }
 
-.type-selector {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 12px;
-}
+  .type-icon {
+    font-size: 1rem;
+    line-height: 1;
+  }
 
-.type-option label:hover {
-  border-color: #2f8dff;
-  transform: translateY(-1px);
-  box-shadow: 0 5px 18px rgba(47, 141, 255, 0.13);
-}
+  .file-input-wrapper {
+    position: relative;
+  }
 
-.type-option input[type="radio"]:checked + label {
-  background: #2f8dff;
-  color: #ffffff;
-  border-color: #2f8dff;
-  box-shadow: 0 0 0 1px rgba(47, 141, 255, 0.25);
-}
+  #mediaInput {
+    display: none;
+  }
 
-.type-option input[type="radio"]:checked + label .type-icon {
-  transform: scale(1.2);
-}
+  .file-input-label {
+    min-height: 155px;
+    border: 1.5px dashed var(--upload-border);
+    border-radius: 12px;
+    background: var(--upload-card-soft);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
 
+  .file-input-label:hover,
+  .file-input-label.has-file {
+    border-color: var(--upload-primary);
+    background: #f1f6ff;
+  }
 
-.type-option label::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  right: 0;
-  bottom: 0;
-  background: rgba(47, 141, 255, 0.08);
-  transition: left 0.3s ease;
-  z-index: 0;
-}
+  .upload-icon {
+    font-size: 1.5rem;
+    color: var(--upload-primary);
+  }
 
-.type-option label:hover {
-  border-color: #2f8dff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(47, 141, 255, 0.1);
-}
+  .file-input-text {
+    color: var(--upload-text);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
 
-.type-option label > * {
-  position: relative;
-  z-index: 1;
-}
+  .file-input-subtext {
+    color: var(--upload-muted);
+    font-size: 0.82rem;
+  }
 
-.type-option input[type="radio"]:checked + label {
-  background: rgba(47, 141, 255, 0.12);
-  border-color: #2f8dff;
-  color: #2f8dff;
-  box-shadow: 0 0 0 3px rgba(47, 141, 255, 0.1);
-}
+  .caption-textarea {
+    width: 100%;
+    min-height: 95px;
+    border: 1px solid var(--upload-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #fff;
+    color: var(--upload-text);
+    resize: vertical;
+  }
 
-.type-icon {
-  font-size: 24px;
-  transition: transform 0.3s ease;
-}
+  .caption-textarea:focus {
+    border-color: var(--upload-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    outline: none;
+  }
 
-.type-option input[type="radio"]:checked + label .type-icon {
-  transform: scale(1.1);
-}
+  .submit-button {
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 14px;
+    background: var(--upload-primary);
+    color: #fff;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+  }
 
-/* File Input */
-.file-input-wrapper {
-  position: relative;
-  margin-bottom: 20px;
-}
+  .submit-button:hover:not(:disabled) {
+    background: #1d4ed8;
+  }
 
-.file-input-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 36px 20px;
-  background: var(--surface-2);
-  border: 2px dashed var(--border);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 160px;
-  position: relative;
-  overflow: hidden;
-}
+  .submit-button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
 
-.file-input-label::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, transparent 0%, rgba(47, 141, 255, 0.03) 100%);
-  pointer-events: none;
-}
+  .preview-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
 
-.file-input-label:hover {
-  border-color: #2f8dff;
-  background: var(--surface-2);
-  box-shadow: 0 8px 24px rgba(47, 141, 255, 0.12);
-  transform: translateY(-2px);
-}
+  .preview-placeholder {
+    min-height: 300px;
+    border-radius: 12px;
+    border: 1px solid var(--upload-border);
+    background: var(--upload-card-soft);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--upload-muted);
+  }
 
-.file-input-label.has-file {
-  border-color: #2f8dff;
-  background: rgba(47, 141, 255, 0.08);
-}
+  .preview-placeholder-icon {
+    font-size: 2rem;
+    color: #6b7280;
+  }
 
-#mediaInput {
-  display: none;
-}
+  .preview-image,
+  .preview-video {
+    width: 100%;
+    max-height: 420px;
+    object-fit: cover;
+    border-radius: 12px;
+    background: #000;
+  }
 
-.upload-icon {
-  font-size: 32px;
-  color: #2f8dff;
-  transition: all 0.3s ease;
-  position: relative;
-  z-index: 1;
-}
+  .preview-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
 
-.file-input-label:hover .upload-icon {
-  transform: translateY(-4px);
-}
+  .preview-info-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--upload-border);
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.9rem;
+  }
 
-.file-input-text {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-  text-align: center;
-  position: relative;
-  z-index: 1;
-}
+  .preview-info-item:last-child {
+    border-bottom: none;
+  }
 
-.file-input-subtext {
-  font-size: 12px;
-  color: var(--muted);
-  position: relative;
-  z-index: 1;
-}
+  .preview-info-label {
+    color: var(--upload-muted);
+  }
 
-/* Textarea */
-.caption-textarea {
-  width: 100%;
-  background: var(--input-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 14px;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 13px;
-  resize: vertical;
-  transition: all 0.3s ease;
-  min-height: 100px;
-}
+  .preview-info-value {
+    color: var(--upload-text);
+    font-weight: 600;
+    max-width: 58%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+  }
 
-.caption-textarea:focus {
-  outline: none;
-  border-color: #2f8dff;
-  box-shadow: 0 0 0 3px rgba(47, 141, 255, 0.1);
-  transform: translateY(-1px);
-}
+  .preview-actions {
+    margin-top: 8px;
+  }
 
-.caption-textarea::placeholder {
-  color: var(--muted);
-  opacity: 0.7;
-}
+  .remove-file-btn {
+    width: 100%;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #fff1f2;
+    color: var(--upload-danger);
+    font-weight: 600;
+    cursor: pointer;
+  }
 
-/* Submit Button */
-.submit-button {
-  width: 100%;
-  padding: 13px 20px;
-  background: linear-gradient(135deg, #2f8dff 0%, #0066cc 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(47, 141, 255, 0.2);
-}
+  .remove-file-btn:hover {
+    background: #ffe4e6;
+  }
 
-.submit-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.1);
-  transition: left 0.4s ease;
-}
+  .message-box {
+    display: none;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
 
-.submit-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(47, 141, 255, 0.3);
-}
+  .message-box.error {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+  }
 
-.submit-button:hover:not(:disabled)::before {
-  left: 100%;
-}
+  .message-box.info {
+    color: #1e40af;
+    background: #eff6ff;
+    border-color: #bfdbfe;
+  }
 
-.submit-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  box-shadow: 0 4px 12px rgba(47, 141, 255, 0.1);
-}
+  .message-box.success {
+    color: #14532d;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+  }
 
-/* Loading spinner */
-.spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
+  #progressWrap {
+    display: none;
+    margin-bottom: 16px;
+  }
 
-/* Preview Section */
-.preview-section {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  transition: all 0.3s ease;
-}
+  .progress-container {
+    border: 1px solid var(--upload-border);
+    border-radius: 10px;
+    background: var(--upload-card-soft);
+    padding: 10px 12px;
+  }
 
-.preview-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 1;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--muted);
-  gap: 12px;
-  min-height: 300px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
+  .progress-bar-wrapper {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: #dbe4f0;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
 
-.preview-placeholder::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, transparent 0%, rgba(47, 141, 255, 0.04) 100%);
-  pointer-events: none;
-}
+  #progressBar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    transition: width 0.3s ease;
+  }
 
-.preview-placeholder-icon {
-  font-size: 48px;
-  opacity: 0.4;
-  transition: transform 0.3s ease;
-}
+  .progress-text {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--upload-muted);
+    font-size: 0.8rem;
+  }
 
-.preview-placeholder:hover .preview-placeholder-icon {
-  transform: scale(1.05);
-}
+  .progress-percentage {
+    color: var(--upload-primary);
+    font-weight: 700;
+  }
 
-.preview-image,
-.preview-video {
-  width: 100%;
-  border-radius: 10px;
-  background: #000;
-  object-fit: cover;
-  animation: fadeIn 0.4s ease;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
 
-.preview-info {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  opacity: 0;
-  animation: fadeIn 0.4s ease 0.15s forwards;
-}
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
 
-.preview-info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.preview-info-item:last-child {
-  border-bottom: none;
-}
-
-.preview-info-label {
-  color: var(--muted);
-  font-weight: 500;
-}
-
-.preview-info-value {
-  color: var(--text-strong);
-  font-weight: 600;
-}
-
-.preview-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.remove-file-btn {
-  flex: 1;
-  padding: 10px 14px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--danger);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-.remove-file-btn:hover {
-  background: rgba(255, 79, 109, 0.08);
-  border-color: var(--danger);
-  transform: translateY(-1px);
-}
-
-/* Messages */
-.message-box {
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  margin-bottom: 16px;
-  display: none;
-  animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border-left: 3px solid transparent;
-}
-
-.message-box.error {
-  background: rgba(255, 79, 109, 0.1);
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.message-box.info {
-  background: rgba(47, 141, 255, 0.1);
-  color: #2f8dff;
-  border-color: #2f8dff;
-}
-
-.message-box.success {
-  background: rgba(76, 175, 80, 0.1);
-  color: #4caf50;
-  border-color: #4caf50;
-}
-
-/* Progress Bar */
-#progressWrap {
-  display: none;
-  animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.progress-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-  background: var(--surface-2);
-  border-radius: 8px;
-  border: 1px solid var(--border);
-}
-
-.progress-bar-wrapper {
-  height: 4px;
-  background: var(--surface);
-  border-radius: 2px;
-  overflow: hidden;
-  position: relative;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-#progressBar {
-  height: 100%;
-  background: linear-gradient(90deg, #2f8dff 0%, #0066cc 100%);
-  width: 0%;
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 2px;
-  box-shadow: 0 0 8px rgba(47, 141, 255, 0.4);
-}
-
-.progress-text {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.progress-percentage {
-  color: #2f8dff;
-  font-weight: 700;
-}
+  @media (max-width: 860px) {
+    .upload-main-container {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 
 <div class="upload-page-wrapper">
@@ -744,19 +459,19 @@ input[type="text"], input[type="file"], textarea {
             <div class="type-option">
               <input type="radio" id="typePost" name="type" value="post" checked>
               <label for="typePost" class="tab-btn">
-                <span class="type-icon">­ƒû╝´©Å</span>
+                <span class="type-icon"><i class="bi bi-image"></i></span>
                 <span>Post</span>
               </label>
             </div>
             <div class="type-option">
               <input type="radio" id="typeReel" name="type" value="reel">
               <label for="typeReel" class="tab-btn">
-                <span class="type-icon">­ƒÄ¼</span>
+                <span class="type-icon"><i class="bi bi-film"></i></span>
                 <span>Reel</span>
               </label>
             </div>
           </div>
-          <small style="color: var(--muted);">Reels are videos under 60 seconds; longer videos become posts.</small>
+          <small style="color: var(--upload-muted);">Reels are videos under 60 seconds; longer videos become posts.</small>
         </div>
 
         <!-- File Upload -->
@@ -807,18 +522,18 @@ input[type="text"], input[type="file"], textarea {
       <div>
         <span class="form-label">Preview</span>
         <div class="preview-placeholder" id="previewContainer">
-          <div class="preview-placeholder-icon">­ƒôü</div>
-          <span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>
+          <div class="preview-placeholder-icon"><i class="bi bi-card-image"></i></div>
+          <span style="font-size: 13px; font-weight: 500; color: var(--upload-text);">No file selected</span>
         </div>
       </div>
 
       <div class="preview-info" id="previewInfo" style="display: none;">
         <div class="preview-info-item">
-          <span class="preview-info-label">­ƒôä Name</span>
+          <span class="preview-info-label">Name</span>
           <span class="preview-info-value" id="previewName" title="">-</span>
         </div>
         <div class="preview-info-item">
-          <span class="preview-info-label">­ƒÆ¥ Size</span>
+          <span class="preview-info-label">Size</span>
           <span class="preview-info-value" id="previewSize">-</span>
         </div>
         <div class="preview-info-item">
@@ -826,7 +541,7 @@ input[type="text"], input[type="file"], textarea {
           <span class="preview-info-value" id="previewType">-</span>
         </div>
         <div class="preview-info-item" id="previewDurationItem" style="display: none;">
-          <span class="preview-info-label">ÔÅ▒´©Å Duration</span>
+          <span class="preview-info-label">Duration</span>
           <span class="preview-info-value" id="previewDuration">-</span>
         </div>
         <div class="preview-actions">
@@ -956,7 +671,7 @@ const safeStorage = {
   }
 
   function clearPreview() {
-    previewContainer.innerHTML = '<div class="preview-placeholder-icon">­ƒôü</div><span style="font-size: 13px; font-weight: 500; color: var(--text);">No file selected</span>';
+    previewContainer.innerHTML = '<div class="preview-placeholder-icon"><i class="bi bi-card-image"></i></div><span style="font-size: 13px; font-weight: 500; color: var(--upload-text);">No file selected</span>';
     previewInfo.style.display = 'none';
     fileInputLabel.classList.remove('has-file');
     if (previewTypeEl) previewTypeEl.textContent = '-';
@@ -1311,7 +1026,7 @@ const safeStorage = {
             postRadio.checked = true;
             setAccept();
           }
-          showMessage('ÔÅ▒´©Å Video is longer than 1:00 ÔÇö uploading as Post', 'info');
+          showMessage('Video is longer than 1:00, uploading as Post.', 'info');
         }
       };
       previewContainer.innerHTML = `<video controls class="preview-video"><source src="${url}"></video>`;
@@ -1359,10 +1074,10 @@ const safeStorage = {
         } else {
           await uploadInChunks(file, postType, caption);
         }
-        showMessage('Ô£à Video uploaded successfully!', 'success');
+        showMessage('Video uploaded successfully!', 'success');
       } catch (err) {
         console.error('Upload error:', err);
-        showMessage('ÔØî Upload failed. Please try again.', 'error');
+        showMessage('Upload failed. Please try again.', 'error');
       } finally {
         setBusy(false);
       }
