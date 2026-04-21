@@ -362,6 +362,10 @@ MAX_POST_UPLOAD_BYTES = int(
 UPLOAD_CHUNK_SIZE = int(
     os.getenv("UPLOAD_CHUNK_SIZE", str(2 * 1024 * 1024))
 )
+UPLOAD_PARALLEL_CHUNKS = max(
+    1,
+    int(os.getenv("UPLOAD_PARALLEL_CHUNKS", "1")),
+)
 # Only attempt server-side duration checks for reasonably sized files (up to 500MB).
 # Extended to help detect long videos that should be converted to posts.
 MAX_REEL_DURATION_CHECK_BYTES = int(

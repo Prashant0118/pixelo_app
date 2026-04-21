@@ -30,6 +30,12 @@ class UploadViewTests(TestCase):
         self.assertContains(response, "Post")
         self.assertContains(response, "Reel")
 
+    @override_settings(UPLOAD_PARALLEL_CHUNKS=1)
+    def test_upload_page_uses_safe_chunk_parallelism(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("upload"))
+        self.assertContains(response, "const PARALLEL_UPLOADS = 1;")
+
     @override_settings(
         CAN_USE_CLOUDINARY=False,
         DEFAULT_FILE_STORAGE="django.core.files.storage.FileSystemStorage",

@@ -1,6 +1,7 @@
 import json
 import mimetypes
 import os
+import shutil
 import struct
 import subprocess
 import tempfile
@@ -585,6 +586,7 @@ def _upload_page_context(error=None):
         "max_reel_upload_bytes": getattr(settings, "MAX_REEL_UPLOAD_BYTES", 0),
         "max_post_upload_bytes": getattr(settings, "MAX_POST_UPLOAD_BYTES", 0),
         "upload_chunk_size": getattr(settings, "UPLOAD_CHUNK_SIZE", 1024 * 1024),
+        "upload_parallel_chunks": getattr(settings, "UPLOAD_PARALLEL_CHUNKS", 1),
     }
 
 
@@ -2412,7 +2414,7 @@ def upload_chunk_complete(request):
                     return JsonResponse({"error": f"Missing chunk {idx}"}, status=400)
 
                 with open(chunk_path, "rb") as src:
-                    out.write(src.read())
+                    shutil.copyfileobj(src, out, length=1024 * 1024)
 
     except Exception as e:
         return JsonResponse({"error": f"Assemble failed: {str(e)}"}, status=500)
