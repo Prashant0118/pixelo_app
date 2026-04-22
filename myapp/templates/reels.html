@@ -358,7 +358,30 @@ function handleDoubleTapLike(postId) {
 function toggleComments(postId) {
     const panel = document.getElementById(`reel-comments-${postId}`);
     if (!panel) return;
-    panel.classList.toggle("open");
+
+    const feed = document.getElementById("reelsFeed");
+    const isOpening = !panel.classList.contains("open");
+
+    // Close other open panels to avoid stacked UI.
+    document.querySelectorAll(".reel-comments.open").forEach((other) => {
+        if (other !== panel) other.classList.remove("open");
+    });
+
+    panel.classList.toggle("open", isOpening);
+
+    if (feed) {
+        const anyOpen = Boolean(document.querySelector(".reel-comments.open"));
+        feed.classList.toggle("comments-open", anyOpen);
+    }
+
+    if (isOpening) {
+        const input = document.getElementById(`reel-comment-input-${postId}`);
+        if (input) {
+            setTimeout(() => {
+                try { input.focus(); } catch (e) {}
+            }, 50);
+        }
+    }
 }
 
 function addComment(postId) {
@@ -413,6 +436,14 @@ function deleteComment(commentId, postId) {
     })
     .catch(() => {});
 }
+
+// Prevent reel-level gestures (double-tap like / drag) from interfering with the comments sheet.
+document.querySelectorAll(".reel-comments").forEach((panel) => {
+    ["click", "dblclick", "pointerdown"].forEach((evt) => {
+        panel.addEventListener(evt, (e) => e.stopPropagation());
+    });
+    panel.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+});
 
 function openShareModal(postId) {
     activeSharePostId = postId;

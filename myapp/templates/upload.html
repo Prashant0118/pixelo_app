@@ -53,7 +53,7 @@ window.addEventListener('unhandledrejection', (event) => {
 <!-- Fallback styles in case CDN CSS fails due to Tracking Prevention -->
 <style>
   :root {
-    --upload-bg: var(--bs-body-bg, #f4f7fb);
+    --upload-bg: var(--bs-body-bg, #0b0f14);
     --upload-card: var(--surface, #ffffff);
     --upload-card-soft: var(--surface-2, #f8fafc);
     --upload-border: var(--border, #d6dde8);
@@ -69,8 +69,8 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 
   .upload-page-wrapper {
-    max-width: 980px;
-    margin: 28px auto 40px;
+    max-width: 620px;
+    margin: 22px auto 36px;
     padding: 0 16px;
   }
 
@@ -92,10 +92,7 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 
   .upload-main-container {
-    display: grid;
-    gap: 18px;
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
+    display: block;
   }
 
   .upload-form-section,
@@ -179,7 +176,7 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 
   .file-input-label {
-    min-height: 155px;
+    min-height: 120px;
     border: 1.5px dashed var(--upload-border);
     border-radius: 12px;
     background: var(--upload-card-soft);
@@ -265,7 +262,7 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 
   .preview-placeholder {
-    min-height: 300px;
+    min-height: 220px;
     border-radius: 12px;
     border: 1px solid var(--upload-border);
     background: var(--upload-card-soft);
@@ -429,15 +426,15 @@ window.addEventListener('unhandledrejection', (event) => {
 
   @media (max-width: 860px) {
     .upload-main-container {
-      grid-template-columns: 1fr;
+      display: block;
     }
   }
 </style>
 
 <div class="upload-page-wrapper">
   <div class="upload-header">
-    <h1>Create New Post</h1>
-    <p>Share your best moments with the community</p>
+    <h1>Upload</h1>
+    <p>Upload a photo (Post) or a video (Reel)</p>
   </div>
 
   {% if error %}
@@ -447,7 +444,6 @@ window.addEventListener('unhandledrejection', (event) => {
   {% endif %}
 
   <div class="upload-main-container">
-    <!-- Left Section: Form -->
     <div class="upload-form-section">
       <form method="POST" enctype="multipart/form-data" id="simpleUploadForm">
         {% csrf_token %}
@@ -487,6 +483,39 @@ window.addEventListener('unhandledrejection', (event) => {
           </div>
         </div>
 
+        <!-- Simple inline preview -->
+        <div class="form-group">
+          <span class="form-label">Preview</span>
+          <div class="preview-placeholder" id="previewContainer">
+            <div class="preview-placeholder-icon"><i class="bi bi-card-image"></i></div>
+            <span style="font-size: 13px; font-weight: 500; color: var(--upload-text);">No file selected</span>
+          </div>
+
+          <div class="preview-info" id="previewInfo" style="display: none;">
+            <div class="preview-info-item">
+              <span class="preview-info-label">Name</span>
+              <span class="preview-info-value" id="previewName" title="">-</span>
+            </div>
+            <div class="preview-info-item">
+              <span class="preview-info-label">Size</span>
+              <span class="preview-info-value" id="previewSize">-</span>
+            </div>
+            <div class="preview-info-item">
+              <span class="preview-info-label">Type</span>
+              <span class="preview-info-value" id="previewType">-</span>
+            </div>
+            <div class="preview-info-item" id="previewDurationItem" style="display: none;">
+              <span class="preview-info-label">Duration</span>
+              <span class="preview-info-value" id="previewDuration">-</span>
+            </div>
+            <div class="preview-actions">
+              <button type="button" class="remove-file-btn" id="removeFileBtn">
+                <i class="bi bi-trash"></i> Remove
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Message Box -->
         <div id="message" class="message-box"></div>
 
@@ -515,41 +544,6 @@ window.addEventListener('unhandledrejection', (event) => {
           <span class="submit-btn-text">Upload</span>
         </button>
       </form>
-    </div>
-
-    <!-- Right Section: Preview -->
-    <div class="preview-section">
-      <div>
-        <span class="form-label">Preview</span>
-        <div class="preview-placeholder" id="previewContainer">
-          <div class="preview-placeholder-icon"><i class="bi bi-card-image"></i></div>
-          <span style="font-size: 13px; font-weight: 500; color: var(--upload-text);">No file selected</span>
-        </div>
-      </div>
-
-      <div class="preview-info" id="previewInfo" style="display: none;">
-        <div class="preview-info-item">
-          <span class="preview-info-label">Name</span>
-          <span class="preview-info-value" id="previewName" title="">-</span>
-        </div>
-        <div class="preview-info-item">
-          <span class="preview-info-label">Size</span>
-          <span class="preview-info-value" id="previewSize">-</span>
-        </div>
-        <div class="preview-info-item">
-          <span class="preview-info-label">Type</span>
-          <span class="preview-info-value" id="previewType">-</span>
-        </div>
-        <div class="preview-info-item" id="previewDurationItem" style="display: none;">
-          <span class="preview-info-label">Duration</span>
-          <span class="preview-info-value" id="previewDuration">-</span>
-        </div>
-        <div class="preview-actions">
-          <button type="button" class="remove-file-btn" id="removeFileBtn">
-            <i class="bi bi-trash"></i> Remove
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </div>

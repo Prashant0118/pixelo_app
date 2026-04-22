@@ -40,9 +40,9 @@
                                     <a href="{{ n.target_url }}" class="notif-preview">
                                         {% with media_url=n.post.media_url %}
                                         {% if media_url %}
-                                            {% if n.post.type == "reel" %}
+                                            {% if n.post.is_video or n.post.type == "reel" %}
                                                 <video muted playsinline preload="metadata">
-                                                    <source src="{{ media_url }}">
+                                                    <source src="{{ media_url }}" type="video/mp4">
                                                 </video>
                                             {% else %}
                                                 <img src="{{ media_url }}" alt="post preview">
