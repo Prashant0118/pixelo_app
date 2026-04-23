@@ -360,11 +360,13 @@ MAX_POST_UPLOAD_BYTES = int(
 # Chunk size for large uploads (bytes). Optimize for speed vs memory/proxy timeouts.
 # 5MB chunks are optimal for most network conditions and provide good throughput.
 UPLOAD_CHUNK_SIZE = int(
-    os.getenv("UPLOAD_CHUNK_SIZE", str(2 * 1024 * 1024))
+    os.getenv("UPLOAD_CHUNK_SIZE", str(5 * 1024 * 1024))
 )
+# Parallel chunk uploads: improves throughput on good networks.
+# Cap to avoid overwhelming smaller servers / reverse proxies.
 UPLOAD_PARALLEL_CHUNKS = max(
     1,
-    int(os.getenv("UPLOAD_PARALLEL_CHUNKS", "1")),
+    min(4, int(os.getenv("UPLOAD_PARALLEL_CHUNKS", "3"))),
 )
 # Only attempt server-side duration checks for reasonably sized files (up to 500MB).
 # Extended to help detect long videos that should be converted to posts.

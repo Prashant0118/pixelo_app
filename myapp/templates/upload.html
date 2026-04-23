@@ -135,12 +135,13 @@ window.addEventListener('unhandledrejection', (event) => {
     display: none;
   }
 
-  .type-option label {
+  /* Override global theme_black.css element-level !important colors for this page */
+  .upload-page-wrapper .type-option label {
     width: 100%;
     border: 1px solid var(--upload-border);
     border-radius: 10px;
     background: var(--upload-card-soft);
-    color: var(--upload-text);
+    color: var(--upload-text) !important;
     min-height: 56px;
     font-size: 0.95rem;
     font-weight: 600;
@@ -152,14 +153,18 @@ window.addEventListener('unhandledrejection', (event) => {
     transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
   }
 
-  .type-option label:hover {
+  .upload-page-wrapper .type-option label:hover {
     border-color: var(--upload-primary);
   }
 
-  .type-option input[type="radio"]:checked + label {
-    background: #e8f0ff;
+  .upload-page-wrapper .type-option input[type="radio"]:checked + label {
+    background: var(--upload-primary);
     border-color: var(--upload-primary);
-    color: #1e40af;
+    color: #ffffff !important;
+  }
+
+  .upload-page-wrapper .type-option input[type="radio"]:checked + label i.bi {
+    color: #ffffff !important;
   }
 
   .type-icon {
@@ -607,6 +612,21 @@ const safeStorage = {
   const MAX_POST_UPLOAD_BYTES = {{ max_post_upload_bytes|default:0 }};
   const CLOUDINARY_SIMPLE_UPLOAD_LIMIT = 100 * 1024 * 1024;
   const CLOUDINARY_CHUNK_SIZE = 20 * 1024 * 1024;
+  const CLOUDINARY_MAX_RETRIES = 3;
+
+  async function retryAsync(fn, retries = 3, baseDelayMs = 400) {
+    let lastErr = null;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastErr = err;
+        if (attempt >= retries) break;
+        await new Promise((resolve) => setTimeout(resolve, baseDelayMs * attempt));
+      }
+    }
+    throw lastErr || new Error('Request failed');
+  }
 
   function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -704,14 +724,23 @@ const safeStorage = {
     progressText.textContent = value;
   }
 
-  function shouldUseDirectVideoUpload(file) {
-    if (!DIRECT_UPLOAD_ENABLED || !isVideoFile(file)) return false;
-    if (DIRECT_UPLOAD_MIN_BYTES && file.size < DIRECT_UPLOAD_MIN_BYTES) return false;
+  const DIRECT_IMAGE_MIN_BYTES = 1 * 1024 * 1024;
+
+  function shouldUseDirectUpload(file) {
+    if (!DIRECT_UPLOAD_ENABLED || !file) return false;
+    if (!CLOUDINARY_CLOUD_NAME) return false;
     if (MAX_DIRECT_UPLOAD_BYTES && file.size > MAX_DIRECT_UPLOAD_BYTES) return false;
-    if (file.size > CLOUDINARY_SIMPLE_UPLOAD_LIMIT) {
-      return Boolean(ALLOW_UNSIGNED_UPLOAD && CLOUDINARY_UPLOAD_PRESET && CLOUDINARY_CLOUD_NAME);
+
+    if (isVideoFile(file)) {
+      if (DIRECT_UPLOAD_MIN_BYTES && file.size < DIRECT_UPLOAD_MIN_BYTES) return false;
+      if (file.size > CLOUDINARY_SIMPLE_UPLOAD_LIMIT) {
+        return Boolean(ALLOW_UNSIGNED_UPLOAD && CLOUDINARY_UPLOAD_PRESET);
+      }
+      return true;
     }
-    return Boolean(CLOUDINARY_CLOUD_NAME);
+
+    // Images: use direct upload for larger files for faster UX (fewer server hops).
+    return file.size >= DIRECT_IMAGE_MIN_BYTES;
   }
 
   function shouldFallbackToServerChunkUpload(error, file) {
@@ -846,10 +875,14 @@ const safeStorage = {
         formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
         formData.append('folder', 'posts');
 
-        lastPayload = await uploadCloudinaryChunk(cloudinaryUrl, formData, {
-          'X-Unique-Upload-Id': uploadId,
-          'Content-Range': `bytes ${start}-${endInclusive}/${file.size}`,
-        });
+        lastPayload = await retryAsync(
+          () => uploadCloudinaryChunk(cloudinaryUrl, formData, {
+            'X-Unique-Upload-Id': uploadId,
+            'Content-Range': `bytes ${start}-${endInclusive}/${file.size}`,
+          }),
+          CLOUDINARY_MAX_RETRIES,
+          600,
+        );
 
         start = endExclusive;
         updateProgressBar((start / file.size) * 95);
@@ -872,7 +905,11 @@ const safeStorage = {
         formData.append('signature', signatureData.signature);
       }
 
-      uploadPayload = await uploadFileToCloudinary(cloudinaryUrl, formData, file);
+      uploadPayload = await retryAsync(
+        () => uploadFileToCloudinary(cloudinaryUrl, formData, file),
+        CLOUDINARY_MAX_RETRIES,
+        600,
+      );
     }
 
     const secureUrl = (uploadPayload && (uploadPayload.secure_url || uploadPayload.url)) || '';
@@ -1053,7 +1090,7 @@ const safeStorage = {
       updateProgressBar(0);
       progressWrap.style.display = 'flex';
       try {
-        if (shouldUseDirectVideoUpload(file)) {
+        if (shouldUseDirectUpload(file)) {
           try {
             await uploadDirectToCloudinary(file, postType, caption);
           } catch (directUploadError) {
@@ -1078,7 +1115,24 @@ const safeStorage = {
       return;
     }
 
-    // Standard form submission for non-video uploads.
+    if (shouldUseDirectUpload(file)) {
+      e.preventDefault();
+      setBusy(true);
+      updateProgressBar(0);
+      progressWrap.style.display = 'flex';
+      try {
+        await uploadDirectToCloudinary(file, 'post', caption);
+        showMessage('Image uploaded successfully!', 'success');
+      } catch (err) {
+        console.error('Upload error:', err);
+        showMessage('Upload failed. Please try again.', 'error');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // Standard form submission for remaining non-video uploads.
   });
 })();
 </script>

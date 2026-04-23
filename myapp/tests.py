@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from myapp.models import Post
+from myapp.models import Story
 from myapp.storage import MediaCloudinaryAutoStorage
 from myapp import storage as storage_module
 
@@ -29,6 +30,13 @@ class UploadViewTests(TestCase):
         response = self.client.get(reverse("upload"))
         self.assertContains(response, "Post")
         self.assertContains(response, "Reel")
+
+    def test_upload_page_tab_styles_override_black_theme_label_color(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("upload"))
+        self.assertContains(response, "color: var(--upload-text) !important;")
+        self.assertContains(response, "background: var(--upload-primary);")
+        self.assertContains(response, "color: #ffffff !important;")
 
     @override_settings(UPLOAD_PARALLEL_CHUNKS=1)
     def test_upload_page_uses_safe_chunk_parallelism(self):
@@ -100,6 +108,21 @@ class UploadViewTests(TestCase):
             post = self.user.posts.latest("id")
             self.assertEqual(post.type, "reel")
             self.assertTrue(post.media.name.startswith("posts/"))
+
+    def test_story_preview_url_returns_absolute_url_name(self):
+        story = Story(user=self.user, media_type="image")
+        story.image.name = "http://res.cloudinary.com/demo/image/upload/v1/stories/test.jpg"
+        self.assertEqual(
+            story.preview_url,
+            "https://res.cloudinary.com/demo/image/upload/v1/stories/test.jpg",
+        )
+
+    def test_upload_story_creates_story(self):
+        self.client.login(username=self.username, password=self.password)
+        image = SimpleUploadedFile("story.jpg", b"fake-image-bytes", content_type="image/jpeg")
+        response = self.client.post(reverse("upload_story"), {"image": image}, follow=False)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Story.objects.filter(user=self.user).exists())
 
 
 class AuthViewTests(TestCase):

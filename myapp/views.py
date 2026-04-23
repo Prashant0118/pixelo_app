@@ -2419,7 +2419,7 @@ def upload_chunk_complete(request):
                     return JsonResponse({"error": f"Missing chunk {idx}"}, status=400)
 
                 with open(chunk_path, "rb") as src:
-                    shutil.copyfileobj(src, out, length=1024 * 1024)
+                    shutil.copyfileobj(src, out, length=8 * 1024 * 1024)
         assembled_size = os.path.getsize(assembled_abs)
 
     except Exception as e:

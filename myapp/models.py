@@ -378,6 +378,9 @@ class Story(models.Model):
         if self.image:
             try:
                 name = _normalize_media_name(self.image.name or "")
+                if name.startswith(("http://", "https://")):
+                    url = _ensure_https_url(name)
+                    return url if _is_safe_media_url(url) else ""
                 storage_name = self.image.storage.__class__.__name__.lower()
                 if "cloudinary" in storage_name:
                     if name and not _storage_exists(self.image, name):
@@ -401,6 +404,9 @@ class Story(models.Model):
         if self.media:
             try:
                 name = _normalize_media_name(self.media.name or "")
+                if name.startswith(("http://", "https://")):
+                    url = _ensure_https_url(name)
+                    return url if _is_safe_media_url(url) else ""
                 storage_name = self.media.storage.__class__.__name__.lower()
                 if "cloudinary" in storage_name:
                     resource_type = "video" if self.media_type == "video" else "image"
