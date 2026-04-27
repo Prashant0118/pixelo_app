@@ -16,7 +16,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, get_backends
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET, require_POST
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, StreamingHttpResponse, FileResponse, Http404
@@ -1401,8 +1401,20 @@ def user_login(request):
             # types different casing than they registered with.
             auth_username = lookup.username if lookup else identifier
             user = authenticate(request, username=auth_username, password=password)
+            # If authenticate() failed but the user record exists and the
+            # password matches, attach a backend so `login()` will accept the
+            # user instance and sign them in.
             if user is None and lookup is not None and lookup.check_password(password):
                 user = lookup
+                try:
+                    backends = get_backends()
+                    if backends:
+                        backend_path = f"{backends[0].__module__}.{backends[0].__class__.__name__}"
+                        user.backend = backend_path
+                except Exception:
+                    # If we can't determine a backend, ensure we don't crash;
+                    # allow authenticate to remain authoritative.
+                    pass
 
         if user is not None:
             login(request, user)
