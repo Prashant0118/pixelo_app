@@ -15,6 +15,8 @@ from django.dispatch import receiver
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.shortcuts import render, redirect, get_object_or_404
+import logging
+logger = logging.getLogger(__name__)
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout, get_backends
 from django.contrib.auth.decorators import login_required
@@ -1378,6 +1380,24 @@ def register(request):
             return render(request, 'register.html', {'error': 'Email already registered'})
 
         user = User.objects.create_user(username=username, email=email, password=password1)
+        # Ensure a backend string is attached so `login()` accepts the user instance.
+        try:
+            from django.conf import settings as django_settings
+
+            backend_path = None
+            if getattr(django_settings, "AUTHENTICATION_BACKENDS", None):
+                backend_path = django_settings.AUTHENTICATION_BACKENDS[0]
+            else:
+                backends = get_backends()
+                if backends:
+                    backend_path = f"{backends[0].__module__}.{backends[0].__class__.__name__}"
+
+            if backend_path:
+                user.backend = backend_path
+        except Exception:
+            # Fail soft; allow login() to attempt without an explicit backend.
+            pass
+
         login(request, user)
         return redirect('home')
 
@@ -1396,6 +1416,12 @@ def user_login(request):
                 lookup = User.objects.filter(email__iexact=identifier).first()
             else:
                 lookup = User.objects.filter(username__iexact=identifier).first()
+
+            # Log lookup outcome for debugging (no sensitive data)
+            try:
+                logger.debug("login lookup: identifier=%s, found=%s", identifier, bool(lookup))
+            except Exception:
+                pass
 
             # Use the canonical stored username so login works even if the user
             # types different casing than they registered with.
@@ -1422,14 +1448,26 @@ def user_login(request):
 
                     if backend_path:
                         user.backend = backend_path
+                        try:
+                            logger.debug("attached backend for fallback login: %s", backend_path)
+                        except Exception:
+                            pass
                 except Exception:
                     # Fail soft: do not crash login flow if backend discovery fails.
                     pass
 
         if user is not None:
+            try:
+                logger.debug("login successful: username=%s, is_staff=%s, is_superuser=%s", user.username, getattr(user, 'is_staff', None), getattr(user, 'is_superuser', None))
+            except Exception:
+                pass
             login(request, user)
             return redirect('home')
         else:
+            try:
+                logger.debug("login failed for identifier=%s", identifier)
+            except Exception:
+                pass
             return render(request, 'login.html', {'error': 'Invalid credentials'})
 
     return render(request, 'login.html')
