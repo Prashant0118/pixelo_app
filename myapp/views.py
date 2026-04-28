@@ -1405,15 +1405,25 @@ def user_login(request):
             # password matches, attach a backend so `login()` will accept the
             # user instance and sign them in.
             if user is None and lookup is not None and lookup.check_password(password):
+                # Password matches the stored hash but authenticate() returned None.
+                # Attach a backend string so `login()` accepts the user instance.
                 user = lookup
                 try:
-                    backends = get_backends()
-                    if backends:
-                        backend_path = f"{backends[0].__module__}.{backends[0].__class__.__name__}"
+                    from django.conf import settings as django_settings
+
+                    backend_path = None
+                    if getattr(django_settings, "AUTHENTICATION_BACKENDS", None):
+                        # Prefer the configured backend path from settings
+                        backend_path = django_settings.AUTHENTICATION_BACKENDS[0]
+                    else:
+                        backends = get_backends()
+                        if backends:
+                            backend_path = f"{backends[0].__module__}.{backends[0].__class__.__name__}"
+
+                    if backend_path:
                         user.backend = backend_path
                 except Exception:
-                    # If we can't determine a backend, ensure we don't crash;
-                    # allow authenticate to remain authoritative.
+                    # Fail soft: do not crash login flow if backend discovery fails.
                     pass
 
         if user is not None:
