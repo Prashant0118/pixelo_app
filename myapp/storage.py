@@ -13,6 +13,11 @@ _VIDEO_MIMETYPES = {
     "video/x-matroska", "video/3gpp", "video/ogg", "video/x-flv",
     "video/x-ms-wmv", "application/x-mpegURL", "video/mp2t"
 }
+_AUDIO_EXTS = {".mp3", ".m4a", ".aac", ".wav", ".ogg", ".oga", ".weba", ".flac", ".opus"}
+_AUDIO_MIMETYPES = {
+    "audio/mpeg", "audio/mp4", "audio/aac", "audio/x-m4a", "audio/wav",
+    "audio/x-wav", "audio/ogg", "audio/webm", "audio/flac", "audio/opus",
+}
 
 
 def _is_video_name(name):
@@ -36,6 +41,33 @@ def _is_video_name(name):
         return "video" in raw
     
     return False
+
+
+def _is_audio_name(name):
+    """Cloudinary stores audio assets with resource_type='video'."""
+    if not name:
+        return False
+
+    ext = os.path.splitext(str(name))[1].lower()
+    if ext in _AUDIO_EXTS:
+        return True
+
+    guessed_type, _ = mimetypes.guess_type(str(name))
+    if guessed_type and guessed_type.lower() in _AUDIO_MIMETYPES:
+        return True
+
+    raw = os.path.basename(str(name)).lower()
+    if not os.path.splitext(raw)[1]:
+        return "audio" in raw or "music" in raw or "preview" in raw
+
+    return False
+
+
+def _cloudinary_resource_type(name, content=None):
+    content_type = (getattr(content, "content_type", "") or "").split(";")[0].strip().lower()
+    if content_type.startswith(("video/", "audio/")):
+        return "video"
+    return "video" if (_is_video_name(name) or _is_audio_name(name)) else "image"
 
 
 class LocalMediaStorage(FileSystemStorage):
@@ -80,8 +112,8 @@ if MediaCloudinaryStorage:
             folder = self.get_folder_name(name)
             file_name = self.get_file_name(name)
             
-            # Create options with correct resource_type
-            resource_type = "video" if _is_video_name(name) else "image"
+            # Cloudinary uses resource_type="video" for both video and audio.
+            resource_type = _cloudinary_resource_type(name, content)
             options = {
                 'resource_type': resource_type,
                 'public_id': file_name,
@@ -92,6 +124,11 @@ if MediaCloudinaryStorage:
             if hasattr(self, 'upload_options') and self.upload_options:
                 options.update(self.upload_options)
             
+            try:
+                content.seek(0)
+            except Exception:
+                pass
+
             # Upload the file directly
             import cloudinary.uploader
             response = cloudinary.uploader.upload(content, **options)
@@ -103,7 +140,10 @@ if MediaCloudinaryStorage:
 
         def url(self, name):
             """Generate URL with correct resource_type"""
-            resource_type = "video" if _is_video_name(name) else "image"
+            if str(name).startswith(("http://", "https://")):
+                return str(name)
+
+            resource_type = _cloudinary_resource_type(name)
             try:
                 import cloudinary
                 from cloudinary.utils import cloudinary_url
