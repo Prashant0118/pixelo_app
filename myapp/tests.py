@@ -217,7 +217,12 @@ class AuthViewTests(TestCase):
         self.assertEqual(login_response.status_code, 200)
         self.assertTrue(login_response.wsgi_request.user.is_authenticated)
 
-    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        EMAIL_HOST_USER="testsender@example.com",
+        EMAIL_HOST_PASSWORD="test-password",
+        DEFAULT_FROM_EMAIL="testsender@example.com",
+    )
     def test_forgot_password_otp_flow_resets_password(self):
         response = self.client.post(
             reverse("forgot_password"),

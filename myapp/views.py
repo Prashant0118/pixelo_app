@@ -1497,6 +1497,15 @@ def _password_reset_user_from_session(request):
     return User.objects.filter(id=user_id, is_active=True).first()
 
 
+def _password_reset_email_config_error():
+    email_backend = getattr(settings, "EMAIL_BACKEND", "")
+    if email_backend.endswith(".console.EmailBackend"):
+        return "Email service is not configured. Add Gmail SMTP settings in .env."
+    if not getattr(settings, "EMAIL_HOST_USER", "") or not getattr(settings, "EMAIL_HOST_PASSWORD", ""):
+        return "Email service is not configured. Add Gmail SMTP settings in .env."
+    return ""
+
+
 def forgot_password(request):
     if request.method == "POST":
         identifier = (request.POST.get("identifier", "") or "").strip()
@@ -1510,6 +1519,10 @@ def forgot_password(request):
         )
         if user is None or not user.email:
             return render(request, "forgot_password.html", {"error": "No account found with that username or email."})
+
+        config_error = _password_reset_email_config_error()
+        if config_error:
+            return render(request, "forgot_password.html", {"error": config_error})
 
         otp = f"{random.SystemRandom().randint(100000, 999999)}"
         request.session["password_reset_user_id"] = user.id
