@@ -2,10 +2,12 @@ from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
 from django.contrib.auth.models import User
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 import shutil
 import tempfile
 import unittest
+import re
 from unittest.mock import patch
 from myapp.models import Post
 from myapp.models import Story
@@ -214,6 +216,36 @@ class AuthViewTests(TestCase):
         )
         self.assertEqual(login_response.status_code, 200)
         self.assertTrue(login_response.wsgi_request.user.is_authenticated)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_forgot_password_otp_flow_resets_password(self):
+        response = self.client.post(
+            reverse("forgot_password"),
+            {"identifier": "TESTUSER@example.com"},
+        )
+        self.assertRedirects(response, reverse("verify_password_reset_otp"))
+        self.assertEqual(len(mail.outbox), 1)
+
+        otp_match = re.search(r"\b(\d{6})\b", mail.outbox[0].body)
+        self.assertIsNotNone(otp_match)
+
+        response = self.client.post(
+            reverse("verify_password_reset_otp"),
+            {"otp": otp_match.group(1)},
+        )
+        self.assertRedirects(response, reverse("reset_password"))
+
+        new_password = "NewTestpass123!"
+        response = self.client.post(
+            reverse("reset_password"),
+            {"password1": new_password, "password2": new_password},
+            follow=True,
+        )
+        self.assertRedirects(response, f"{reverse('login')}?reset=done")
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(new_password))
+        self.assertTrue(self.client.login(username=self.user.username, password=new_password))
 
 
 class PostMediaUrlTests(TestCase):

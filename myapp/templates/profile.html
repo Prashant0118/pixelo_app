@@ -8,7 +8,6 @@
 {% block content %}
 <div class="ig-profile-wrap">
     <header class="ig-topbar">
-        <a href="{% url 'upload_story' %}" class="top-icon"><i class="bi bi-plus-square"></i></a>
         <div class="top-center">
             <h6>{{ profile_user.username }}</h6>
         </div>
@@ -21,17 +20,9 @@
     </header>
 
     <section class="ig-head">
-        {% if profile_story_id %}
-        <a href="{% url 'view_story' profile_story_id %}" class="avatar-link" aria-label="View story">
-            <div class="avatar-block has-story {% if profile_story_seen %}story-seen{% else %}story-unseen{% endif %}">
-                <img src="{{ profile_user.profile.avatar_url }}" alt="{{ profile_user.username }}">
-            </div>
-        </a>
-        {% else %}
         <div class="avatar-block no-story">
             <img src="{{ profile_user.profile.avatar_url }}" alt="{{ profile_user.username }}">
         </div>
-        {% endif %}
 
         <div class="stats-row">
             <div>

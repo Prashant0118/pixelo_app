@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import time
 import re
+import random
 from collections import defaultdict
 from urllib.parse import urlencode, quote
 from urllib.request import urlopen
@@ -19,6 +20,8 @@ import logging
 logger = logging.getLogger(__name__)
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout, get_backends
+from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET, require_POST
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, StreamingHttpResponse, FileResponse, Http404
@@ -27,6 +30,8 @@ from datetime import timedelta
 from django.db.models import Q, Case, When, Value, IntegerField, Count
 from django.core.files.base import File, ContentFile
 from django.core.files.storage import default_storage
+from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
 from django.conf import settings
 from django.urls import reverse
 from myapp.models import Post, Profile, Follow, Notification, Message, Like, Comment, Story, StorySeen, ChatLock, ReelWatch, StoryMusic
@@ -1470,7 +1475,138 @@ def user_login(request):
                 pass
             return render(request, 'login.html', {'error': 'Invalid credentials'})
 
-    return render(request, 'login.html')
+    success = request.GET.get("reset") == "done"
+    return render(request, 'login.html', {"success": "Password reset successful. Please log in."} if success else {})
+
+
+def _clear_password_reset_session(request):
+    for key in (
+        "password_reset_user_id",
+        "password_reset_otp_hash",
+        "password_reset_otp_expires",
+        "password_reset_otp_attempts",
+        "password_reset_verified",
+    ):
+        request.session.pop(key, None)
+
+
+def _password_reset_user_from_session(request):
+    user_id = request.session.get("password_reset_user_id")
+    if not user_id:
+        return None
+    return User.objects.filter(id=user_id, is_active=True).first()
+
+
+def forgot_password(request):
+    if request.method == "POST":
+        identifier = (request.POST.get("identifier", "") or "").strip()
+        if not identifier:
+            return render(request, "forgot_password.html", {"error": "Enter your username or email."})
+
+        user = (
+            User.objects.filter(email__iexact=identifier).first()
+            if "@" in identifier
+            else User.objects.filter(username__iexact=identifier).first()
+        )
+        if user is None or not user.email:
+            return render(request, "forgot_password.html", {"error": "No account found with that username or email."})
+
+        otp = f"{random.SystemRandom().randint(100000, 999999)}"
+        request.session["password_reset_user_id"] = user.id
+        request.session["password_reset_otp_hash"] = make_password(otp)
+        request.session["password_reset_otp_expires"] = (timezone.now() + timedelta(minutes=10)).isoformat()
+        request.session["password_reset_otp_attempts"] = 0
+        request.session["password_reset_verified"] = False
+        request.session.modified = True
+
+        try:
+            send_mail(
+                subject="Pixelo password reset OTP",
+                message=f"Your Pixelo password reset OTP is {otp}. It will expire in 10 minutes.",
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+        except Exception:
+            logger.exception("password reset OTP email failed for user_id=%s", user.id)
+            _clear_password_reset_session(request)
+            return render(
+                request,
+                "forgot_password.html",
+                {"error": "Unable to send OTP right now. Please try again later."},
+            )
+
+        return redirect("verify_password_reset_otp")
+
+    return render(request, "forgot_password.html")
+
+
+def verify_password_reset_otp(request):
+    user = _password_reset_user_from_session(request)
+    otp_hash = request.session.get("password_reset_otp_hash")
+    expires_raw = request.session.get("password_reset_otp_expires")
+    if user is None or not otp_hash or not expires_raw:
+        _clear_password_reset_session(request)
+        return redirect("forgot_password")
+
+    try:
+        expires_at = timezone.datetime.fromisoformat(expires_raw)
+        if timezone.is_naive(expires_at):
+            expires_at = timezone.make_aware(expires_at, timezone.get_current_timezone())
+    except ValueError:
+        _clear_password_reset_session(request)
+        return redirect("forgot_password")
+
+    if timezone.now() > expires_at:
+        _clear_password_reset_session(request)
+        return render(request, "verify_password_reset_otp.html", {"error": "OTP expired. Please request a new one."})
+
+    if request.method == "POST":
+        otp = (request.POST.get("otp", "") or "").strip()
+        attempts = int(request.session.get("password_reset_otp_attempts", 0)) + 1
+        request.session["password_reset_otp_attempts"] = attempts
+        request.session.modified = True
+
+        if attempts > 5:
+            _clear_password_reset_session(request)
+            return render(request, "verify_password_reset_otp.html", {"error": "Too many wrong attempts. Please request a new OTP."})
+
+        if check_password(otp, otp_hash):
+            request.session["password_reset_verified"] = True
+            request.session.modified = True
+            return redirect("reset_password")
+
+        return render(request, "verify_password_reset_otp.html", {"error": "Invalid OTP. Please try again."})
+
+    masked_email = user.email
+    if "@" in masked_email:
+        name, domain = masked_email.split("@", 1)
+        masked_email = f"{name[:2]}***@{domain}"
+    return render(request, "verify_password_reset_otp.html", {"masked_email": masked_email})
+
+
+def reset_password(request):
+    user = _password_reset_user_from_session(request)
+    if user is None or not request.session.get("password_reset_verified"):
+        return redirect("forgot_password")
+
+    if request.method == "POST":
+        password1 = request.POST.get("password1", "")
+        password2 = request.POST.get("password2", "")
+        if password1 != password2:
+            return render(request, "reset_password.html", {"error": "Passwords do not match."})
+
+        try:
+            validate_password(password1, user=user)
+        except ValidationError as exc:
+            return render(request, "reset_password.html", {"error": " ".join(exc.messages)})
+
+        user.set_password(password1)
+        user.save(update_fields=["password"])
+        _clear_password_reset_session(request)
+        return redirect(f"{reverse('login')}?reset=done")
+
+    return render(request, "reset_password.html")
 
 
 def user_logout(request):

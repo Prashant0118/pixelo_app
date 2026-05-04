@@ -96,6 +96,11 @@
             font-size: 14px;
         }
 
+        .success-text {
+            color: #5ee2a0;
+            font-size: 14px;
+        }
+
         .form-control,
         .form-floating > .form-control {
             background: #111c2e;
@@ -149,11 +154,14 @@
             {% if error %}
                 <p class="error-text mt-3">{{ error }}</p>
             {% endif %}
+            {% if success %}
+                <p class="success-text mt-3">{{ success }}</p>
+            {% endif %}
         </form>
 
         <div class="divider">OR</div>
 
-        <p class="text-muted small">Forgot password?</p>
+        <a href="{% url 'forgot_password' %}" class="text-muted small text-decoration-none">Forgot password?</a>
 
     </div>
 
