@@ -1,0 +1,3 @@
+C:\Users\hp\OneDrive\Desktop\WEB_INSTA\venv\Lib\site-packages\django\core\handlers\base.py:61: UserWarning: No directory at: C:\Users\hp\OneDrive\Desktop\WEB_INSTA\staticfiles\
+  mw_instance = middleware(adapted_handler)
+Listen failure: Couldn't listen on 127.0.0.1:8000: [WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted.
