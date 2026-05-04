@@ -1513,14 +1513,11 @@ def forgot_password(request):
             return render(request, "forgot_password.html", {"error": "Enter your username or email."})
 
         if "@" in identifier:
-            matches = list(User.objects.filter(email__iexact=identifier, is_active=True)[:2])
-            if len(matches) > 1:
-                return render(
-                    request,
-                    "forgot_password.html",
-                    {"error": "Multiple accounts use this email. Please enter your username instead."},
-                )
-            user = matches[0] if matches else None
+            user = (
+                User.objects.filter(email__iexact=identifier, is_active=True)
+                .order_by("-last_login", "-date_joined", "-id")
+                .first()
+            )
         else:
             user = User.objects.filter(username__iexact=identifier, is_active=True).first()
         if user is None or not user.email:

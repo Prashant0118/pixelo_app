@@ -270,6 +270,25 @@ class AuthViewTests(TestCase):
         self.assertRedirects(response, reverse("verify_password_reset_otp"))
         self.assertEqual(mail.outbox[0].to, [other.email])
 
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        EMAIL_HOST_USER="testsender@example.com",
+        EMAIL_HOST_PASSWORD="test-password",
+        DEFAULT_FROM_EMAIL="testsender@example.com",
+    )
+    def test_forgot_password_duplicate_email_still_sends_otp_to_email(self):
+        User.objects.create_user(
+            username="SecondUser",
+            email=self.user.email,
+            password=self.password,
+        )
+
+        response = self.client.post(reverse("forgot_password"), {"identifier": self.user.email})
+
+        self.assertRedirects(response, reverse("verify_password_reset_otp"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.user.email])
+
 
 class PostMediaUrlTests(TestCase):
     @override_settings(
