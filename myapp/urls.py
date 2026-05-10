@@ -6,6 +6,9 @@ profile_menu_view = getattr(views, "profile_menu", views.edit_profile)
 
 urlpatterns = [
     path('ping/', ping_view),
+    path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
+    path('service-worker.js', views.pwa_service_worker, name='pwa_service_worker'),
+    path('offline/', views.offline, name='offline'),
     path('', views.home, name='home'),
     path('register/', views.register, name='register'),
     path('login/', views.user_login, name='login'),

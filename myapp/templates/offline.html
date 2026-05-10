@@ -1,0 +1,36 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Offline | Pixelo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f172a">
+    <link href="{% static 'css/vendor/bootstrap.min.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <link rel="manifest" href="{% url 'pwa_manifest' %}">
+</head>
+<body class="auth-page">
+<main class="auth-shell">
+    <section class="auth-showcase" aria-label="Pixelo offline">
+        <div class="auth-brand">
+            <span class="auth-mark">P</span>
+            <span>
+                <strong>Pixelo</strong>
+                <span>Offline mode</span>
+            </span>
+        </div>
+        <h1>You are offline right now.</h1>
+        <p>Pixelo is installed, but fresh posts, reels, chat, and uploads need an internet connection. Reconnect and refresh to continue.</p>
+    </section>
+
+    <section>
+        <div class="auth-panel">
+            <h2>No connection</h2>
+            <p class="auth-subtitle">Your app shell is ready. Network content will load once you are online again.</p>
+            <button type="button" class="btn auth-submit w-100" onclick="window.location.reload()">Try Again</button>
+        </div>
+    </section>
+</main>
+</body>
+</html>

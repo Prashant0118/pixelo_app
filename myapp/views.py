@@ -39,6 +39,33 @@ from myapp.forms import UserUpdateForm, ProfileUpdateForm, UpiIdUpdateForm
 
 
 # Create your views here.
+def _static_file_response(relative_path, content_type):
+    file_path = settings.BASE_DIR / "myapp" / "static" / relative_path
+    if not file_path.exists():
+        raise Http404
+    return FileResponse(open(file_path, "rb"), content_type=content_type)
+
+
+@require_GET
+def pwa_manifest(request):
+    response = _static_file_response("manifest.webmanifest", "application/manifest+json")
+    response["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
+@require_GET
+def pwa_service_worker(request):
+    response = _static_file_response("service-worker.js", "application/javascript")
+    response["Cache-Control"] = "no-cache"
+    response["Service-Worker-Allowed"] = "/"
+    return response
+
+
+@require_GET
+def offline(request):
+    return render(request, "offline.html")
+
+
 STORY_FILTER_LABELS = [
     ("none", "Normal"),
     ("grayscale", "Grayscale"),

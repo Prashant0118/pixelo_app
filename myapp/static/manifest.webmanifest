@@ -1,0 +1,60 @@
+{
+  "name": "Pixelo Creator Studio",
+  "short_name": "Pixelo",
+  "description": "Create posts, watch reels, chat, and manage your Pixelo profile.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "categories": ["social", "photo", "entertainment"],
+  "icons": [
+    {
+      "src": "/static/images/icons/pixelo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/images/icons/pixelo-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/images/icons/pixelo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/images/icons/pixelo-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create Post",
+      "short_name": "Create",
+      "url": "/upload/",
+      "icons": [{ "src": "/static/images/icons/pixelo-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Messages",
+      "short_name": "Chat",
+      "url": "/chat/",
+      "icons": [{ "src": "/static/images/icons/pixelo-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Reels",
+      "short_name": "Reels",
+      "url": "/reels/",
+      "icons": [{ "src": "/static/images/icons/pixelo-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

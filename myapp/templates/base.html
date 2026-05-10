@@ -1,9 +1,14 @@
 {% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Pixelo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="application-name" content="Pixelo">
+    <meta name="apple-mobile-web-app-title" content="Pixelo">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- Prefer local static assets for core styles to avoid extra network hops -->
     <link href="{% static 'css/vendor/bootstrap.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/vendor/bootstrap-icons.css' %}" rel="stylesheet">
@@ -12,6 +17,8 @@
     
     
     <link rel ="icon" href="{% static 'images/default.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/icons/pixelo-192.png' %}">
+    <link rel="manifest" href="{% url 'pwa_manifest' %}">
     {% block extra_css %}{% endblock %}
     <link rel="stylesheet" href="{% static 'css/theme_black.css' %}">
 </head>
@@ -22,31 +29,42 @@
 
     <!-- ================= Sidebar Desktop ================= -->
     <aside class="sidebar d-none d-lg-flex flex-column">
-        <h3 class="logo">Pixelo</h3>
+        <a href="{% url 'home' %}" class="app-brand" aria-label="Pixelo home">
+            <span class="app-mark">P</span>
+            <span>
+                <strong>Pixelo</strong>
+                <small>Creator Studio</small>
+            </span>
+        </a>
 
-        <nav class="nav flex-column mt-4">
+        <nav class="nav flex-column app-nav">
 
-            <a href="{% url 'home' %}" class="nav-link">
+            <a href="{% url 'home' %}" class="nav-link" data-nav="home">
                 <i class="bi bi-house"></i> Home
             </a>
 
-            <a href="{% url 'search' %}" class="nav-link">
+            <a href="{% url 'search' %}" class="nav-link" data-nav="search">
                 <i class="bi bi-search"></i> Search
             </a>
 
-            <a href="{% url 'upload' %}" class="nav-link">
+            <a href="{% url 'upload' %}" class="nav-link nav-create" data-nav="create">
                 <i class="bi bi-plus-square"></i> Create
             </a>
 
-            <a href="{% url 'reels' %}" class="nav-link">
+            <a href="{% url 'reels' %}" class="nav-link" data-nav="reels">
                 <i class="bi bi-play"></i> Reels
             </a>
 
-            <a href="{% url 'profile' request.user.username %}" class="nav-link">
+            <a href="{% url 'profile' request.user.username %}" class="nav-link" data-nav="profile">
                 <i class="bi bi-person"></i> Profile
             </a>
 
         </nav>
+
+        <div class="sidebar-footer">
+            <span class="status-dot"></span>
+            <span>Workspace ready</span>
+        </div>
     </aside>
 
 
@@ -56,12 +74,12 @@
         <!-- ================= Top Navbar ================= -->
         <div class="top-navbar">
 
-            <h5 class="brand mb-0">Pixelo</h5>
+            <a href="{% url 'home' %}" class="brand mb-0">Pixelo</a>
 
             <div class="nav-icons">
 
                 <!-- Notification -->
-                <a href="{% url 'notifications' %}" class="icon-wrapper">
+                <a href="{% url 'notifications' %}" class="icon-wrapper" aria-label="Notifications">
                     <i class="bi bi-heart"></i>
 
                     {% if notification_has_unread %}
@@ -70,7 +88,7 @@
                 </a>
 
                 <!-- Chat -->
-                <a href="{% url 'chat_inbox' %}" class="icon-wrapper">
+                <a href="{% url 'chat_inbox' %}" class="icon-wrapper" aria-label="Messages">
                     <i class="bi bi-chat-dots"></i>
 
                     {% if unread_messages > 0 %}
@@ -98,13 +116,26 @@
 
     <!-- ================= Right Panel Desktop ================= -->
     <aside class="right-panel d-none d-lg-block">
-        <div class="p-4">
-            <h6>{{ request.user.username }}</h6>
-            <p class="text-muted small">Welcome back</p>
-            <hr>
+        <div class="right-panel-inner">
+            <div class="account-card">
+                <img src="{{ request.user.profile.avatar_url }}" alt="{{ request.user.username }}">
+                <div>
+                    <h6>{{ request.user.username }}</h6>
+                    <p class="text-muted small mb-0">Welcome back</p>
+                </div>
+            </div>
 
-            <h6>Suggestions</h6>
-            <p class="text-muted small">Coming soon...</p>
+            <div class="quick-panel">
+                <h6>Quick Actions</h6>
+                <a href="{% url 'upload' %}"><i class="bi bi-cloud-arrow-up"></i> New post</a>
+                <a href="{% url 'chat_inbox' %}"><i class="bi bi-chat-dots"></i> Messages</a>
+                <a href="{% url 'notifications' %}"><i class="bi bi-bell"></i> Activity</a>
+            </div>
+
+            <div class="quick-panel muted-panel">
+                <h6>Studio Tip</h6>
+                <p class="mb-0">Keep captions short, clear, and searchable for better discovery.</p>
+            </div>
         </div>
     </aside>
 
@@ -114,23 +145,23 @@
 <!-- ================= Mobile Bottom Nav ================= -->
 <div class="mobile-bottom d-lg-none">
 
-    <a href="{% url 'home' %}">
+    <a href="{% url 'home' %}" aria-label="Home">
         <i class="bi bi-house"></i>
     </a>
 
-    <a href="{% url 'search' %}">
+    <a href="{% url 'search' %}" aria-label="Search">
         <i class="bi bi-search"></i>
     </a>
 
-    <a href="{% url 'upload' %}">
+    <a href="{% url 'upload' %}" aria-label="Create">
         <i class="bi bi-plus-square"></i>
     </a>
 
-    <a href="{% url 'reels' %}">
+    <a href="{% url 'reels' %}" aria-label="Reels">
         <i class="bi bi-play-btn"></i>
     </a>
 
-    <a href="{% url 'profile' request.user.username %}">
+    <a href="{% url 'profile' request.user.username %}" aria-label="Profile">
         <i class="bi bi-person"></i>
     </a>
 
@@ -173,6 +204,32 @@
             applyVideoFallback(vid);
         }
   });
+})();
+</script>
+<script>
+(() => {
+    const path = window.location.pathname;
+    const navMap = [
+        ["/", "home"],
+        ["/search", "search"],
+        ["/upload", "create"],
+        ["/reels", "reels"],
+        ["/profile", "profile"],
+    ];
+    const active = navMap.find(([prefix]) => prefix === "/" ? path === "/" : path.startsWith(prefix))?.[1];
+    if (!active) return;
+    document.querySelectorAll(`[data-nav="${active}"]`).forEach((link) => {
+        link.classList.add("active");
+        link.setAttribute("aria-current", "page");
+    });
+})();
+</script>
+<script>
+(() => {
+    if (!("serviceWorker" in navigator)) return;
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("{% url 'pwa_service_worker' %}", { scope: "/" }).catch(() => {});
+    });
 })();
 </script>
 

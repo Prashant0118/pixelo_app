@@ -1,196 +1,116 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Login</title>
+    <title>Login | Pixelo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <!-- Bootstrap 5 CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-
-    <style>
-        body {
-            background-color: #000000;
-            color: #e9eef8;
-            font-family: 'Poppins', sans-serif;
-        }
-
-        .login-container {
-            max-width: 380px;
-            margin: 60px auto;
-        }
-
-        .login-box {
-            background: #101a2b;
-            padding: 40px 30px;
-            border: 1px solid #3b4f6f;
-            text-align: center;
-        }
-
-        .login-box h1 {
-            font-family: cursive;
-            font-size: 40px;
-            margin-bottom: 30px;
-        }
-
-        .btn-login {
-            background: #111111;
-            border: none;
-            font-weight: 600;
-        }
-
-        .btn-login:hover {
-            background: #007adf;
-        }
-
-        .signup-box {
-            background: #101a2b;
-            padding: 20px;
-            border: 1px solid #3b4f6f;
-            text-align: center;
-            margin-top: 10px;
-        }
-
-        .divider {
-            display: flex;
-            align-items: center;
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            border-bottom: 1px solid #3b4f6f;
-        }
-
-        .divider:not(:empty)::before {
-            margin-right: .75em;
-        }
-
-        .divider:not(:empty)::after {
-            margin-left: .75em;
-        }
-
-        .password-wrapper {
-            position: relative;
-        }
-
-        .toggle-password {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            font-size: 14px;
-            color: #555;
-            color: #c3cde0;
-        }
-
-        .error-text {
-            color: #ff6b81;
-            font-size: 14px;
-        }
-
-        .success-text {
-            color: #5ee2a0;
-            font-size: 14px;
-        }
-
-        .form-control,
-        .form-floating > .form-control {
-            background: #111c2e;
-            color: #e9eef8;
-            border-color: #3b4f6f;
-        }
-
-        .form-floating > label,
-        .form-check-label,
-        .text-muted {
-            color: #c3cde0 !important;
-        }
-    </style>
+    <meta name="theme-color" content="#0f172a">
+    <meta name="application-name" content="Pixelo">
+    <meta name="apple-mobile-web-app-title" content="Pixelo">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link href="{% static 'css/vendor/bootstrap.min.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <link rel="icon" href="{% static 'images/default.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/icons/pixelo-192.png' %}">
+    <link rel="manifest" href="{% url 'pwa_manifest' %}">
 </head>
 
-<body>
-
-<div class="container login-container">
-
-    <!-- Login Box -->
-    <div class="login-box">
-
-        <h1>Pixelo</h1>
-
-        <form method="POST">
-            {% csrf_token %}
-
-            <!-- Floating Username -->
-            <div class="form-floating mb-3">
-                <input type="text" class="form-control" name="username" id="username" placeholder="Username" autocomplete="username" required>
-                <label for="username">Username</label>
+<body class="auth-page">
+<main class="auth-shell">
+    <section class="auth-showcase" aria-label="Pixelo overview">
+        <div class="auth-brand">
+            <span class="auth-mark">P</span>
+            <span>
+                <strong>Pixelo</strong>
+                <span>Creator Studio</span>
+            </span>
+        </div>
+        <h1>Share your best moments with a cleaner studio.</h1>
+        <p>Post photos, publish reels, message friends, and manage your creator profile from one focused app experience.</p>
+        <div class="auth-metrics">
+            <div class="auth-metric">
+                <strong>Stories</strong>
+                <span>Daily updates</span>
             </div>
-
-            <!-- Floating Password -->
-            <div class="form-floating mb-3 password-wrapper">
-                <input type="password" class="form-control" name="password" id="password" placeholder="Password" autocomplete="current-password" required>
-                <label for="password">Password</label>
-                <span class="toggle-password" onclick="togglePassword()">Show</span>
+            <div class="auth-metric">
+                <strong>Reels</strong>
+                <span>Short video</span>
             </div>
-
-            <!-- Remember Me -->
-            <div class="form-check text-start mb-3">
-                <input class="form-check-input" type="checkbox" name="remember" id="remember">
-                <label class="form-check-label" for="remember">
-                    Remember me
-                </label>
+            <div class="auth-metric">
+                <strong>Chat</strong>
+                <span>Private inbox</span>
             </div>
+        </div>
+    </section>
 
-            <button type="submit" class="btn btn-login w-100 text-white">Log In</button>
+    <section>
+        <div class="auth-panel">
+            <h2>Welcome back</h2>
+            <p class="auth-subtitle">Log in to continue to Pixelo.</p>
 
-            {% if error %}
-                <p class="error-text mt-3">{{ error }}</p>
-            {% endif %}
-            {% if success %}
-                <p class="success-text mt-3">{{ success }}</p>
-            {% endif %}
-        </form>
+            <form method="POST">
+                {% csrf_token %}
 
-        <div class="divider">OR</div>
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" name="username" id="username" placeholder="Username" autocomplete="username" required>
+                    <label for="username">Username</label>
+                </div>
 
-        <a href="{% url 'forgot_password' %}" class="text-muted small text-decoration-none">Forgot password?</a>
+                <div class="form-floating mb-3 password-wrapper">
+                    <input type="password" class="form-control" name="password" id="password" placeholder="Password" autocomplete="current-password" required>
+                    <label for="password">Password</label>
+                    <button type="button" class="toggle-password" onclick="togglePassword()">Show</button>
+                </div>
 
-    </div>
+                <div class="form-check text-start mb-3">
+                    <input class="form-check-input" type="checkbox" name="remember" id="remember">
+                    <label class="form-check-label" for="remember">Remember me</label>
+                </div>
 
-    <!-- Signup Box -->
-    <div class="signup-box">
-        Don’t have an account?
-        <a href="{% url 'register' %}" class="fw-bold text-decoration-none">Sign up</a>
-    </div>
+                <button type="submit" class="btn auth-submit w-100">Log In</button>
 
-</div>
+                {% if error %}
+                    <p class="error-text mt-3 mb-0">{{ error }}</p>
+                {% endif %}
+                {% if success %}
+                    <p class="success-text mt-3 mb-0">{{ success }}</p>
+                {% endif %}
+            </form>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+            <div class="auth-divider">OR</div>
+            <a href="{% url 'forgot_password' %}" class="auth-link small">Forgot password?</a>
+        </div>
+
+        <div class="auth-switch">
+            Don't have an account?
+            <a href="{% url 'register' %}" class="auth-link">Sign up</a>
+        </div>
+    </section>
+</main>
 
 <script>
-    function togglePassword() {
-        const passwordField = document.getElementById("password");
-        const toggleText = document.querySelector(".toggle-password");
-
-        if (passwordField.type === "password") {
-            passwordField.type = "text";
-            toggleText.innerText = "Hide";
-        } else {
-            passwordField.type = "password";
-            toggleText.innerText = "Show";
-        }
-    }
+(() => {
+    if (!("serviceWorker" in navigator)) return;
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("{% url 'pwa_service_worker' %}", { scope: "/" }).catch(() => {});
+    });
+})();
 </script>
+<script>
+function togglePassword() {
+    const passwordField = document.getElementById("password");
+    const toggleText = document.querySelector(".toggle-password");
 
+    if (passwordField.type === "password") {
+        passwordField.type = "text";
+        toggleText.innerText = "Hide";
+    } else {
+        passwordField.type = "password";
+        toggleText.innerText = "Show";
+    }
+}
+</script>
 </body>
 </html>
-

@@ -1,164 +1,115 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Register</title>
+    <title>Register | Pixelo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-
-    <style>
-        body {
-            background-color: #000000;
-            color: #e9eef8;
-            font-family: 'Poppins', sans-serif;
-        }
-
-        .register-container {
-            max-width: 380px;
-            margin: 40px auto;
-        }
-
-        .register-box {
-            background: #101a2b;
-            padding: 40px 30px;
-            border: 1px solid #3b4f6f;
-            text-align: center;
-        }
-
-        .register-box h1 {
-            font-family: cursive;
-            font-size: 40px;
-            margin-bottom: 20px;
-        }
-
-        .btn-register {
-            background: #111111;
-            border: none;
-            font-weight: 600;
-        }
-
-        .btn-register:hover {
-            background: #007adf;
-        }
-
-        .login-box {
-            background: #101a2b;
-            padding: 20px;
-            border: 1px solid #3b4f6f;
-            text-align: center;
-            margin-top: 10px;
-        }
-
-        .password-wrapper {
-            position: relative;
-        }
-
-        .toggle-password {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            font-size: 13px;
-            color: #555;
-            color: #c3cde0;
-        }
-
-        .error-text {
-            color: #ff6b81;
-            font-size: 14px;
-        }
-
-        .form-control,
-        .form-floating > .form-control {
-            background: #111c2e;
-            color: #e9eef8;
-            border-color: #3b4f6f;
-        }
-
-        .form-floating > label,
-        .text-muted {
-            color: #c3cde0 !important;
-        }
-    </style>
+    <meta name="theme-color" content="#0f172a">
+    <meta name="application-name" content="Pixelo">
+    <meta name="apple-mobile-web-app-title" content="Pixelo">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link href="{% static 'css/vendor/bootstrap.min.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <link rel="icon" href="{% static 'images/default.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/icons/pixelo-192.png' %}">
+    <link rel="manifest" href="{% url 'pwa_manifest' %}">
 </head>
 
-<body>
-
-<div class="container register-container">
-
-    <div class="register-box">
-
-        <h1>Pixelo</h1>
-        <p class="text-muted small mb-4">Sign up to see photos and videos from your friends.</p>
-
-        <form method="POST">
-            {% csrf_token %}
-
-            <!-- Email -->
-            <div class="form-floating mb-3">
-                <input type="email" class="form-control" name="email" id="email" placeholder="Email" autocomplete="email" required>
-                <label for="email">Email address</label>
+<body class="auth-page">
+<main class="auth-shell">
+    <section class="auth-showcase" aria-label="Pixelo overview">
+        <div class="auth-brand">
+            <span class="auth-mark">P</span>
+            <span>
+                <strong>Pixelo</strong>
+                <span>Creator Studio</span>
+            </span>
+        </div>
+        <h1>Build your creator profile in minutes.</h1>
+        <p>Create a Pixelo account to publish posts, upload reels, follow friends, and keep conversations close.</p>
+        <div class="auth-metrics">
+            <div class="auth-metric">
+                <strong>Upload</strong>
+                <span>Photos and video</span>
             </div>
-
-            <!-- Username -->
-            <div class="form-floating mb-3">
-                <input type="text" class="form-control" name="username" id="username" placeholder="Username" autocomplete="username" required>
-                <label for="username">Username</label>
+            <div class="auth-metric">
+                <strong>Discover</strong>
+                <span>Categories</span>
             </div>
-
-            <!-- Password -->
-            <div class="form-floating mb-3 password-wrapper">
-                <input type="password" class="form-control" name="password1" id="password1" placeholder="Password" autocomplete="new-password" required>
-                <label for="password1">Password</label>
-                <span class="toggle-password" onclick="togglePassword('password1', this)">Show</span>
+            <div class="auth-metric">
+                <strong>Connect</strong>
+                <span>Profiles and chat</span>
             </div>
+        </div>
+    </section>
 
-            <!-- Confirm Password -->
-            <div class="form-floating mb-3 password-wrapper">
-                <input type="password" class="form-control" name="password2" id="password2" placeholder="Confirm Password" autocomplete="new-password" required>
-                <label for="password2">Confirm Password</label>
-                <span class="toggle-password" onclick="togglePassword('password2', this)">Show</span>
-            </div>
+    <section>
+        <div class="auth-panel">
+            <h2>Create account</h2>
+            <p class="auth-subtitle">Sign up to see photos and videos from your friends.</p>
 
-            <button type="submit" class="btn btn-register w-100 text-white">Sign Up</button>
+            <form method="POST">
+                {% csrf_token %}
 
-            {% if error %}
-                <p class="error-text mt-3">{{ error }}</p>
-            {% endif %}
-        </form>
+                <div class="form-floating mb-3">
+                    <input type="email" class="form-control" name="email" id="email" placeholder="Email" autocomplete="email" required>
+                    <label for="email">Email address</label>
+                </div>
 
-    </div>
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" name="username" id="username" placeholder="Username" autocomplete="username" required>
+                    <label for="username">Username</label>
+                </div>
 
-    <div class="login-box">
-        Have an account?
-        <a href="{% url 'login' %}" class="fw-bold text-decoration-none">Log in</a>
-    </div>
+                <div class="form-floating mb-3 password-wrapper">
+                    <input type="password" class="form-control" name="password1" id="password1" placeholder="Password" autocomplete="new-password" required>
+                    <label for="password1">Password</label>
+                    <button type="button" class="toggle-password" onclick="togglePassword('password1', this)">Show</button>
+                </div>
 
-</div>
+                <div class="form-floating mb-3 password-wrapper">
+                    <input type="password" class="form-control" name="password2" id="password2" placeholder="Confirm Password" autocomplete="new-password" required>
+                    <label for="password2">Confirm Password</label>
+                    <button type="button" class="toggle-password" onclick="togglePassword('password2', this)">Show</button>
+                </div>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+                <button type="submit" class="btn auth-submit w-100">Sign Up</button>
+
+                {% if error %}
+                    <p class="error-text mt-3 mb-0">{{ error }}</p>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="auth-switch">
+            Have an account?
+            <a href="{% url 'login' %}" class="auth-link">Log in</a>
+        </div>
+    </section>
+</main>
 
 <script>
-    function togglePassword(fieldId, element) {
-        const field = document.getElementById(fieldId);
-
-        if (field.type === "password") {
-            field.type = "text";
-            element.innerText = "Hide";
-        } else {
-            field.type = "password";
-            element.innerText = "Show";
-        }
-    }
+(() => {
+    if (!("serviceWorker" in navigator)) return;
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("{% url 'pwa_service_worker' %}", { scope: "/" }).catch(() => {});
+    });
+})();
 </script>
+<script>
+function togglePassword(fieldId, element) {
+    const field = document.getElementById(fieldId);
 
+    if (field.type === "password") {
+        field.type = "text";
+        element.innerText = "Hide";
+    } else {
+        field.type = "password";
+        element.innerText = "Show";
+    }
+}
+</script>
 </body>
 </html>
-
