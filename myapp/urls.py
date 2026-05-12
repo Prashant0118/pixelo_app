@@ -1,11 +1,14 @@
 from django.urls import path 
 from . import views
+from . import api_views
 from .views import ping_view
 
 profile_menu_view = getattr(views, "profile_menu", views.edit_profile)
 
 urlpatterns = [
     path('ping/', ping_view),
+    path('api/home-videos/', api_views.home_videos, name='api_home_videos'),
+    path('api/reels-videos/', api_views.reels_videos, name='api_reels_videos'),
     path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
     path('service-worker.js', views.pwa_service_worker, name='pwa_service_worker'),
     path('offline/', views.offline, name='offline'),

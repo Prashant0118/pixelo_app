@@ -13,6 +13,8 @@ from myapp.models import Post
 from myapp.models import Story
 from myapp.storage import MediaCloudinaryAutoStorage
 from myapp import storage as storage_module
+from django.core.cache import cache
+from myapp.services.youtube import fetch_home_videos, fetch_reels_videos, parse_iso8601_duration
 
 
 class UploadViewTests(TestCase):
@@ -125,6 +127,106 @@ class UploadViewTests(TestCase):
         response = self.client.post(reverse("upload_story"), {"image": image}, follow=False)
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Story.objects.filter(user=self.user).exists())
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class YouTubeVideoApiTests(TestCase):
+    def test_parse_iso8601_duration(self):
+        self.assertEqual(parse_iso8601_duration("PT59S"), 59)
+        self.assertEqual(parse_iso8601_duration("PT1M"), 60)
+        self.assertEqual(parse_iso8601_duration("PT1H2M3S"), 3723)
+
+    @override_settings(YOUTUBE_API_KEY="test-key", YOUTUBE_API_CACHE_SECONDS=1)
+    @patch("myapp.services.youtube.requests.get")
+    def test_service_splits_home_and_reels_by_duration(self, mock_get):
+        cache.clear()
+
+        class FakeResponse:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self.payload
+
+        search_payload = {
+            "items": [
+                {"id": {"videoId": "long1"}},
+                {"id": {"videoId": "short1"}},
+            ]
+        }
+        details_payload = {
+            "items": [
+                {
+                    "id": "long1",
+                    "snippet": {
+                        "title": "Long Lesson",
+                        "channelTitle": "Pixelo Academy",
+                        "thumbnails": {"high": {"url": "https://example.com/long.jpg"}},
+                    },
+                    "contentDetails": {"duration": "PT10M"},
+                },
+                {
+                    "id": "short1",
+                    "snippet": {
+                        "title": "Quick Tip",
+                        "channelTitle": "Pixelo Academy",
+                        "thumbnails": {"high": {"url": "https://example.com/short.jpg"}},
+                    },
+                    "contentDetails": {"duration": "PT45S"},
+                },
+            ]
+        }
+        mock_get.side_effect = [
+            FakeResponse(search_payload),
+            FakeResponse(details_payload),
+            FakeResponse(search_payload),
+            FakeResponse(details_payload),
+        ]
+
+        home_videos = fetch_home_videos(max_results=5, query="math")
+        reels_videos = fetch_reels_videos(max_results=5, query="math shorts")
+
+        self.assertEqual([video["videoId"] for video in home_videos], ["long1"])
+        self.assertEqual([video["videoId"] for video in reels_videos], ["short1"])
+        self.assertEqual(mock_get.call_args_list[0].kwargs["params"]["videoCategoryId"], "27")
+        self.assertEqual(mock_get.call_args_list[0].kwargs["params"]["safeSearch"], "strict")
+
+    @patch("myapp.api_views.fetch_home_videos")
+    def test_home_videos_api_returns_video_payload(self, mock_fetch):
+        mock_fetch.return_value = [
+            {
+                "title": "Learn Algebra",
+                "thumbnail": "https://example.com/thumb.jpg",
+                "videoId": "abc123",
+                "channelName": "Math Channel",
+            }
+        ]
+
+        response = self.client.get(reverse("api_home_videos"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["videos"][0]["videoId"], "abc123")
+        mock_fetch.assert_called_once()
+
+    @patch("myapp.api_views.fetch_reels_videos")
+    def test_reels_videos_api_returns_video_payload(self, mock_fetch):
+        mock_fetch.return_value = [
+            {
+                "title": "One Minute Science",
+                "thumbnail": "https://example.com/short.jpg",
+                "videoId": "short1",
+                "channelName": "Science Shorts",
+            }
+        ]
+
+        response = self.client.get(reverse("api_reels_videos"), {"limit": "5"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["videos"][0]["channelName"], "Science Shorts")
+        mock_fetch.assert_called_once()
 
 
 class AuthViewTests(TestCase):

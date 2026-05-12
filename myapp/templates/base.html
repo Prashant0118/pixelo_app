@@ -233,7 +233,200 @@
 })();
 </script>
 
-</body>
-</html>
+<!-- YouTube Videos Handler -->
+<script>
+async function loadYoutubeVideos() {
+    try {
+        const response = await fetch('/api/home-videos/?max_results=8&q=educational%20tutorial');
+        const data = await response.json();
+        
+        if (data.videos && data.videos.length > 0) {
+            const container = document.getElementById('youtubeVideosContainer');
+            const section = document.getElementById('youtubeSection');
+            
+            container.innerHTML = '';
+            data.videos.forEach(video => {
+                const videoCard = document.createElement('div');
+                videoCard.className = 'youtube-video-card';
+                videoCard.innerHTML = `
+                    <div class="youtube-video-thumbnail" onclick="playYoutubeVideo('${video.videoId}')">
+                        <img src="${video.thumbnail}" alt="${video.title}" loading="lazy">
+                        <div class="youtube-play-overlay">
+                            <i class="bi bi-play-circle-fill"></i>
+                        </div>
+                    </div>
+                    <div class="youtube-video-info">
+                        <h6 class="youtube-video-title">${video.title}</h6>
+                        <p class="youtube-video-channel">${video.channelName}</p>
+                    </div>
+                `;
+                container.appendChild(videoCard);
+            });
+            
+            if (section) {
+                section.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading YouTube videos:', error);
+    }
+}
+
+async function loadYoutubeReels() {
+    try {
+        const response = await fetch('/api/reels-videos/?max_results=12&q=educational%20tutorial%20shorts');
+        const data = await response.json();
+        
+        if (data.videos && data.videos.length > 0) {
+            const container = document.getElementById('youtubeReelsContainer');
+            const section = document.getElementById('youtubeReelsSection');
+            
+            container.innerHTML = '';
+            data.videos.forEach(video => {
+                const videoCard = document.createElement('div');
+                videoCard.className = 'youtube-reel-item';
+                videoCard.innerHTML = `
+                    <div class="youtube-reel-video" onclick="playYoutubeReelVideo('${video.videoId}')">
+                        <img src="${video.thumbnail}" alt="${video.title}" loading="lazy">
+                        <div class="youtube-reel-overlay">
+                            <i class="bi bi-play-circle-fill"></i>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(videoCard);
+            });
+            
+            if (section) {
+                section.style.display = 'flex';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading YouTube reels:', error);
+    }
+}
+
+function playYoutubeVideo(videoId) {
+    const modal = document.createElement('div');
+    modal.className = 'youtube-player-modal';
+    modal.innerHTML = `
+        <div class="youtube-player-container">
+            <button class="youtube-player-close" onclick="this.parentElement.parentElement.remove()" aria-label="Close">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            <iframe 
+                width="100%" 
+                height="100%" 
+                src="https://www.youtube.com/embed/${videoId}?autoplay=1" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowfullscreen>
+            </iframe>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function playYoutubeReelVideo(videoId) {
+    const modal = document.createElement('div');
+    modal.className = 'youtube-reel-player-modal';
+    modal.innerHTML = `
+        <button class="youtube-reel-player-close" onclick="this.parentElement.remove()" aria-label="Close">
+            <i class="bi bi-x-lg"></i>
+        </button>
+        <iframe 
+            src="https://www.youtube.com/embed/${videoId}?autoplay=1" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen>
+        </iframe>
+    `;
+    document.body.appendChild(modal);
+}
+
+function closeYoutubeReels() {
+    const section = document.getElementById('youtubeReelsSection');
+    if (section) {
+        section.style.display = 'none';
+    }
+}
+
+// Load YouTube videos on home and reels pages — use app category when available
+document.addEventListener('DOMContentLoaded', () => {
+    // Determine query from app category if provided
+    const category = (window.YT_SELECTED_CATEGORY || '').trim();
+    if (document.getElementById('youtubeVideosContainer')) {
+        // Update loader to pass category as query when available
+        if (category) {
+            // override load function to use category
+            loadYoutubeVideos = async function() {
+                try {
+                    const q = encodeURIComponent(category);
+                    const response = await fetch(`/api/home-videos/?max_results=8&q=${q}`);
+                    const data = await response.json();
+                    if (data.videos && data.videos.length > 0) {
+                        const container = document.getElementById('youtubeVideosContainer');
+                        const section = document.getElementById('youtubeSection');
+                        container.innerHTML = '';
+                        data.videos.forEach(video => {
+                            const videoCard = document.createElement('div');
+                            videoCard.className = 'youtube-video-card';
+                            videoCard.innerHTML = `
+                                <div class="youtube-video-thumbnail" onclick="playYoutubeVideo('${video.videoId}')">
+                                    <img src="${video.thumbnail}" alt="${video.title}" loading="lazy">
+                                    <div class="youtube-play-overlay">
+                                        <i class="bi bi-play-circle-fill"></i>
+                                    </div>
+                                </div>
+                                <div class="youtube-video-info">
+                                    <h6 class="youtube-video-title">${video.title}</h6>
+                                    <p class="youtube-video-channel">${video.channelName}</p>
+                                </div>
+                            `;
+                            container.appendChild(videoCard);
+                        });
+                        if (section) section.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error loading YouTube videos (category):', error);
+                }
+            };
+        }
+        loadYoutubeVideos();
+    }
+    if (document.getElementById('youtubeReelsContainer')) {
+        if (category) {
+            loadYoutubeReels = async function() {
+                try {
+                    const q = encodeURIComponent(category + ' shorts');
+                    const response = await fetch(`/api/reels-videos/?max_results=12&q=${q}`);
+                    const data = await response.json();
+                    if (data.videos && data.videos.length > 0) {
+                        const container = document.getElementById('youtubeReelsContainer');
+                        const section = document.getElementById('youtubeReelsSection');
+                        container.innerHTML = '';
+                        data.videos.forEach(video => {
+                            const videoCard = document.createElement('div');
+                            videoCard.className = 'youtube-reel-item';
+                            videoCard.innerHTML = `
+                                <div class="youtube-reel-video" onclick="playYoutubeReelVideo('${video.videoId}')">
+                                    <img src="${video.thumbnail}" alt="${video.title}" loading="lazy">
+                                    <div class="youtube-reel-overlay">
+                                        <i class="bi bi-play-circle-fill"></i>
+                                    </div>
+                                </div>
+                            `;
+                            container.appendChild(videoCard);
+                        });
+                        if (section) section.style.display = 'flex';
+                    }
+                } catch (error) {
+                    console.error('Error loading YouTube reels (category):', error);
+                }
+            };
+        }
+        loadYoutubeReels();
+    }
+});
+</script>
 
 

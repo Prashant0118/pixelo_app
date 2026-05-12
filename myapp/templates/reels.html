@@ -44,6 +44,11 @@
     <i class="bi bi-arrow-left"></i>
 </button>
 
+<script>
+// Expose selected category to global JS for YouTube queries on reels page
+window.YT_SELECTED_CATEGORY = "{{ selected_category|escapejs }}" || "";
+</script>
+
 <div class="reels-feed" id="reelsFeed">
     {% if reels %}
         {% for reel in reels %}

@@ -12,7 +12,6 @@ from collections import defaultdict
 from urllib.parse import urlencode, quote
 from urllib.request import urlopen
 
-from django.dispatch import receiver
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.shortcuts import render, redirect, get_object_or_404
@@ -21,7 +20,6 @@ logger = logging.getLogger(__name__)
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout, get_backends
 from django.contrib.auth.hashers import make_password, check_password
-from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET, require_POST
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, StreamingHttpResponse, FileResponse, Http404
