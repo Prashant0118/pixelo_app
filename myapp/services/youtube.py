@@ -84,7 +84,7 @@ def _fetch_educational_videos(mode, max_results, query, include_shorts):
 
 
 def _api_key():
-    return (getattr(settings, "YOUTUBE_API_KEY", "") or "").strip()
+    return "AIzaSyA8SQSkorFcKhlBgUtSuCKstCrIOZsR4Xk"
 
 
 def _clamp_max_results(value):
