@@ -167,6 +167,7 @@ class YouTubeVideoApiTests(TestCase):
                         "thumbnails": {"high": {"url": "https://example.com/long.jpg"}},
                     },
                     "contentDetails": {"duration": "PT10M"},
+                    "status": {"privacyStatus": "public", "embeddable": True},
                 },
                 {
                     "id": "short1",
@@ -176,6 +177,7 @@ class YouTubeVideoApiTests(TestCase):
                         "thumbnails": {"high": {"url": "https://example.com/short.jpg"}},
                     },
                     "contentDetails": {"duration": "PT45S"},
+                    "status": {"privacyStatus": "public", "embeddable": True},
                 },
             ]
         }
@@ -192,6 +194,7 @@ class YouTubeVideoApiTests(TestCase):
         self.assertEqual([video["videoId"] for video in home_videos], ["long1"])
         self.assertEqual([video["videoId"] for video in reels_videos], ["short1"])
         self.assertEqual(mock_get.call_args_list[0].kwargs["params"]["videoCategoryId"], "27")
+        self.assertEqual(mock_get.call_args_list[0].kwargs["params"]["videoEmbeddable"], "true")
         self.assertEqual(mock_get.call_args_list[0].kwargs["params"]["safeSearch"], "strict")
 
     @patch("myapp.api_views.fetch_home_videos")

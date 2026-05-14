@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 from hashlib import sha256
 from dataclasses import dataclass
@@ -84,7 +85,7 @@ def _fetch_educational_videos(mode, max_results, query, include_shorts):
 
 
 def _api_key():
-    return "AIzaSyA8SQSkorFcKhlBgUtSuCKstCrIOZsR4Xk"
+    return (getattr(settings, "YOUTUBE_API_KEY", "") or os.getenv("YOUTUBE_API_KEY", "")).strip()
 
 
 def _clamp_max_results(value):
@@ -102,6 +103,7 @@ def _search_video_ids(api_key, query, max_results):
         "q": query or DEFAULT_QUERY,
         "maxResults": max_results,
         "videoCategoryId": EDUCATION_CATEGORY_ID,
+        "videoEmbeddable": "true",
         "safeSearch": "strict",
         "key": api_key,
     }
@@ -122,7 +124,7 @@ def _fetch_video_details(api_key, video_ids: Iterable[str]):
         return []
 
     params = {
-        "part": "snippet,contentDetails",
+        "part": "snippet,contentDetails,status",
         "id": ",".join(ids[:50]),
         "key": api_key,
     }
@@ -131,9 +133,12 @@ def _fetch_video_details(api_key, video_ids: Iterable[str]):
     for item in payload.get("items", []):
         snippet = item.get("snippet") or {}
         content_details = item.get("contentDetails") or {}
+        status = item.get("status") or {}
         video_id = (item.get("id") or "").strip()
         title = (snippet.get("title") or "").strip()
         if not (video_id and title):
+            continue
+        if status and (status.get("privacyStatus") != "public" or status.get("embeddable") is False):
             continue
 
         videos.append(

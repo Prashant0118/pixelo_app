@@ -213,6 +213,7 @@
   });
 })();
 </script>
+
 <script>
 (() => {
     const path = window.location.pathname;
@@ -363,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const category = (window.YT_SELECTED_CATEGORY || '').trim();
     if (document.getElementById('youtubeVideosContainer')) {
         // Update loader to pass category as query when available
-        if (category) {
+        if (false && category) {
             // override load function to use category
             loadYoutubeVideos = async function() {
                 try {
@@ -401,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadYoutubeVideos();
     }
     if (document.getElementById('youtubeReelsContainer')) {
-        if (category) {
+        if (false && category) {
             loadYoutubeReels = async function() {
                 try {
                     const q = encodeURIComponent(category + ' shorts');
@@ -435,5 +436,173 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
+<script>
+// YouTube Videos Handler
+function isValidYoutubeVideoId(videoId) {
+    return /^[a-zA-Z0-9_-]{11}$/.test(String(videoId || ""));
+}
 
+function youtubeEmbedUrl(videoId) {
+    const params = new URLSearchParams({
+        autoplay: "1",
+        rel: "0",
+        modestbranding: "1",
+        playsinline: "1",
+        origin: window.location.origin
+    });
+    return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
+}
 
+function closeYoutubePlayer(modal) {
+    if (!modal) return;
+    const iframe = modal.querySelector("iframe");
+    if (iframe) iframe.src = "about:blank";
+    modal.remove();
+}
+
+function createYoutubeIframe(videoId, title) {
+    const iframe = document.createElement("iframe");
+    iframe.src = youtubeEmbedUrl(videoId);
+    iframe.title = title || "YouTube video player";
+    iframe.loading = "eager";
+    iframe.referrerPolicy = "strict-origin-when-cross-origin";
+    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+    iframe.allowFullscreen = true;
+    return iframe;
+}
+
+function buildYoutubeThumb(video, className, playHandler, labelFallback) {
+    const thumb = document.createElement("button");
+    const img = document.createElement("img");
+    const overlay = document.createElement("span");
+    const icon = document.createElement("i");
+
+    thumb.type = "button";
+    thumb.className = className;
+    thumb.setAttribute("aria-label", `Play ${video.title || labelFallback}`);
+    thumb.addEventListener("click", () => playHandler(video.videoId, video.title));
+    img.src = video.thumbnail || "";
+    img.alt = video.title || labelFallback;
+    img.loading = "lazy";
+    overlay.className = className === "youtube-reel-video" ? "youtube-reel-overlay" : "youtube-play-overlay";
+    icon.className = "bi bi-play-circle-fill";
+
+    overlay.appendChild(icon);
+    thumb.append(img, overlay);
+    return thumb;
+}
+
+function renderYoutubeVideos(videos) {
+    const container = document.getElementById("youtubeVideosContainer");
+    const section = document.getElementById("youtubeSection");
+    if (!container || !section) return;
+
+    container.innerHTML = "";
+    const playableVideos = (videos || []).filter((video) => isValidYoutubeVideoId(video.videoId));
+    playableVideos.forEach((video) => {
+        const card = document.createElement("div");
+        const info = document.createElement("div");
+        const title = document.createElement("h6");
+        const channel = document.createElement("p");
+
+        card.className = "youtube-video-card";
+        info.className = "youtube-video-info";
+        title.className = "youtube-video-title";
+        title.textContent = video.title || "YouTube video";
+        channel.className = "youtube-video-channel";
+        channel.textContent = video.channelName || "YouTube";
+
+        info.append(title, channel);
+        card.append(buildYoutubeThumb(video, "youtube-video-thumbnail", playYoutubeVideo, "YouTube video"), info);
+        container.appendChild(card);
+    });
+    section.style.display = playableVideos.length ? "block" : "none";
+}
+
+function renderYoutubeReels(videos) {
+    const container = document.getElementById("youtubeReelsContainer");
+    const section = document.getElementById("youtubeReelsSection");
+    if (!container || !section) return;
+
+    container.innerHTML = "";
+    const playableVideos = (videos || []).filter((video) => isValidYoutubeVideoId(video.videoId));
+    playableVideos.forEach((video) => {
+        const card = document.createElement("div");
+        card.className = "youtube-reel-item";
+        card.appendChild(buildYoutubeThumb(video, "youtube-reel-video", playYoutubeReelVideo, "YouTube reel"));
+        container.appendChild(card);
+    });
+    section.style.display = playableVideos.length ? "flex" : "none";
+}
+
+loadYoutubeVideos = async function() {
+    try {
+        const query = encodeURIComponent((window.YT_SELECTED_CATEGORY || "educational tutorial").trim() || "educational tutorial");
+        const response = await fetch(`/api/home-videos/?max_results=8&q=${query}`);
+        const data = await response.json();
+        renderYoutubeVideos(data.videos || []);
+    } catch (error) {
+        console.error("Error loading YouTube videos:", error);
+    }
+};
+
+loadYoutubeReels = async function() {
+    try {
+        const baseQuery = (window.YT_SELECTED_CATEGORY || "educational tutorial").trim() || "educational tutorial";
+        const query = encodeURIComponent(`${baseQuery} shorts`);
+        const response = await fetch(`/api/reels-videos/?max_results=12&q=${query}`);
+        const data = await response.json();
+        renderYoutubeReels(data.videos || []);
+    } catch (error) {
+        console.error("Error loading YouTube reels:", error);
+    }
+};
+
+playYoutubeVideo = function(videoId, title) {
+    if (!isValidYoutubeVideoId(videoId)) return;
+    const modal = document.createElement("div");
+    const container = document.createElement("div");
+    const closeBtn = document.createElement("button");
+    const closeIcon = document.createElement("i");
+
+    modal.className = "youtube-player-modal";
+    container.className = "youtube-player-container";
+    closeBtn.type = "button";
+    closeBtn.className = "youtube-player-close";
+    closeBtn.setAttribute("aria-label", "Close");
+    closeBtn.addEventListener("click", () => closeYoutubePlayer(modal));
+    closeIcon.className = "bi bi-x-lg";
+    closeBtn.appendChild(closeIcon);
+    container.append(closeBtn, createYoutubeIframe(videoId, title));
+    modal.appendChild(container);
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeYoutubePlayer(modal);
+    });
+    document.body.appendChild(modal);
+};
+
+playYoutubeReelVideo = function(videoId, title) {
+    if (!isValidYoutubeVideoId(videoId)) return;
+    const modal = document.createElement("div");
+    const closeBtn = document.createElement("button");
+    const closeIcon = document.createElement("i");
+
+    modal.className = "youtube-reel-player-modal";
+    closeBtn.type = "button";
+    closeBtn.className = "youtube-reel-player-close";
+    closeBtn.setAttribute("aria-label", "Close");
+    closeBtn.addEventListener("click", () => closeYoutubePlayer(modal));
+    closeIcon.className = "bi bi-x-lg";
+    closeBtn.appendChild(closeIcon);
+    modal.append(closeBtn, createYoutubeIframe(videoId, title));
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeYoutubePlayer(modal);
+    });
+    document.body.appendChild(modal);
+};
+
+document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    closeYoutubePlayer(document.querySelector(".youtube-player-modal, .youtube-reel-player-modal"));
+});
+</script>
