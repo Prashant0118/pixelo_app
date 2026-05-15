@@ -109,8 +109,25 @@
                         {% block content %}
                         {% endblock %}
                         <!-- YouTube Educational Videos Section (hidden by default, shown by JS if videos exist) -->
-                        <div id="youtubeSection" style="display:none;">
-                            <div id="youtubeVideosContainer"></div>
+                        <div id="youtubeSection" style="{% if home_videos %}display:block;{% else %}display:none;{% endif %}">
+                            <div id="youtubeVideosContainer">
+                                {% if home_videos %}
+                                    <div class="youtube-videos-grid">
+                                        {% for video in home_videos %}
+                                            <div class="youtube-video-card">
+                                                <button type="button" class="youtube-video-thumbnail" onclick="playYoutubeVideo('{{ video.videoId }}')" aria-label="Play {{ video.title|default:'YouTube video' }}">
+                                                    <img src="{{ video.thumbnail }}" alt="{{ video.title }}" loading="lazy">
+                                                    <span class="youtube-play-overlay"><i class="bi bi-play-circle-fill"></i></span>
+                                                </button>
+                                                <div class="youtube-video-info">
+                                                    <h6 class="youtube-video-title">{{ video.title }}</h6>
+                                                    <p class="youtube-video-channel">{{ video.channelName }}</p>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
                         <div id="youtubeReelsSection" style="display:none;">
                             <div id="youtubeReelsContainer"></div>

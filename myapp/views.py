@@ -25,6 +25,7 @@ from django.views.decorators.http import require_GET, require_POST
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, StreamingHttpResponse, FileResponse, Http404
 from django.utils import timezone
 from datetime import timedelta
+from myapp.services.youtube import fetch_home_videos, YouTubeServiceError
 from django.db.models import Q, Case, When, Value, IntegerField, Count
 from django.core.files.base import File, ContentFile
 from django.core.files.storage import default_storage
@@ -1114,6 +1115,14 @@ def home(request):
         "saved_post_ids": saved_post_ids,
         "share_followers": _shareable_followers(request.user),
     }
+
+    # Try to fetch a small set of YouTube videos server-side so the home
+    # page can show thumbnails even if frontend JS fails. Fail soft on errors.
+    try:
+        try_query = (selected_category or "All")
+        context["home_videos"] = fetch_home_videos(max_results=8, query=try_query)
+    except YouTubeServiceError:
+        context["home_videos"] = []
 
     return render(request, 'home.html', context)
 
