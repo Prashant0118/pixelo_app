@@ -564,6 +564,22 @@ loadYoutubeVideos = async function() {
     }
 };
 
+// Load YouTube IFrame API asynchronously and expose readiness flag
+(function loadYouTubeIframeAPI(){
+    if (window.YT && window.YT.Player) {
+        window.YT_API_READY = true;
+        return;
+    }
+    window.YT_API_READY = false;
+    var tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    window.onYouTubeIframeAPIReady = function() {
+        window.YT_API_READY = true;
+    };
+})();
+
 loadYoutubeReels = async function() {
     try {
         const baseQuery = (window.YT_SELECTED_CATEGORY || "educational tutorial").trim() || "educational tutorial";
@@ -585,38 +601,57 @@ playYoutubeVideo = function(videoId, title) {
 
     modal.className = "youtube-player-modal";
     container.className = "youtube-player-container";
+    const playerContainerId = 'ytplayer-' + Math.random().toString(36).substr(2,8);
+    container.id = playerContainerId;
+
     closeBtn.type = "button";
     closeBtn.className = "youtube-player-close";
     closeBtn.setAttribute("aria-label", "Close");
-    closeBtn.addEventListener("click", () => closeYoutubePlayer(modal));
+    closeBtn.addEventListener("click", () => {
+        // destroy player if created by API
+        const inner = document.getElementById(playerContainerId);
+        if (inner && inner._yt_player && typeof inner._yt_player.destroy === 'function') {
+            try { inner._yt_player.destroy(); } catch (e) {}
+        }
+        closeYoutubePlayer(modal);
+    });
     closeIcon.className = "bi bi-x-lg";
     closeBtn.appendChild(closeIcon);
-    container.append(closeBtn, createYoutubeIframe(videoId, title));
+
     modal.appendChild(container);
+    // click outside to close
     modal.addEventListener("click", (event) => {
         if (event.target === modal) closeYoutubePlayer(modal);
     });
     document.body.appendChild(modal);
+
+    // If IFrame API is ready, instantiate YT.Player
+    if (window.YT_API_READY && window.YT && window.YT.Player) {
+        const player = new YT.Player(playerContainerId, {
+            videoId: videoId,
+            playerVars: { autoplay: 1, rel: 0, modestbranding: 1, playsinline: 1 },
+            events: {
+                onReady: function(e) { try { e.target.playVideo(); } catch (err) {} }
+            }
+        });
+        // store for cleanup
+        const inner = document.getElementById(playerContainerId);
+        if (inner) inner._yt_player = player;
+        return;
+    }
+
+    // Fallback to iframe embed
+    const iframe = createYoutubeIframe(videoId, title);
+    // place close button on top
+    container.appendChild(closeBtn);
+    container.appendChild(iframe);
 };
 
 playYoutubeReelVideo = function(videoId, title) {
-    if (!isValidYoutubeVideoId(videoId)) return;
-    const modal = document.createElement("div");
-    const closeBtn = document.createElement("button");
-    const closeIcon = document.createElement("i");
-
-    modal.className = "youtube-reel-player-modal";
-    closeBtn.type = "button";
-    closeBtn.className = "youtube-reel-player-close";
-    closeBtn.setAttribute("aria-label", "Close");
-    closeBtn.addEventListener("click", () => closeYoutubePlayer(modal));
-    closeIcon.className = "bi bi-x-lg";
-    closeBtn.appendChild(closeIcon);
-    modal.append(closeBtn, createYoutubeIframe(videoId, title));
-    modal.addEventListener("click", (event) => {
-        if (event.target === modal) closeYoutubePlayer(modal);
-    });
-    document.body.appendChild(modal);
+    // Reuse the same player creation — then convert modal to reel style
+    playYoutubeVideo(videoId, title);
+    const modal = document.querySelector('.youtube-player-modal');
+    if (modal) modal.className = 'youtube-reel-player-modal';
 };
 
 document.addEventListener("keydown", (event) => {
