@@ -7,6 +7,7 @@ from typing import Iterable
 from urllib.parse import urljoin
 
 import requests
+import time
 from django.conf import settings
 from django.core.cache import cache
 
@@ -154,15 +155,34 @@ def _fetch_video_details(api_key, video_ids: Iterable[str]):
 
 
 def _get(path, params):
-    try:
-        response = requests.get(urljoin(YOUTUBE_API_BASE, path), params=params, timeout=8)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException as exc:
-        logger.warning("YouTube API request failed: %s", exc)
-        raise YouTubeServiceError("Unable to fetch YouTube videos right now.") from exc
-    except ValueError as exc:
-        raise YouTubeServiceError("YouTube API returned an invalid response.") from exc
+    url = urljoin(YOUTUBE_API_BASE, path)
+    attempts = 3
+    for attempt in range(1, attempts + 1):
+        try:
+            response = requests.get(url, params=params, timeout=8)
+            # If non-200, log and retry for server errors
+            if response.status_code != 200:
+                logger.warning(
+                    "YouTube API non-200 response (attempt %s): %s %s",
+                    attempt,
+                    response.status_code,
+                    (response.text or '')[:200],
+                )
+                if response.status_code >= 500 and attempt < attempts:
+                    time.sleep(0.5 * attempt)
+                    continue
+                raise YouTubeServiceError(f"YouTube API error: {response.status_code}")
+            try:
+                return response.json()
+            except ValueError as exc:
+                logger.warning("YouTube API returned invalid JSON: %s", exc)
+                raise YouTubeServiceError("YouTube API returned an invalid response.") from exc
+        except requests.RequestException as exc:
+            logger.warning("YouTube API request failed (attempt %s): %s", attempt, exc)
+            if attempt < attempts:
+                time.sleep(0.5 * attempt)
+                continue
+            raise YouTubeServiceError("Unable to fetch YouTube videos right now.") from exc
 
 
 def _best_thumbnail(thumbnails):

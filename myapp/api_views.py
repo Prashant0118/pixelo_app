@@ -1,11 +1,14 @@
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
+import logging
 
 from myapp.services.youtube import (
     YouTubeServiceError,
     fetch_home_videos,
     fetch_reels_videos,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _max_results(request):
@@ -24,7 +27,9 @@ def home_videos(request):
             query=_query(request, "educational tutorial learning"),
         )
     except YouTubeServiceError as exc:
-        return JsonResponse({"videos": [], "error": str(exc)}, status=503)
+        # Return empty list (200) so frontend can continue to render other content.
+        logger.warning("YouTube service error for home_videos: %s", exc)
+        return JsonResponse({"videos": [], "error": str(exc)})
     return JsonResponse({"videos": videos})
 
 
@@ -36,5 +41,7 @@ def reels_videos(request):
             query=_query(request, "educational tutorial learning shorts"),
         )
     except YouTubeServiceError as exc:
-        return JsonResponse({"videos": [], "error": str(exc)}, status=503)
+        # Return empty list (200) so frontend can continue to render other content.
+        logger.warning("YouTube service error for reels_videos: %s", exc)
+        return JsonResponse({"videos": [], "error": str(exc)})
     return JsonResponse({"videos": videos})
